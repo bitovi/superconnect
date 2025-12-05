@@ -30,9 +30,9 @@ Superconnect is an AI-enhanced tool that turns a Figma design system file and a 
         - Agent backend (default to claude with claude-haiku-4-5)
 
       This will:
+        - Scan your repo for components/exports
         - Scan your Figma file and find all the components
-        - Scan your repo
-        - Run code generation to produce codeConnect/*.figma.tsx
+        - Run orientation + code generation to produce codeConnect/*.figma.tsx
         - Report on which components it was able to code gen, which it wasn't, and why
         - Write figma.config.json in the repo root for Code Connect to discover generated files
 
@@ -53,17 +53,17 @@ Superconnect is configured via a superconnect.toml in the current working direct
 
 Superconnect runs five logical stages:
 
-  1. Figma scan (scripts/figma-scan.js) -- scans a design system in Figma and extracts component metadata
+  1. Repo summarizer (scripts/summarize-repo.js) -- scans a React/Typescript component repo to get the lay of the land
+      - Input: repo root (component_repo_path)
+      - Output: superconnect/repo-summary.json (exports, file structure hints, etc.)
+  2. Figma scan (scripts/figma-scan.js) -- scans a design system in Figma and extracts component metadata
       - Input: Figma URL/key + Figma token
       - Output:
           - superconnect/figma-components-index.json
           - One JSON per component set in superconnect/figma-components/
-  2. Repo summarizer (scripts/summarize-repo.js) -- scans a React/Typescript component repo to get the lay of the land
-      - Input: repo root (component_repo_path)
-      - Output: superconnect/repo-summary.json (exports, file structure hints, etc.)
-  3. Orienter (scripts/run-orienter.js) -- agent that finishes getting oriented in the component repo, helping to make the tool more robust to variations between one repo and another, and hinting the code gen agents about exactly which files to focus on
+  3. Orienter (scripts/run-orienter.js) -- first step of the code generation phase; agent narrows which files to use for each Figma component
       - Input: Figma index + repo summary
-      - Output: superconnect/orientation.jsonl (one JSON per Figma component)
+      - Output: superconnect/orientation.jsonl (one JSON per Figma component), oriented logs grouped with codegen in stdout coloring
   4. Codegen (scripts/run-codegen.js) -- a series of agents that each write a single Code Code mapping file {component}.figma.tsx . If the agent isn't confident about a mapping, it will log its explanation
       - Input:
           - superconnect/orientation.jsonl
@@ -89,10 +89,8 @@ Superconnect abstracts the “agent” through adapters; you choose the backend 
     - Requires OPENAI_API_KEY
     - sdk_model sets the OpenAI model (e.g., gpt-5.1-codex-mini)
     - max_tokens caps response length
-- CLI / Codex (backend = "cli")
-    - Spawns a shell command (cli_command) to run in "codex exec" style -- reads the prompt on stdin and writes JSON to stdout
 
-Agents log to superconnect/orienter-logs and superconnect/codegen-logs
+Agents log to superconnect/orienter-agent.log and superconnect/mapping-agent-logs
 
 # Outputs
 
@@ -104,7 +102,7 @@ Running the full pipeline (once configured) produces (in your component repo):
     - repo-summary.json: lightweight summary of the repo
     - orientation.jsonl: agent suggestions for which files to read for each Figma component
     - component-logs/*.json: per-component codegen decisions and metadata
-    - orienter-logs/*.log, codegen-logs/*.log: raw agent interaction logs
+    - mapping-agent-logs/*.log, orienter-agent.log: raw agent interaction logs
 - In codeConnect/
     - *.figma.tsx files for each successfully mapped component, ready for Code Connect
 - At repo root:
@@ -112,7 +110,8 @@ Running the full pipeline (once configured) produces (in your component repo):
 - Printed to stdout:
     - A colorized Superconnect run summary showing:
         - Scanning stats (Figma file, component counts)
-        - Codegen stats (candidates, built vs skipped, reasons)
+        - Repo scan stats
+        - Codegen stats (orientation coverage, candidates, built vs skipped, reasons)
         - Where logs and generated files live
 
 # Interrupts & Reruns
@@ -124,7 +123,7 @@ The pipeline is designed for graceful partial runs:
     - superconnect/component-logs/ and codeConnect/ contain whatever was completed so far
     - The pipeline still runs the finalizer, so you get an accurate summary of what was built versus skipped
 - Rerunning without --force
-    - Figma scan, repo summary, and orienter are skipped if their outputs already exist
+    - Repo summary, Figma scan, and orienter are skipped if their outputs already exist
     - Codegen re-invokes the agent for each mapped component but:
         - Does not overwrite existing .figma.tsx files unless --force is used
         - Marks such components as “skipped” with an explanatory reason

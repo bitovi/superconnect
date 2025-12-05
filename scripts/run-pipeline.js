@@ -324,6 +324,22 @@ async function main() {
   const needOrientation = args.force || !fs.existsSync(paths.orientation);
   const rel = (p) => path.relative(process.cwd(), p) || p;
 
+  if (needRepoSummary) {
+    const cmd = [
+      `node ${path.join(paths.scriptDir, 'summarize-repo.js')}`,
+      `--root "${paths.target}"`,
+      '>',
+      `"${paths.repoSummary}"`
+    ].join(' ');
+    runCommand(`${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`, cmd, { shell: '/bin/zsh' });
+  } else {
+    console.log(
+      `${chalk.dim('•')} ${highlight('Repo overview')} (skipped, ${codeColor(
+        rel(paths.repoSummary)
+      )} present)`
+    );
+  }
+
   if (needFigmaScan && !figmaToken) {
     console.error('❌ FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
     console.error('   Set FIGMA_ACCESS_TOKEN in your environment or .env, or pass --figma-token.');
@@ -351,22 +367,6 @@ async function main() {
     );
   }
 
-  if (needRepoSummary) {
-    const cmd = [
-      `node ${path.join(paths.scriptDir, 'summarize-repo.js')}`,
-      `--root "${paths.target}"`,
-      '>',
-      `"${paths.repoSummary}"`
-    ].join(' ');
-    runCommand(`${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`, cmd, { shell: '/bin/zsh' });
-  } else {
-    console.log(
-      `${chalk.dim('•')} ${highlight('Repo overview')} (skipped, ${codeColor(
-        rel(paths.repoSummary)
-      )} present)`
-    );
-  }
-
   if (needOrientation) {
     const cmd = [
       `node ${path.join(paths.scriptDir, 'run-orienter.js')}`,
@@ -375,12 +375,12 @@ async function main() {
       `--output "${paths.orientation}"`,
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
-      agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
+      agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : ''
     ].join(' ');
-    runCommand(`${highlight('Repo orientation')} → ${codeColor(rel(paths.orientation))}`, cmd);
+    runCommand(`${highlight('Repo orientation')} → ${generatedColor(rel(paths.orientation))}`, cmd);
   } else {
     console.log(
-      `${chalk.dim('•')} ${highlight('Repo orientation')} (skipped, ${codeColor(
+      `${chalk.dim('•')} ${highlight('Repo orientation')} (skipped, ${generatedColor(
         rel(paths.orientation)
       )} already present)`
     );

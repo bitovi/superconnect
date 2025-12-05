@@ -114,6 +114,16 @@ const buildSummary = (context) => {
   lines.push(highlight('====== SUPERCONNECT RUN SUMMARY ======'));
   lines.push('');
 
+  lines.push(codeColor(chalk.bold('=== REACT REPO SCANNING ===')));
+  lines.push(
+    formatRow(
+      context.repoSummaryExists ? '🟢' : '🟡',
+      'Generated repo overview:',
+      codeColor(context.repoSummaryRel || '(not found)')
+    )
+  );
+  lines.push('');
+
   lines.push(figmaColor(chalk.bold('=== FIGMA SCANNING ===')));
   lines.push(
     formatRow(
@@ -137,14 +147,8 @@ const buildSummary = (context) => {
     )
   );
   lines.push('');
-  lines.push(codeColor(chalk.bold('=== REACT REPO SCANNING ===')));
-  lines.push(
-    formatRow(
-      context.repoSummaryExists ? '🟢' : '🟡',
-      'Generated repo overview:',
-      codeColor(context.repoSummaryRel || '(not found)')
-    )
-  );
+
+  lines.push(generatedColor(chalk.bold('=== CODE GENERATION SUMMARY ===')));
   lines.push(
     formatRow(
       context.orientationMapped >= context.figmaCount
@@ -153,12 +157,9 @@ const buildSummary = (context) => {
         ? '🟡'
         : '🔴',
       `Generated orientation info for ${highlight(context.orientationMapped)}/${highlight(context.figmaCount)}:`,
-      codeColor(context.orientationRel)
+      generatedColor(context.orientationRel)
     )
   );
-  lines.push('');
-
-  lines.push(generatedColor(`=== CODE GENERATION SUMMARY ===`));
   const agentRuns = context.builtCount + context.skippedCount;
   lines.push(
     formatRow(

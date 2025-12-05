@@ -4,9 +4,9 @@
 
 Superconnect is a Node.js CLI (`superconnect`) that runs a five‑stage pipeline:
 
-1. **Figma scan** – download component metadata from a Figma file.
-2. **Repo summarizer** – scan a React/TypeScript repo for components and exports.
-3. **Orienter** – agent determines which source files matter for each Figma component.
+1. **Repo summarizer** – scan a React/TypeScript repo for components and exports.
+2. **Figma scan** – download component metadata from a Figma file.
+3. **Orienter** – part of the code generation flow; an agent decides which source files matter for each Figma component.
 4. **Codegen** – agent produces a mapping schema that is rendered into `.figma.tsx`.
 5. **Finalizer** – summarizes the run and writes `figma.config.json` for Code Connect.
 
@@ -32,25 +32,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
 
 ## Pipeline stages and data flow
 
-### 1. Figma scan (`scripts/figma-scan.js`)
-
-- Inputs:
-  - Figma file key or URL.
-  - Figma API token (`FIGMA_ACCESS_TOKEN` or `--token`).
-  - Output directory for per‑component JSON.
-- Behavior:
-  - Fetches the Figma file via `https://api.figma.com`.
-  - Walks the document tree, finding `COMPONENT_SET` nodes (component sets).
-  - Filters out “hidden” component sets (names starting with `_`/`.`, or that sanitize to `_`).
-  - For each component set:
-    - Extracts variants and variant properties.
-    - Normalizes variant keys/values and computes enum shapes.
-    - Extracts component property definitions and references.
-    - Computes a stable checksum.
-    - Writes `superconnect/figma-components/<slug>.json`.
-  - Writes `superconnect/figma-components-index.json` summarizing the file and components.
-
-### 2. Repo summarizer (`scripts/summarize-repo.js`)
+### 1. Repo summarizer (`scripts/summarize-repo.js`)
 
 - Inputs:
   - Target repo root (`--root` or positional).
@@ -68,6 +50,24 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Component roots, theme roots.
     - `component_source_files` (paths + exports).
 
+### 2. Figma scan (`scripts/figma-scan.js`)
+
+- Inputs:
+  - Figma file key or URL.
+  - Figma API token (`FIGMA_ACCESS_TOKEN` or `--token`).
+  - Output directory for per‑component JSON.
+- Behavior:
+  - Fetches the Figma file via `https://api.figma.com`.
+  - Walks the document tree, finding `COMPONENT_SET` nodes (component sets).
+  - Filters out “hidden” component sets (names starting with `_`/`.`, or that sanitize to `_`).
+  - For each component set:
+    - Extracts variants and variant properties.
+    - Normalizes variant keys/values and computes enum shapes.
+    - Extracts component property definitions and references.
+    - Computes a stable checksum.
+  - Writes `superconnect/figma-components/<slug>.json`.
+  - Writes `superconnect/figma-components-index.json` summarizing the file and components.
+
 ### 3. Orienter (`scripts/run-orienter.js`)
 
 - Inputs:
@@ -84,6 +84,8 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Streams agent stdout into:
     - `superconnect/orientation.jsonl` (one JSON object per component).
     - A log file under `superconnect/orienter-agent.log`.
+- Position in pipeline:
+  - Executed immediately before codegen and grouped with codegen in run output/log coloring to reflect it as part of the generation phase.
 - Output data model (per line, JSON):
   - `figma_component_id`, `figma_component_name`
   - `status`: `"mapped" | "missing" | "ambiguous"`
@@ -170,4 +172,3 @@ Assumptions:
   - OpenAI Responses API and Anthropic Claude SDK provide:
     - Repository orientation (Stage 3).
     - Mapping schemas (Stage 4).
-
