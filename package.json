@@ -1,0 +1,45 @@
+{
+  "name": "superconnect",
+  "version": "1.0.0",
+  "description": "Utility scripts for Figma Code Connect configuration and component data extraction",
+  "bin": {
+    "superconnect": "scripts/run-pipeline.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [
+    "figma",
+    "code-connect",
+    "design-system",
+    "component-extraction",
+    "configuration"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.18.0",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "fast-glob": "^3.3.2",
+    "fs-extra": "^11.3.2",
+    "json-stringify-pretty-compact": "^4.0.0",
+    "openai": "^4.104.0",
+    "undici": "^6.18.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitovi/figma-code-connect-ai-poc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bitovi/figma-code-connect-ai-poc/issues"
+  },
+  "homepage": "https://github.com/bitovi/figma-code-connect-ai-poc#readme",
+  "devDependencies": {
+    "jest": "^30.2.0"
+  }
+}
