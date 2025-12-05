@@ -1,0 +1,17 @@
+[inputs]
+figma_url = "https://www.figma.com/design/mgzCV3zD3iWpctEI6UoUhB/Chakra-UI?node-id=580-1767&p=f&m=dev"
+component_repo_path = "../chakra-ui/"
+
+[agent]
+max_tokens = 12000
+# Using Claude SDK (requires ANTHROPIC_API_KEY environment var)
+backend = "claude"                  # options: cli, openai, claude
+sdk_model = "claude-haiku-4-5"
+
+# Using OpenAI SDK (requires OPENAI_API_KEY environment var)
+# backend = "openai"
+# sdk_model = "gpt-5.1-codex-mini"
+
+# Using CLI (Codex CLI)
+# backend = "cli" 
+# cli_command = "codex exec --model gpt-5.1-codex-mini --sandbox read-only"
