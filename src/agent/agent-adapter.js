@@ -30,72 +30,6 @@ const parseMaxTokens = (value, fallback) => {
  *
  * Implementations abstract how we talk to an agent (CLI, SDK, etc.).
  */
-/**
- * CodexCliAgentAdapter implements the AgentAdapter contract using the Codex CLI.
- */
-class CodexCliAgentAdapter {
-  constructor(options = {}) {
-    this.runner = options.runner;
-    this.defaultLogDir = options.logDir || null;
-    this.defaultCwd = options.cwd;
-  }
-
-  orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
-    return this.run({
-      payload,
-      logLabel,
-      logDir,
-      outputStream
-    });
-  }
-
-  codegen({ payload, logLabel = 'component', cwd, logDir } = {}) {
-    return this.run({
-      payload,
-      logLabel,
-      logDir,
-      cwd
-    });
-  }
-
-  run({ payload, logLabel, logDir, cwd, outputStream } = {}) {
-    const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
-    return new Promise((resolve) => {
-      const child = spawn(this.runner, { shell: true, cwd: cwd || this.defaultCwd });
-      let stdout = '';
-      let stderr = '';
-
-      const writeLog = (text) => {
-        if (logStream?.stream) logStream.stream.write(text);
-      };
-      const writeOutput = (text) => {
-        if (outputStream) outputStream.write(text);
-      };
-
-      child.stdout.on('data', (chunk) => {
-        const text = chunk.toString();
-        stdout += text;
-        writeLog(text);
-        writeOutput(text);
-      });
-      child.stderr.on('data', (chunk) => {
-        const text = chunk.toString();
-        stderr += text;
-        writeLog(text);
-      });
-
-      child.on('close', (code) => {
-        if (logStream?.stream) logStream.stream.end();
-        if (outputStream) outputStream.end();
-        resolve({ code: code || 0, stdout, stderr, logFile: logStream?.file || null });
-      });
-
-      child.stdin.write(payload);
-      child.stdin.end();
-    });
-  }
-}
-
 const extractResponseText = (response) => {
   if (!response || !Array.isArray(response.output)) return '';
   for (const item of response.output) {
@@ -191,7 +125,7 @@ const extractClaudeText = (message) => {
  */
 class ClaudeAgentAdapter {
   constructor(options = {}) {
-    this.model = options.model || 'claude-3-haiku-20240307';
+    this.model = options.model || 'claude-haiku-4-5';
     this.maxTokens = parseMaxTokens(options.maxTokens, 12000);
     this.defaultLogDir = options.logDir || null;
     this.defaultCwd = options.cwd;
@@ -254,7 +188,6 @@ class ClaudeAgentAdapter {
 }
 
 module.exports = {
-  CodexCliAgentAdapter,
   OpenAIAgentAdapter,
   ClaudeAgentAdapter,
   sanitizeSlug,

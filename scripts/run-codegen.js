@@ -19,11 +19,10 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { Command } = require('commander');
-const { CodexCliAgentAdapter, OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
+const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
-const DEFAULT_AGENT_RUNNER = 'codex exec --model gpt-5.1-codex-mini --sandbox read-only';
 const defaultPromptPath = path.join(__dirname, '..', 'prompts', 'schema-mapping-agent.md');
 
 const readJsonSafe = async (filePath) => {
@@ -151,6 +150,7 @@ const buildAgentPayload = (promptText, componentMeta, componentJson, orienterEnt
         componentName: componentData.componentName || componentData.name || null,
         variantProperties: componentData.variantProperties || null,
         variantValueEnums: componentData.variantValueEnums || null,
+        componentProperties: componentData.componentProperties || null,
         totalVariants: componentData.totalVariants || null
       }
     : null;
@@ -225,7 +225,7 @@ const extractJsonResponse = (text) => {
   }
 };
 
-const renderTsxFromSchema = (schema, figmaVariantProperties = null, tokenName = null) => {
+const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaComponentProperties = null, tokenName = null) => {
   const lines = [];
   lines.push("import figma from '@figma/code-connect';");
 
@@ -240,14 +240,43 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, tokenName = 
     lines.push(`import ${importClause || '{ }'} from '${importPath}';`);
   }
 
-  const propEntries = Array.isArray(schema.props) ? schema.props : [];
-  const validVariantKeys =
+  const normalizeFigmaKey = (key) => (key || '').trim();
+  const sanitizeJsName = (name) =>
+    (name || '').replace(/^[.]/, '').replace(/[?]/g, '').replace(/[^a-zA-Z0-9_]/g, '');
+  const baseProps = Array.isArray(schema.props) ? schema.props : [];
+  const existingNames = new Set(baseProps.map((p) => p?.name).filter(Boolean));
+
+  const inferredProps = Array.isArray(figmaComponentProperties)
+    ? figmaComponentProperties
+        .map((cp) => {
+          const rawName = cp?.name || '';
+          if (!rawName) return null;
+          const isBoolean = rawName.trim().endsWith('?');
+          const rawLower = rawName.toLowerCase();
+          const normalizedKey = normalizeFigmaKey(rawName);
+          const jsBase = sanitizeJsName(normalizedKey) || 'prop';
+          const wantsChildren = !isBoolean && rawLower === 'label';
+          const name = wantsChildren ? 'children' : isBoolean ? `${jsBase}Enabled` : jsBase;
+          if (existingNames.has(name)) return null;
+          const kind = isBoolean ? 'boolean' : cp?.type === 'STRING' || wantsChildren ? 'string' : 'instance';
+          existingNames.add(name);
+          return { name, figmaKey: rawName, kind };
+        })
+        .filter(Boolean)
+    : [];
+  const propEntries = [...baseProps, ...inferredProps];
+  const variantKeySet =
     figmaVariantProperties && typeof figmaVariantProperties === 'object'
       ? new Set(Object.keys(figmaVariantProperties))
-      : null;
+      : new Set();
+  const componentPropKeySet = Array.isArray(figmaComponentProperties)
+    ? new Set(figmaComponentProperties.map((p) => p?.name).filter(Boolean))
+    : new Set();
+  const allowedKeys = new Set([...variantKeySet, ...componentPropKeySet]);
+
   const filteredProps =
-    validVariantKeys && validVariantKeys.size > 0
-      ? propEntries.filter((p) => !p.figmaKey || validVariantKeys.has(p.figmaKey))
+    allowedKeys.size > 0
+      ? propEntries.filter((p) => !p.figmaKey || allowedKeys.has(p.figmaKey))
       : propEntries;
   const renderProp = (prop) => {
     if (prop.kind === 'enum') {
@@ -269,17 +298,90 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, tokenName = 
     .map((line) => `      ${line},`);
 
   const exampleProps = schema.exampleProps && typeof schema.exampleProps === 'object' ? schema.exampleProps : {};
-  const buildAttr = (prop) => {
-    const value = exampleProps[prop.name] !== undefined ? exampleProps[prop.name] : prop.defaultValue;
-    if (value === undefined) return null;
-    if (typeof value === 'boolean') return value ? `${prop.name}` : `${prop.name}={false}`;
-    return `${prop.name}={${JSON.stringify(value)}}`;
+
+  const toJsLiteral = (value) => {
+    if (value === undefined) return undefined;
+    if (typeof value === 'string') return JSON.stringify(value);
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    return JSON.stringify(value);
   };
+
+  const buildDestructured = (prop) => {
+    const hasLiteral = Object.prototype.hasOwnProperty.call(exampleProps, prop.name);
+    const literal = hasLiteral ? exampleProps[prop.name] : prop.defaultValue;
+    const jsLit = toJsLiteral(literal);
+    return jsLit !== undefined ? `${prop.name} = ${jsLit}` : prop.name;
+  };
+
+  const destructuredParams = filteredProps.map(buildDestructured).join(', ');
+
+  const normalizedKey = (key) => (key || '').replace(/^[.]/, '').replace(/[?]$/, '');
+  const booleanByKey = new Map(
+    filteredProps
+      .filter((p) => p.kind === 'boolean' && p.figmaKey)
+      .map((p) => [normalizedKey(p.figmaKey), p.name])
+  );
+  const booleanByName = new Map(filteredProps.filter((p) => p.kind === 'boolean').map((p) => [p.name, p.name]));
+  const inlineInstanceNames = new Set(['iconStart', 'iconEnd']);
+  const inlineInstanceSegments = [];
+  const instanceNames = new Set(filteredProps.filter((p) => p.kind === 'instance').map((p) => p.name));
+
+  const buildExampleAttr = (prop) => {
+    const name = prop.name;
+    if (!name) return null;
+
+    if (name === 'children') return null;
+
+    // Gate instance props if a related boolean exists.
+    if (prop.kind === 'instance') {
+      const key = normalizedKey(prop.figmaKey || prop.name);
+      const gateName =
+        booleanByKey.get(key) ||
+        booleanByName.get(`${name}Enabled`) ||
+        booleanByName.get(`${key}Enabled`) ||
+        booleanByName.get(key) ||
+        null;
+
+      if (inlineInstanceNames.has(name)) {
+        const segment = gateName ? `{${gateName} ? ${name} : null}` : `{${name}}`;
+        inlineInstanceSegments.push({ name, segment });
+        return null;
+      }
+
+      if (gateName) {
+        return `${name}={${gateName} ? ${name} : undefined}`;
+      }
+      return `${name}={${name}}`;
+    }
+
+    if (prop.kind === 'boolean') {
+      const base = name.endsWith('Enabled') ? name.slice(0, -'Enabled'.length) : null;
+      if (base && (instanceNames.has(base) || inlineInstanceNames.has(base))) {
+        return null;
+      }
+      return `${name}={${name}}`;
+    }
+
+    return `${name}={${name}}`;
+  };
+
   const exampleAttrs = filteredProps
-    .map(buildAttr)
+    .map(buildExampleAttr)
     .filter(Boolean)
     .map((attr) => ` ${attr}`)
     .join('');
+
+  const hasChildren = filteredProps.some((p) => p.name === 'children');
+  const startSegments = inlineInstanceSegments.filter(({ name }) => name.toLowerCase().includes('start')).map((s) => s.segment);
+  const endSegments = inlineInstanceSegments.filter(({ name }) => name.toLowerCase().includes('end')).map((s) => s.segment);
+  const middleSegments = inlineInstanceSegments
+    .filter(({ name }) => !name.toLowerCase().includes('start') && !name.toLowerCase().includes('end'))
+    .map((s) => s.segment);
+  const childParts = [...startSegments, ...middleSegments];
+  if (hasChildren) childParts.push('{children}');
+  childParts.push(...endSegments);
+  const childExpr = childParts.join(' ');
 
   lines.push('');
   lines.push('/**');
@@ -291,9 +393,20 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, tokenName = 
   lines.push('  props: {');
   propLines.forEach((l) => lines.push(l));
   lines.push('  },');
-  lines.push('  example: () => (');
-  lines.push(`    <${schema.reactComponentName}${exampleAttrs} />`);
-  lines.push('  ),');
+
+  const exampleParam = 'props';
+  if (destructuredParams.trim()) {
+    lines.push(`  example: (${exampleParam}) => {`);
+    lines.push(`    const { ${destructuredParams} } = ${exampleParam} || {};`);
+    lines.push(`    return (`);
+    lines.push(`      <${schema.reactComponentName}${exampleAttrs}>${childExpr}</${schema.reactComponentName}>`);
+    lines.push('    );');
+    lines.push('  },');
+  } else {
+    lines.push(`  example: (${exampleParam}) => (`);
+    lines.push(`    <${schema.reactComponentName}${exampleAttrs}>${childExpr}</${schema.reactComponentName}>`);
+    lines.push('  ),');
+  }
   lines.push('});');
 
   return lines.join('\n');
@@ -324,19 +437,12 @@ const buildAdapter = (config) => {
       cwd: config.repo,
       maxTokens
     });
-  } else if (backend === 'claude') {
-    return new ClaudeAgentAdapter({
-      model: config.agentModel || undefined,
-      logDir: config.agentLogDir,
-      cwd: config.repo,
-      maxTokens
-    });
   }
-  const runner = config.agentCli || DEFAULT_AGENT_RUNNER;
-  return new CodexCliAgentAdapter({
-    runner,
+  return new ClaudeAgentAdapter({
+    model: config.agentModel || undefined,
     logDir: config.agentLogDir,
-    cwd: config.repo
+    cwd: config.repo,
+    maxTokens
   });
 };
 
@@ -347,10 +453,11 @@ const parseArgs = (argv) => {
     .requiredOption('--figma-index <file>', 'Path to figma-components-index.json')
     .requiredOption('--orienter <file>', 'Orienter JSONL output (one JSON object per line)')
     .option('--force', 'Overwrite existing *.figma.tsx files', false)
-    .option('--agent-backend <value>', 'Agent backend (cli|openai|claude)', 'cli')
+    .option('--agent-backend <value>', 'Agent backend (openai|claude)', 'claude')
     .option('--agent-model <value>', 'Agent model for SDK backends')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
-    .option('--agent-cli <value>', 'Agent CLI command (when backend=cli)', DEFAULT_AGENT_RUNNER)
+    .option('--only <list>', 'Comma-separated component names/IDs (globs allowed)')
+    .option('--exclude <list>', 'Comma-separated component names/IDs to skip (globs allowed)')
     .allowExcessArguments(false);
   program.parse(argv);
   const opts = program.opts();
@@ -367,10 +474,11 @@ const parseArgs = (argv) => {
     logDir: path.join(superconnectDir, 'codegen-logs'),
     agentLogDir: path.join(superconnectDir, 'mapping-agent-logs'),
     force: Boolean(opts.force),
-    agentBackend: (opts.agentBackend || 'cli').toLowerCase(),
+    agentBackend: (opts.agentBackend || 'claude').toLowerCase(),
     agentModel: opts.agentModel || undefined,
     agentMaxTokens: parseInt(opts.agentMaxTokens, 10) || undefined,
-    agentCli: opts.agentCli || DEFAULT_AGENT_RUNNER
+    only: typeof opts.only === 'string' ? opts.only.split(',').map((s) => s.trim()).filter(Boolean) : [],
+    exclude: typeof opts.exclude === 'string' ? opts.exclude.split(',').map((s) => s.trim()).filter(Boolean) : []
   };
 };
 
@@ -383,6 +491,54 @@ const findComponentMeta = (figmaIndex, orienterEntry) => {
   const targetName = orienterEntry.figmaComponentName || orienterEntry.canonicalName || null;
   if (!targetName) return null;
   return figmaIndex.components.find((c) => (c.name || '').toLowerCase() === targetName.toLowerCase()) || null;
+};
+
+const globToRegex = (pattern) => {
+  const escaped = pattern
+    .split('')
+    .map((ch) => {
+      if (ch === '*') return '.*';
+      if (ch === '?') return '.';
+      return ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    })
+    .join('');
+  return new RegExp(`^${escaped}$`, 'i');
+};
+
+const buildMatcher = (tokens = [], defaultResult = false) => {
+  const predicates = [];
+  tokens.forEach((token) => {
+    const trimmed = (token || '').trim();
+    if (!trimmed) return;
+    const hasGlob = trimmed.includes('*') || trimmed.includes('?');
+    if (hasGlob) {
+      const re = globToRegex(trimmed);
+      predicates.push(({ name }) => Boolean(name && re.test(name)));
+      return;
+    }
+    predicates.push(({ id, name }) => {
+      if (id && id === trimmed) return true;
+      return (name || '').toLowerCase() === trimmed.toLowerCase();
+    });
+  });
+  return (identity) => (predicates.length === 0 ? defaultResult : predicates.some((fn) => fn(identity)));
+};
+
+const filterOrienterEntries = (entries, figmaIndex, onlyTokens = [], excludeTokens = []) => {
+  const allow = buildMatcher(onlyTokens, true);
+  const block = buildMatcher(excludeTokens, false);
+  const filtered = [];
+  for (const entry of entries) {
+    const meta = findComponentMeta(figmaIndex, entry);
+    const identity = {
+      id: meta?.id || entry.figmaComponentId || null,
+      name: meta?.name || entry.figmaComponentName || entry.canonicalName || null
+    };
+    if (block(identity)) continue;
+    if (!allow(identity)) continue;
+    filtered.push(entry);
+  }
+  return filtered;
 };
 
 const processOrienterEntry = async (orienterEntry, ctx) => {
@@ -470,6 +626,7 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
     const tsx = renderTsxFromSchema(
       schema,
       componentJson?.data?.variantProperties || componentJson?.variantProperties || null,
+      componentJson?.data?.componentProperties || componentJson?.componentProperties || null,
       figmaToken
     );
     const targetPath = path.join(ctx.repo, ctx.codeConnectDir, fileName);
@@ -547,7 +704,15 @@ async function main() {
   };
 
   const normalizedOrienter = orienterRecords.map(normalizeOrienterRecord).filter((rec) => rec.status === 'mapped');
-  for (const orienterEntry of normalizedOrienter) {
+  const filteredOrienter = filterOrienterEntries(normalizedOrienter, figmaIndex, config.only, config.exclude);
+  if (filteredOrienter.length !== normalizedOrienter.length) {
+    const removed = normalizedOrienter.length - filteredOrienter.length;
+    console.log(
+      `Filtering orienter entries: kept ${filteredOrienter.length} of ${normalizedOrienter.length} (${removed} filtered out)`
+    );
+  }
+
+  for (const orienterEntry of filteredOrienter) {
     if (stopRequested) {
       console.log('Stopping codegen early due to interrupt request.');
       break;

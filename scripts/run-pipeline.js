@@ -17,7 +17,6 @@ const readline = require('readline');
 const chalk = require('chalk').default;
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 
-const DEFAULT_AGENT_RUNNER = 'codex exec --model gpt-5.1-codex-mini --sandbox read-only';
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
 const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codex-mini';
@@ -70,18 +69,15 @@ function loadSuperconnectConfig(filePath = 'superconnect.toml') {
 
 function normalizeAgentConfig(agentSection = {}) {
   const backendRaw = (agentSection.backend || DEFAULT_BACKEND).toLowerCase();
-  const backend = backendRaw === 'openai' || backendRaw === 'claude' || backendRaw === 'cli' ? backendRaw : DEFAULT_BACKEND;
+  const backend = backendRaw === 'openai' || backendRaw === 'claude' ? backendRaw : DEFAULT_BACKEND;
   const model =
     agentSection.sdk_model ||
     (backend === 'openai'
       ? DEFAULT_OPENAI_MODEL
-      : backend === 'claude'
-      ? DEFAULT_CLAUDE_MODEL
-      : null);
-  const cliCommand = agentSection.cli_command || DEFAULT_AGENT_RUNNER;
+      : DEFAULT_CLAUDE_MODEL);
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
   const resolvedMaxTokens = backend === 'claude' ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
-  return { backend, model, cliCommand, maxTokens: resolvedMaxTokens };
+  return { backend, model, maxTokens: resolvedMaxTokens };
 }
 
 async function promptForConfig() {
@@ -106,15 +102,13 @@ async function promptForConfig() {
     `${chalk.cyan('Agent backend')} (default ${chalk.dim(DEFAULT_BACKEND)}): `
   );
   const backend = (backendInput || DEFAULT_BACKEND).toLowerCase();
-  const normalizedBackend =
-    backend === 'openai' || backend === 'claude' || backend === 'cli' ? backend : 'claude';
+  const normalizedBackend = backend === 'openai' || backend === 'claude' ? backend : 'claude';
 
   rl.close();
 
   const active = normalizedBackend;
   const chooseModel = (b) => {
     if (b === 'openai') return DEFAULT_OPENAI_MODEL;
-    if (b === 'cli') return DEFAULT_AGENT_RUNNER;
     return DEFAULT_CLAUDE_MODEL;
   };
   const sdkModel = chooseModel(active);
@@ -130,7 +124,7 @@ async function promptForConfig() {
     pushActive(
       '# Using Claude SDK (requires ANTHROPIC_API_KEY environment var)',
       [
-        'backend = "claude"                  # options: cli, openai, claude',
+        'backend = "claude"                  # options: openai, claude',
         `sdk_model = "${sdkModel}"`
       ]
     );
@@ -141,9 +135,6 @@ async function promptForConfig() {
         `# sdk_model = "${DEFAULT_OPENAI_MODEL}"`
       ]
     );
-    agentSection.push('# Using CLI (Codex CLI)');
-    agentSection.push('# backend = "cli" ');
-    agentSection.push(`# cli_command = "${DEFAULT_AGENT_RUNNER}"`);
   } else if (active === 'openai') {
     pushActive(
       '# Using OpenAI SDK (requires OPENAI_API_KEY environment var)',
@@ -159,25 +150,21 @@ async function promptForConfig() {
         `# sdk_model = "${DEFAULT_CLAUDE_MODEL}"`
       ]
     );
-    agentSection.push('# Using CLI (Codex CLI)');
-    agentSection.push('# backend = "cli" ');
-    agentSection.push(`# cli_command = "${DEFAULT_AGENT_RUNNER}"`);
   } else {
-    // cli active
-    pushActive('# Using CLI (Codex CLI)', [
-      'backend = "cli" ',
-      `cli_command = "${DEFAULT_AGENT_RUNNER}"`
-    ]);
     pushActive(
       '# Using Claude SDK (requires ANTHROPIC_API_KEY environment var)',
       [
-        '# backend = "claude"',
-        `# sdk_model = "${DEFAULT_CLAUDE_MODEL}"`
+        'backend = "claude"',
+        `sdk_model = "${sdkModel}"`
       ]
     );
-    agentSection.push('# Using OpenAI SDK (requires OPENAI_API_KEY environment var)');
-    agentSection.push('# backend = "openai"');
-    agentSection.push(`# sdk_model = "${DEFAULT_OPENAI_MODEL}"`);
+    pushActive(
+      '# Using OpenAI SDK (requires OPENAI_API_KEY environment var)',
+      [
+        '# backend = "openai"',
+        `# sdk_model = "${DEFAULT_OPENAI_MODEL}"`
+      ]
+    );
   }
 
   const toml = [
@@ -225,7 +212,9 @@ function parseArgv(argv) {
     .option('--figma-url <value>', 'Figma file URL or key (needed for figma scan when not cached)')
     .option('--figma-token <token>', 'Figma API token (or FIGMA_ACCESS_TOKEN/.env)')
     .option('--target <path>', 'Target repo to write Code Connect into')
-    .option('--force', 'Re-run stages even if outputs exist');
+    .option('--force', 'Re-run stages even if outputs exist')
+    .option('--only <list>', 'Comma-separated component names/IDs (globs allowed) to include in codegen')
+    .option('--exclude <list>', 'Comma-separated component names/IDs (globs allowed) to skip in codegen');
   program.parse(argv);
   const opts = program.opts();
 
@@ -233,7 +222,9 @@ function parseArgv(argv) {
     figmaUrl: opts.figmaUrl || undefined,
     figmaToken: opts.figmaToken,
     target: opts.target ? path.resolve(opts.target) : undefined,
-    force: Boolean(opts.force)
+    force: Boolean(opts.force),
+    only: typeof opts.only === 'string' ? opts.only.split(',').map((s) => s.trim()).filter(Boolean) : [],
+    exclude: typeof opts.exclude === 'string' ? opts.exclude.split(',').map((s) => s.trim()).filter(Boolean) : []
   };
 }
 
@@ -322,9 +313,7 @@ async function main() {
   const agentLabel =
     agentConfig.backend === 'openai'
       ? `openai${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : agentConfig.backend === 'claude'
-      ? `claude${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : `cli (${agentConfig.cliCommand})`;
+      : `claude${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
   console.log(`${chalk.dim('•')} ${highlight('Agent backend')}: ${highlight(agentLabel)}`);
 
   fs.ensureDirSync(paths.superconnectDir);
@@ -387,7 +376,6 @@ async function main() {
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
-      agentConfig.backend === 'cli' ? `--agent-cli "${agentConfig.cliCommand}"` : ''
     ].join(' ');
     runCommand(`${highlight('Repo orientation')} → ${codeColor(rel(paths.orientation))}`, cmd);
   } else {
@@ -406,7 +394,8 @@ async function main() {
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
-      agentConfig.backend === 'cli' ? `--agent-cli "${agentConfig.cliCommand}"` : '',
+      args.only && args.only.length ? `--only "${args.only.join(',')}"` : '',
+      args.exclude && args.exclude.length ? `--exclude "${args.exclude.join(',')}"` : '',
       args.force ? '--force' : ''
     ]
       .filter(Boolean)

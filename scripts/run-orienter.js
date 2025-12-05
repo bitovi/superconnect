@@ -18,9 +18,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { Command } = require('commander');
-const { CodexCliAgentAdapter, OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
-
-const DEFAULT_AGENT_RUNNER = 'codex exec --model gpt-5.1-codex-mini --sandbox read-only';
+const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
 
 const promptPath = path.join(__dirname, '..', 'prompts', 'orienter.md');
 const defaultOutput = path.join(process.cwd(), 'superconnect', 'orientation.jsonl');
@@ -34,10 +32,9 @@ const parseArgs = (argv) => {
     .requiredOption('--figma-index <file>', 'Path to figma-components-index.json')
     .requiredOption('--repo-summary <file>', 'Path to repo-summary.json')
     .option('--output <file>', 'Orientation JSONL output path', defaultOutput)
-    .option('--agent-backend <value>', 'Agent backend (cli|openai|claude)', 'cli')
+    .option('--agent-backend <value>', 'Agent backend (openai|claude)', 'claude')
     .option('--agent-model <value>', 'Agent model for SDK backends')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
-    .option('--agent-cli <value>', 'Agent CLI command (when backend=cli)', DEFAULT_AGENT_RUNNER)
     .allowExcessArguments(false);
   program.parse(argv);
   const opts = program.opts();
@@ -48,10 +45,9 @@ const parseArgs = (argv) => {
     repoSummary: path.resolve(opts.repoSummary),
     output: outputPath,
     agentLogDir: path.join(superconnectDir, 'orienter-agent.log'),
-    agentBackend: (opts.agentBackend || 'cli').toLowerCase(),
+    agentBackend: (opts.agentBackend || 'claude').toLowerCase(),
     agentModel: opts.agentModel || undefined,
-    agentMaxTokens: parseMaxTokens(opts.agentMaxTokens),
-    agentCli: opts.agentCli || DEFAULT_AGENT_RUNNER
+    agentMaxTokens: parseMaxTokens(opts.agentMaxTokens)
   };
 };
 
@@ -81,17 +77,11 @@ const buildAdapter = (config) => {
       logDir: config.agentLogDir,
       maxTokens
     });
-  } else if (backend === 'claude') {
-    return new ClaudeAgentAdapter({
-      model: config.agentModel || undefined,
-      logDir: config.agentLogDir,
-      maxTokens
-    });
   }
-  const runner = config.agentCli || DEFAULT_AGENT_RUNNER;
-  return new CodexCliAgentAdapter({
-    runner,
-    logDir: config.agentLogDir
+  return new ClaudeAgentAdapter({
+    model: config.agentModel || undefined,
+    logDir: config.agentLogDir,
+    maxTokens
   });
 };
 

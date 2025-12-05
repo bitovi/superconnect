@@ -169,16 +169,93 @@ const computeChecksum = (payload) => {
   return crypto.createHash('sha256').update(stable).digest('hex');
 };
 
+const inferReferenceType = (name, existingType = null) => {
+  if (existingType) return existingType;
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  if (name.endsWith('?')) return 'BOOLEAN';
+  if (lower === 'label' || lower.includes('text')) return 'STRING';
+  return 'INSTANCE_SWAP';
+};
+
+const collectPropertyReferences = (node, map) => {
+  if (!node || typeof node !== 'object') return;
+  const refs = node.componentPropertyReferences;
+  if (refs && typeof refs === 'object') {
+    Object.values(refs).forEach((ref) => {
+      if (typeof ref !== 'string') return;
+      const match = ref.match(/([^#]+)#/); // capture name before #
+      const name = match && match[1] ? match[1].trim() : null;
+      if (!name) return;
+      if (!map.has(name)) {
+        map.set(name, { name, type: inferReferenceType(name) });
+      }
+    });
+  }
+  if (Array.isArray(node.children)) {
+    node.children.forEach((child) => collectPropertyReferences(child, map));
+  }
+};
+
+const normalizeComponentPropertyDefinitions = (defs) => {
+  if (!defs || typeof defs !== 'object') return [];
+
+  return Object.values(defs)
+    .map((def) => {
+      if (!def || typeof def !== 'object') return null;
+      const name = (def.name || '').trim();
+      if (!name) return null;
+      const base = {
+        name,
+        type: inferReferenceType(name, def.type || null)
+      };
+      if (Object.prototype.hasOwnProperty.call(def, 'defaultValue')) {
+        base.defaultValue = def.defaultValue;
+      }
+      return base;
+    })
+    .filter(Boolean);
+};
+
+const extractComponentProperties = (componentSet) => {
+  if (!componentSet || typeof componentSet !== 'object') return null;
+
+  const fromSet = normalizeComponentPropertyDefinitions(componentSet.componentPropertyDefinitions);
+  if (fromSet.length > 0) return fromSet;
+
+  const children = Array.isArray(componentSet.children) ? componentSet.children : [];
+  const merged = new Map();
+
+  children.forEach((child) => {
+    if (!child || typeof child !== 'object') return;
+    if (child.type !== 'COMPONENT') return;
+    const defs = normalizeComponentPropertyDefinitions(child.componentPropertyDefinitions);
+    defs.forEach((def) => {
+      if (!merged.has(def.name)) {
+        merged.set(def.name, def);
+      }
+    });
+  });
+
+  const values = Array.from(merged.values());
+  return values.length > 0 ? values : null;
+};
+
 function extractVariants(componentSet, breadcrumbs) {
   const variants = [];
   const propertyOptions = {};
   const seenVariantIds = new Set();
+  const propertyRefs = new Map();
 
   if (componentSet.children) {
     for (const variant of componentSet.children) {
       if (variant.type !== 'COMPONENT') continue;
       if (seenVariantIds.has(variant.id)) continue;
       seenVariantIds.add(variant.id);
+
+      // Collect exposed component property references from the variant tree (e.g., iconStart?, iconEnd?).
+      collectPropertyReferences(variant, propertyRefs);
+
       const { properties, rawProperties } = parseVariantProperties(variant.name, propertyOptions);
       const entry = {
         variantId: variant.id,
@@ -210,11 +287,25 @@ function extractVariants(componentSet, breadcrumbs) {
       variantProperties[rawKey] = values;
     });
 
+  const componentProperties = extractComponentProperties(componentSet);
+  const referencedProps = Array.from(propertyRefs.values());
+  const mergedComponentProperties =
+    componentProperties && Array.isArray(componentProperties)
+      ? Array.from(
+          new Map(
+            [...componentProperties, ...referencedProps].map((p) => [p.name || '', p])
+          ).values()
+        )
+      : referencedProps.length > 0
+        ? referencedProps
+        : null;
+
   const basePayload = {
     componentSetId: componentSet.id,
     componentName: componentSet.name,
     variantProperties,
     variantValueEnums,
+    componentProperties: mergedComponentProperties,
     variants,
     totalVariants: variants.length,
     nameAliases: buildAliases(componentSet.name),
@@ -277,24 +368,26 @@ async function main() {
 
   const allComponentSets = pages.flatMap((page) => findComponentSets(page));
   const visibleSets = allComponentSets.filter(({ node }) => !isHiddenComponent(node.name));
-  const variantEntries = [];
-  let longestLabel = 0;
+  const componentEntries = visibleSets.map(({ node, breadcrumbs }) => ({ componentSet: node, breadcrumbs }));
 
-    for (const { node: componentSet, breadcrumbs } of visibleSets) {
-      const variantData = extractVariants(componentSet, breadcrumbs);
-      const label = `${componentSet.name} (${variantData.totalVariants} variants)`;
-      longestLabel = Math.max(longestLabel, label.length);
-      variantEntries.push({ componentSet, breadcrumbs, variantData });
-    }
-
-    console.log(`\n${chalk.green('✓')} Found ${variantEntries.length} Figma component sets`);
+    console.log(`\n${chalk.green('✓')} Found ${componentEntries.length} Figma component sets`);
 
     let processedCount = 0;
     const componentsMeta = [];
     const usedFilenames = new Set();
 
-    for (const entry of variantEntries) {
-      const { componentSet, variantData } = entry;
+    for (const entry of componentEntries) {
+      let { componentSet, breadcrumbs } = entry;
+
+      // If component properties are missing, fetch the node directly to include definitions.
+      if (!componentSet.componentPropertyDefinitions) {
+        const enriched = await fetchComponentNode(config.fileKey, componentSet.id, config.token);
+        if (enriched) {
+          componentSet = enriched;
+        }
+      }
+
+      const variantData = extractVariants(componentSet, breadcrumbs);
       const baseName = sanitizeFilename(componentSet.name) || 'component';
       let filename = baseName;
       let suffix = 1;
@@ -304,11 +397,11 @@ async function main() {
       }
       usedFilenames.add(filename);
 
-    const jsonPath = path.join(config.output, `${filename}.json`);
-    saveJson(jsonPath, variantData, { logMessage: false });
-    const relativePath = path.relative(process.cwd(), jsonPath) || jsonPath;
-    const label = `${componentSet.name} (${variantData.totalVariants} variants)`.padEnd(longestLabel + 1);
-    console.log(`${figmaColor(label)}→ ${figmaColor(relativePath)}`);
+      const jsonPath = path.join(config.output, `${filename}.json`);
+      saveJson(jsonPath, variantData, { logMessage: false });
+      const relativePath = path.relative(process.cwd(), jsonPath) || jsonPath;
+      const label = `${componentSet.name} (${variantData.totalVariants} variants)`;
+      console.log(`${figmaColor(label)} → ${figmaColor(relativePath)}`);
 
       const componentName = variantData.componentName;
       const meta = {
