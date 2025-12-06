@@ -4,89 +4,93 @@
 
 Superconnect is a Node.js CLI (`superconnect`) that runs a five‑stage pipeline:
 
-1. **Repo summarizer** – scan a React/TypeScript repo for components and exports.
-2. **Figma scan** – download component metadata from a Figma file.
-3. **Orienter** – part of the code generation flow; an agent decides which source files matter for each Figma component.
-4. **Codegen** – agent produces a mapping schema that is rendered into `.figma.tsx`.
-5. **Finalizer** – summarizes the run and writes `figma.config.json` for Code Connect.
+1. **Repo summarizer** – scan a React/TypeScript or Angular repo for components and exports
+2. **Figma scan** – download component metadata from a Figma file
+3. **Orienter** – part of the code generation flow; an agent decides which source files matter for each Figma component
+4. **Codegen** – agent produces a mapping schema rendered into `.figma.tsx` (React) or `.figma.ts` (Angular)
+5. **Finalizer** – summarizes the run and writes `figma.config.json` for Code Connect
 
 The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `superconnect` binary.
 
 ## Runtime components
 
 - **CLI orchestrator** (`scripts/run-pipeline.js`)
-  - Parses CLI flags (`--figma-url`, `--figma-token`, `--target`, `--only`, `--exclude`, `--force`).
-  - Loads configuration from `superconnect.toml`, prompting the user to create it if missing.
-  - Resolves a target repo, validates access, and computes paths under `superconnect/` and `codeConnect/`.
-  - Decides which stages to run based on existing artifacts and `--force`.
+  - Parses CLI flags (`--figma-url`, `--figma-token`, `--target`, `--framework`, `--only`, `--exclude`, `--force`, `--dry-run`)
+  - Loads configuration from `superconnect.toml`, prompting the user to create it if missing
+  - Resolves a target repo, validates access, and computes paths under `superconnect/` and `codeConnect/`
+  - Decides which stages to run based on existing artifacts and `--force`, and blocks agent stages when API keys are missing unless `--dry-run` is set
 
 - **Agent adapters** (`src/agent/agent-adapter.js`)
-  - `OpenAIAgentAdapter` (Responses API) and `ClaudeAgentAdapter` (Anthropic SDK).
+  - `OpenAIAgentAdapter` (Responses API) and `ClaudeAgentAdapter` (Anthropic SDK)
   - Implement a shared interface:
     - `orient({ payload, logLabel, outputStream, logDir })`
     - `codegen({ payload, logLabel, cwd, logDir })`
   - Handle:
-    - Model selection and `maxTokens` from config.
-    - Writing `=== AGENT INPUT/OUTPUT ===` logs to disk.
-    - Returning `{ code, stdout, stderr, logFile }` to callers.
+    - Model selection and `maxTokens` from config
+    - Writing `=== AGENT INPUT/OUTPUT ===` logs to disk
+    - Returning `{ code, stdout, stderr, logFile }` to callers
 
 ## Pipeline stages and data flow
 
 ### 1. Repo summarizer (`scripts/summarize-repo.js`)
 
 - Inputs:
-  - Target repo root (`--root` or positional).
+  - Target repo root (`--root` or positional)
 - Behavior:
-  - Ignores standard build/dep directories (`node_modules`, `dist`, `build`, etc.).
-  - Locates likely component roots (e.g., `src/components`, `packages/*/src/components`).
-  - Locates theme recipe directories (e.g., `src/theme/recipes`).
-  - Collects TypeScript/TSX files under those roots.
+  - Ignores standard build/dep directories (`node_modules`, `dist`, `build`, etc.)
+  - Locates likely component roots (e.g., `src/components`, `packages/*/src/components`)
+  - Detects Angular components and module membership, capturing selectors and HTML/template files
+  - Locates theme recipe directories (e.g., `src/theme/recipes`)
+  - Collects TypeScript/TSX files under those roots
   - For each file:
-    - Reads content and extracts exported identifiers using regexes.
+    - Reads content and extracts exported identifiers using regexes
   - Produces `superconnect/repo-summary.json` with:
-    - Package.json summary.
-    - TS config locations.
-    - Detected frameworks (`frameworks`, `primary_framework` via heuristics for React/Angular).
-    - Existing Code Connect files and configs.
-    - Component roots, theme roots.
-    - `component_source_files` (paths + exports).
+    - Package.json summary
+    - TS config locations
+    - Detected frameworks (`frameworks`, `primary_framework` via heuristics for React/Angular)
+    - Detected Angular components (selectors, module/html files)
+    - Existing Code Connect files and configs
+    - Component roots, theme roots
+    - `component_source_files` (paths + exports)
 
 ### 2. Figma scan (`scripts/figma-scan.js`)
 
 - Inputs:
-  - Figma file key or URL.
-  - Figma API token (`FIGMA_ACCESS_TOKEN` or `--token`).
-  - Output directory for per‑component JSON.
+  - Figma file key or URL
+  - Figma API token (`FIGMA_ACCESS_TOKEN` or `--token`)
+  - Output directory for per‑component JSON
 - Behavior:
-  - Fetches the Figma file via `https://api.figma.com`.
-  - Walks the document tree, finding `COMPONENT_SET` nodes (component sets).
-  - Filters out “hidden” component sets (names starting with `_`/`.`, or that sanitize to `_`).
+  - Fetches the Figma file via `https://api.figma.com`
+  - Walks the document tree, finding `COMPONENT_SET` nodes (component sets)
+  - Filters out “hidden” component sets (names starting with `_`/`.`, or that sanitize to `_`)
   - For each component set:
-    - Extracts variants and variant properties.
-    - Normalizes variant keys/values and computes enum shapes.
-    - Extracts component property definitions and references.
-    - Computes a stable checksum.
-  - Writes `superconnect/figma-components/<slug>.json`.
-  - Writes `superconnect/figma-components-index.json` summarizing the file and components.
+    - Extracts variants and variant properties
+    - Normalizes variant keys/values and computes enum shapes
+    - Extracts component property definitions and references
+    - Computes a stable checksum
+  - Writes `superconnect/figma-components/<slug>.json`
+  - Writes `superconnect/figma-components-index.json` summarizing the file and components
 
 ### 3. Orienter (`scripts/run-orienter.js`)
 
 - Inputs:
   - `superconnect/figma-components-index.json`
   - `superconnect/repo-summary.json`
-  - Agent backend, model, and max tokens (from CLI and `superconnect.toml`).
+  - Agent backend, model, and max tokens (from CLI and `superconnect.toml`)
+  - Optional target framework hint (`--target-framework`) and dry-run/fake output flags
 - Behavior:
-  - Reads the orienter prompt (`prompts/orienter.md`).
+  - Reads the orienter prompt (`prompts/orienter.md`)
   - Builds a payload with:
-    - Prompt text.
-    - Pretty‑printed Figma index JSON.
-    - Pretty‑printed repo summary JSON.
-  - Calls the configured agent via `AgentAdapter.orient`.
+    - Prompt text
+    - Pretty‑printed Figma index JSON
+    - Pretty‑printed repo summary JSON
+    - Target framework hint for downstream codegen
+  - Calls the configured agent via `AgentAdapter.orient`, or writes payload-only/fake outputs when `--dry-run`/`--fake-orienter-output` are set
   - Streams agent stdout into:
-    - `superconnect/orientation.jsonl` (one JSON object per component).
-    - A log file under `superconnect/orienter-agent.log`.
+    - `superconnect/orientation.jsonl` (one JSON object per component)
+    - A log file under `superconnect/orienter-agent.log`
 - Position in pipeline:
-  - Executed immediately before codegen and grouped with codegen in run output/log coloring to reflect it as part of the generation phase.
+  - Executed immediately before codegen and grouped with codegen in run output/log coloring to reflect it as part of the generation phase
 - Output data model (per line, JSON):
   - `figma_component_id`, `figma_component_name`
   - `status`: `"mapped" | "missing" | "ambiguous"`
@@ -100,25 +104,33 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - `superconnect/figma-components-index.json`
   - `superconnect/figma-components/*.json`
   - `superconnect/orientation.jsonl`
-  - Agent backend configuration (same as Orienter).
+  - `superconnect/repo-summary.json` (framework hints and Angular component metadata)
+  - Agent backend configuration (same as Orienter)
+  - Optional fake mapping output for testing
 - Behavior per oriented component:
-  - Normalize the orienter record (ID/name fields, file lists).
-  - Resolve the Figma component’s per-component JSON.
-  - Read the selected source files from the target repo.
+  - Normalize the orienter record (ID/name fields, file lists)
+  - Resolve the Figma component’s per-component JSON (React path)
+  - Read the selected source files from the target repo
   - Build an agent payload:
-    - Schema-mapping prompt (`prompts/react-mapping-agent.md` for React, `prompts/angular-mapping-agent.md` for Angular).
-    - Compact Figma metadata (component set, variants, properties).
-    - Orientation info.
-    - Inlined source file contents.
-  - Call `AgentAdapter.codegen` to get a JSON mapping schema.
-  - Normalize the React import path against the file system.
-  - Render a `.figma.tsx` file from the mapping schema, Figma properties, and example props.
+    - Schema-mapping prompt (`prompts/react-mapping-agent.md` for React, `prompts/angular-mapping-agent.md` for Angular)
+    - Compact Figma metadata (component set, variants, properties)
+    - Orientation info
+    - Inlined source file contents
+    - Target framework hint and Angular component list (for Angular runs)
+  - React path:
+    - Call `AgentAdapter.codegen` to get a JSON mapping schema
+    - Normalize the React import path against the file system
+    - Render a `.figma.tsx` file from the mapping schema, Figma properties, and example props
+  - Angular path:
+    - Call `AgentAdapter.codegen` (or use fake output) to get a selector/inputs schema
+    - Render a `.figma.ts` file using `lit-html` templates; if no agent output is available, fall back to a stub connector per component
   - Write:
-    - `codeConnect/<Component>.figma.tsx` (unless skipped or blocked by existing file and no `--force`).
-    - `superconnect/codegen-logs/*-codegen-result.json` (per‑component summary).
+    - `codeConnect/<Component>.figma.tsx` or `.figma.ts` (unless skipped or blocked by existing file and no `--force`)
+    - `superconnect/codegen-logs/*-codegen-result.json` (per‑component summary)
 - Codegen respects:
-  - `--only` / `--exclude` filters (names/IDs/globs).
-  - `--force` for overwriting existing mapping files.
+  - `--only` / `--exclude` filters (names/IDs/globs)
+  - `--force` for overwriting existing mapping files
+  - `--fake-mapping-output` for deterministic testing
 
 ### 5. Finalizer (`scripts/finalize.js`)
 
@@ -126,50 +138,52 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - `superconnect/figma-components-index.json`
   - `superconnect/orientation.jsonl`
   - `superconnect/codegen-logs/*.json`
-  - `codeConnect/*.figma.tsx`
+  - `codeConnect/*.figma.tsx` / `*.figma.ts`
 - Behavior:
-  - Correlates Figma components with codegen results.
+  - Correlates Figma components with codegen results
   - Builds a summary of:
-    - Figma scanning (file metadata, component counts).
-    - Repo scanning and orientation coverage.
-    - Codegen successes and skips (with reasons).
-  - Prints a colorized run summary to stdout.
+    - Figma scanning (file metadata, component counts)
+    - Repo scanning and orientation coverage
+    - Codegen successes and skips (with reasons)
+  - Prints a colorized run summary to stdout
   - Creates/overwrites `figma.config.json` at the target repo root with:
-    - `include`/`exclude` globs for Code Connect files and source.
-    - Parser and label.
-    - Optional `interactiveSetupFigmaFileUrl`.
-    - `documentUrlSubstitutions` mapping per‑component tokens (e.g., `<FIGMA_BUTTON>`) to live Figma node URLs.
+    - `include`/`exclude` globs for Code Connect files and source (React `.tsx` or Angular `.ts`)
+    - Parser and label (`react` or `html`) chosen from detected/target framework
+    - Optional `interactiveSetupFigmaFileUrl`
+    - `documentUrlSubstitutions` mapping per‑component tokens (e.g., `<FIGMA_BUTTON>`) to live Figma node URLs
 
 ## Configuration and assumptions
 
 - **Config file**: `superconnect.toml`
-  - `[inputs]` – `figma_url`, `component_repo_path`.
-  - `[agent]` – `backend`, `sdk_model`, `max_tokens`.
+  - `[inputs]` – `figma_url`, `component_repo_path`
+  - `[agent]` – `backend`, `sdk_model`, `max_tokens`
   - Parsed via a lightweight TOML parser that supports:
-    - Top‑level keys.
-    - Single‑level sections.
-    - Comments (`#`) trailing on lines.
+    - Top‑level keys
+    - Single‑level sections
+    - Comments (`#`) trailing on lines
 - **Environment variables**
-  - `FIGMA_ACCESS_TOKEN` – required for Figma scan (or `--figma-token`).
-  - `ANTHROPIC_API_KEY` – for Claude backend.
-  - `OPENAI_API_KEY` – for OpenAI backend.
+  - `FIGMA_ACCESS_TOKEN` – required for Figma scan (or `--figma-token`)
+  - `ANTHROPIC_API_KEY` – for Claude backend
+  - `OPENAI_API_KEY` – for OpenAI backend
 
 Assumptions:
-- Target repos are React/TypeScript projects with components under conventional roots (`src/components`, `packages/*/src/components`, etc.).
+- Target repos are React/TypeScript or Angular projects with components under conventional roots (`src/components`, `packages/*/src/components`, `src/app/**/*.component.ts`, etc.)
 - The mapping between Figma components and React components can be expressed as:
-  - A single import path and component name.
-  - A finite set of props expressed as enums/booleans/strings/instances.
+  - A single import path and component name
+  - A finite set of props expressed as enums/booleans/strings/instances
+- Angular connectors expose component selectors and inputs in HTML templates; defaults fall back to stubs when agent data is unavailable
 
 ## Integrations
 
 - **Figma API**
-  - Used only by `scripts/figma-scan.js`.
-  - Accessed via `undici.fetch` with `X-Figma-Token` header.
+  - Used only by `scripts/figma-scan.js`
+  - Accessed via `undici.fetch` with `X-Figma-Token` header
 - **Figma Code Connect**
   - Consumes:
-    - `codeConnect/*.figma.tsx` files generated by Superconnect.
-    - `figma.config.json` produced by the Finalizer, including document URL substitutions.
+    - `codeConnect/*.figma.tsx` or `.figma.ts` files generated by Superconnect
+    - `figma.config.json` produced by the Finalizer, including document URL substitutions
+  - Uses the React parser for `.tsx` outputs and the HTML parser for Angular `.ts` outputs
 - **LLM backends**
   - OpenAI Responses API and Anthropic Claude SDK provide:
-    - Repository orientation (Stage 3).
-    - Mapping schemas (Stage 4).
+    - Repository orientation (Stage 3)
+    - Mapping schemas (Stage 4)

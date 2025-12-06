@@ -1,24 +1,24 @@
-# Superconnect: Code Generator for Figma Code Connect 
+# Superconnect: Code Generator for Figma Code Connect
 
-Superconnect is an AI-enhanced tool that turns a Figma design system file and a React component repo into Figma Code Connect mappings. It:
+Superconnect is an AI-enhanced tool that turns a Figma design system file and a React or Angular component repo into Figma Code Connect mappings. It:
 
 - Scans your design system in Figma and extracts component metadata
-- Explores your React/Typescript component repo to understand exports, file structure, and patterns
-- Generates .figma.tsx Code Connect files
+- Explores your React/Typescript or Angular component repo to understand exports, file structure, and patterns
+- Generates `.figma.tsx` (React) or `.figma.ts` (Angular) Code Connect files
 
 # Quickstart
 
   1. Install dependencies (in this repo)
      npm install
   
-  2. Link the CLI globally (so you can run it from any React repo)
+  2. Link the CLI globally (so you can run it from any React or Angular repo)
      npm link
   
   3. Set up your environment variables
       - Figma: Set FIGMA_ACCESS_TOKEN in your environment to allow the script to access your design system Figma file
       - Agent backend: Claude (default): requires ANTHROPIC_API_KEY, OpenAI requires OPENAI_API_KEY
 
-  4. Run it from your React repo root
+  4. Run it from your React or Angular repo root
 
      superconnect
      # or if you prefer npx with the linked binary:
@@ -26,13 +26,14 @@ Superconnect is an AI-enhanced tool that turns a Figma design system file and a 
 
       If superconnect.toml is missing in the current directory, you’ll be prompted for:
         - Figma URL or file key
-        - React Component repo path root
+        - Component repo path root
         - Agent backend (default to claude with claude-haiku-4-5)
+        - Optional target framework hint (react|angular)
 
       This will:
-        - Scan your repo for components/exports
+        - Scan your repo for components/exports (including Angular components, selectors, and modules)
         - Scan your Figma file and find all the components
-        - Run orientation + code generation to produce codeConnect/*.figma.tsx
+        - Run orientation + code generation to produce codeConnect/*.figma.tsx or *.figma.ts
         - Report on which components it was able to code gen, which it wasn't, and why
         - Write figma.config.json in the repo root for Code Connect to discover generated files
 
@@ -53,26 +54,27 @@ Superconnect is configured via a superconnect.toml in the current working direct
 
 Superconnect runs five logical stages:
 
-  1. Repo summarizer (scripts/summarize-repo.js) -- scans a React/Typescript component repo to get the lay of the land
+  1. Repo summarizer (scripts/summarize-repo.js) -- scans a React/Typescript or Angular component repo to get the lay of the land
       - Input: repo root (component_repo_path)
-      - Output: superconnect/repo-summary.json (exports, file structure hints, detected frameworks, etc.)
+      - Output: superconnect/repo-summary.json (exports, file structure hints, detected frameworks, Angular component selectors/modules/templates, etc.)
   2. Figma scan (scripts/figma-scan.js) -- scans a design system in Figma and extracts component metadata
       - Input: Figma URL/key + Figma token
       - Output:
           - superconnect/figma-components-index.json
           - One JSON per component set in superconnect/figma-components/
   3. Orienter (scripts/run-orienter.js) -- first step of the code generation phase; agent narrows which files to use for each Figma component
-      - Input: Figma index + repo summary
-      - Output: superconnect/orientation.jsonl (one JSON per Figma component), oriented logs grouped with codegen in stdout coloring
-  4. Codegen (scripts/run-codegen.js) -- a series of agents that each write a single Code Code mapping file {component}.figma.tsx . If the agent isn't confident about a mapping, it will log its explanation
+      - Input: Figma index + repo summary + optional target framework hint
+      - Output: superconnect/orientation.jsonl (one JSON per Figma component), oriented logs grouped with codegen in stdout coloring; supports --dry-run and fake outputs for tests
+  4. Codegen (scripts/run-codegen.js) -- a series of agents that each write a single Code Code mapping file {component}.figma.tsx (React) or {component}.figma.ts (Angular). If the agent isn't confident about a mapping, it will log its explanation or fall back to stubs for Angular
       - Input:
           - superconnect/orientation.jsonl
           - superconnect/figma-components/{component}.json
+          - superconnect/repo-summary.json (framework hints, Angular components)
           - Source files from the component repo
-      - Output: codeConnect/{component}.figma.tsx
+      - Output: codeConnect/{component}.figma.tsx or .figma.ts
   5. Finalizer (scripts/finalize.js)
       - Input: everything above
-      - Output: A human-friendly run summary printed to stdout (no file), with colored sections and stats, plus figma.config.json written at the repo root
+      - Output: A human-friendly run summary printed to stdout (no file), with colored sections and stats, plus figma.config.json written at the repo root (parser/label and include globs set for React or Angular)
 
 
 # Agent Backends
@@ -99,14 +101,14 @@ Running the full pipeline (once configured) produces (in your component repo):
 - In superconnect/:
     - figma-components-index.json: canonical list of Figma components
     - figma-components/*.json: per-component extracted Figma metadata
-    - repo-summary.json: lightweight summary of the repo
+    - repo-summary.json: lightweight summary of the repo (framework detection, Angular component metadata, exports)
     - orientation.jsonl: agent suggestions for which files to read for each Figma component
     - component-logs/*.json: per-component codegen decisions and metadata
     - mapping-agent-logs/*.log, orienter-agent.log: raw agent interaction logs
 - In codeConnect/
-    - *.figma.tsx files for each successfully mapped component, ready for Code Connect
+    - *.figma.tsx or *.figma.ts files for each successfully mapped component, ready for Code Connect
 - At repo root:
-    - figma.config.json pointing Code Connect to generated files
+    - figma.config.json pointing Code Connect to generated files (uses react parser for .tsx, html parser for .ts)
 - Printed to stdout:
     - A colorized Superconnect run summary showing:
         - Scanning stats (Figma file, component counts)
