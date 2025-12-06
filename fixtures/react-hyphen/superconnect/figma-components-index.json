@@ -1,0 +1,7 @@
+{
+  "fileKey": "react-hyphen",
+  "fileName": "React Hyphen Fixture",
+  "components": [
+    { "id": "tabs_trigger_1", "name": "Tabs.Trigger" }
+  ]
+}

@@ -1,4 +1,5 @@
 [inputs]
+# (Requires FIGMA_ACCESS_TOKEN environment var)
 figma_url = "https://www.figma.com/design/mgzCV3zD3iWpctEI6UoUhB/Chakra-UI"
 component_repo_path = "../chakra-ui/"
 

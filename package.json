@@ -6,8 +6,8 @@
     "superconnect": "scripts/run-pipeline.js"
   },
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --localstorage-file=.jest-localstorage\" jest",
+    "test:watch": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --localstorage-file=.jest-localstorage\" jest --watch"
   },
   "keywords": [
     "figma",
@@ -40,6 +40,7 @@
   },
   "homepage": "https://github.com/bitovi/figma-code-connect-ai-poc#readme",
   "devDependencies": {
+    "figma": "^0.0.1",
     "jest": "^30.2.0"
   }
 }

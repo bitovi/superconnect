@@ -1,0 +1,8 @@
+{
+  "name": "angular-sample",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@angular/core": "^17.0.0"
+  }
+}

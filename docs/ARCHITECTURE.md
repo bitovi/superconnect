@@ -46,6 +46,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Produces `superconnect/repo-summary.json` with:
     - Package.json summary.
     - TS config locations.
+    - Detected frameworks (`frameworks`, `primary_framework` via heuristics for React/Angular).
     - Existing Code Connect files and configs.
     - Component roots, theme roots.
     - `component_source_files` (paths + exports).
@@ -102,10 +103,10 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Agent backend configuration (same as Orienter).
 - Behavior per oriented component:
   - Normalize the orienter record (ID/name fields, file lists).
-  - Resolve the Figma component’s per‑component JSON.
+  - Resolve the Figma component’s per-component JSON.
   - Read the selected source files from the target repo.
   - Build an agent payload:
-    - Schema‑mapping prompt (`prompts/schema-mapping-agent.md`).
+    - Schema-mapping prompt (`prompts/react-mapping-agent.md` for React, `prompts/angular-mapping-agent.md` for Angular).
     - Compact Figma metadata (component set, variants, properties).
     - Orientation info.
     - Inlined source file contents.

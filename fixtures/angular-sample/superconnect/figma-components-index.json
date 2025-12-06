@@ -1,0 +1,10 @@
+{
+  "fileKey": "dummy-angular",
+  "fileName": "Angular Fixture",
+  "components": [
+    {
+      "id": "angular-1",
+      "name": "Button"
+    }
+  ]
+}

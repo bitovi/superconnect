@@ -55,7 +55,7 @@ Superconnect runs five logical stages:
 
   1. Repo summarizer (scripts/summarize-repo.js) -- scans a React/Typescript component repo to get the lay of the land
       - Input: repo root (component_repo_path)
-      - Output: superconnect/repo-summary.json (exports, file structure hints, etc.)
+      - Output: superconnect/repo-summary.json (exports, file structure hints, detected frameworks, etc.)
   2. Figma scan (scripts/figma-scan.js) -- scans a design system in Figma and extracts component metadata
       - Input: Figma URL/key + Figma token
       - Output:

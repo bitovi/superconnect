@@ -50,3 +50,62 @@ Important constraints:
 - Do NOT output any text before, after, or between the JSON objects. No prose, no markdown, no comments.
 - Do NOT include fields other than: figma_component_id, figma_component_name, status, confidence, files, notes.
 - Do NOT hallucinate file paths. Only use paths that appear in the repo summary JSON.
+
+FIGMA_INDEX:
+{
+  "fileKey": "dummy-react",
+  "fileName": "React Fixture",
+  "components": [
+    {
+      "id": "react-1",
+      "name": "FixtureComponent"
+    }
+  ]
+}
+
+REPO_SUMMARY:
+{
+  "root": "/Users/brandonharvey/src/superconnect/fixtures/react-sample",
+  "packageJson": {
+    "path": "package.json",
+    "name": "react-sample",
+    "version": "0.0.1",
+    "workspaces": null,
+    "scripts": null
+  },
+  "tsconfig": {
+    "primary": null,
+    "all": []
+  },
+  "codeConnect": {
+    "config": [
+      "figma.config.json"
+    ],
+    "files": {
+      "count": 0,
+      "samples": []
+    }
+  },
+  "components": {
+    "roots": []
+  },
+  "themes": {
+    "recipes": []
+  },
+  "angular_components": [],
+  "component_source_files": [],
+  "component_source_files_meta": {
+    "total": 0,
+    "selectedCount": 0
+  },
+  "frameworks": [
+    "react"
+  ],
+  "primary_framework": "react",
+  "locks": [],
+  "env": [],
+  "config": []
+}
+
+TARGET_FRAMEWORK:
+"react"

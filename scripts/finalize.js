@@ -46,7 +46,10 @@ const readJsonLines = async (filePath) => {
 
 const listCodeConnectFiles = (dir) => {
   if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return [];
-  return fs.readdirSync(dir).filter((f) => f.endsWith('.figma.tsx')).map((f) => path.join(dir, f));
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.figma.ts') || f.endsWith('.figma.tsx'))
+    .map((f) => path.join(dir, f));
 };
 
 const toTokenName = (value) =>
@@ -112,6 +115,14 @@ const buildSummary = (context) => {
 
   lines.push('');
   lines.push(highlight('====== SUPERCONNECT RUN SUMMARY ======'));
+  lines.push('');
+  lines.push(
+    formatRow(
+      context.targetFramework ? '🟢' : '🟡',
+      'Target framework:',
+      context.targetFramework ? highlight(context.targetFramework) : chalk.dim('(unknown)')
+    )
+  );
   lines.push('');
 
   lines.push(codeColor(chalk.bold('=== REACT REPO SCANNING ===')));
@@ -213,6 +224,7 @@ const parseArgs = (argv) => {
     .option('--superconnect <dir>', 'Superconnect directory containing pipeline artifacts', 'superconnect')
     .option('--codeConnect <dir>', 'CodeConnect directory', 'codeConnect')
     .option('--cwd <dir>', 'Working directory to resolve paths from', '.')
+    .option('--target-framework <value>', 'Target framework hint (react|angular)')
     .allowExcessArguments(false);
   program.parse(argv);
   const opts = program.opts();
@@ -226,7 +238,8 @@ const parseArgs = (argv) => {
     componentLogsDir: path.join(superconnectDir, 'codegen-logs'),
     codegenLogsDir: path.join(superconnectDir, 'mapping-agent-logs'),
     superconnectDir,
-    baseCwd
+    baseCwd,
+    targetFramework: opts.targetFramework || null
   };
 };
 
@@ -240,6 +253,9 @@ async function main() {
 
   const orientationEntries = await readJsonLines(config.orientation);
   const componentLogsRaw = await readComponentLogs(config.componentLogsDir);
+  const repoSummaryPath = path.join(config.superconnectDir, 'repo-summary.json');
+  const repoSummary = await readJsonSafe(repoSummaryPath);
+  const targetFramework = config.targetFramework || repoSummary?.primary_framework || null;
   const orientationIdSet = new Set(
     orientationEntries
       .map((e) => e.figmaComponentId || e.figma_component_id || null)
@@ -288,11 +304,12 @@ async function main() {
       path.relative(config.baseCwd, path.join(config.superconnectDir, 'repo-summary.json')) || null,
     repoSummaryExists: fs.existsSync(path.join(config.superconnectDir, 'repo-summary.json')),
     figmaComponentsDirRel:
-      path.relative(config.baseCwd, path.join(config.superconnectDir, 'figma-components')) || null
+      path.relative(config.baseCwd, path.join(config.superconnectDir, 'figma-components')) || null,
+    targetFramework
   };
 
   const summary = buildSummary(context);
-  const includeGlob = 'codeConnect/**/*.figma.tsx';
+  const includeGlobs = new Set();
   const sourceGlobs = ['packages/**/*.{ts,tsx}', 'apps/**/*.{ts,tsx}'];
   const figmaFileUrl = figmaIndex.fileKey ? `https://www.figma.com/design/${figmaIndex.fileKey}` : null;
 
@@ -309,11 +326,22 @@ async function main() {
     return substitutions;
   };
 
+  const frameworks = (repoSummary && Array.isArray(repoSummary.frameworks) && repoSummary.frameworks) || [];
+  if (targetFramework === 'angular' || frameworks.includes('angular')) {
+    includeGlobs.add('codeConnect/**/*.figma.ts');
+  }
+  if (!includeGlobs.size && (targetFramework === 'react' || frameworks.includes('react'))) {
+    includeGlobs.add('codeConnect/**/*.figma.tsx');
+  }
+  if (!includeGlobs.size) {
+    includeGlobs.add('codeConnect/**/*.figma.tsx');
+  }
+
   const codeConnectConfig = {
-    include: [includeGlob, ...sourceGlobs],
+    include: [...includeGlobs, ...sourceGlobs],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**'],
-    parser: 'react',
-    label: 'react'
+    parser: targetFramework === 'angular' ? 'html' : 'react',
+    label: targetFramework === 'angular' ? 'angular' : 'react'
   };
   if (figmaFileUrl) {
     codeConnectConfig.interactiveSetupFigmaFileUrl = figmaFileUrl;

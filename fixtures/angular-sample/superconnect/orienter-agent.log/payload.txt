@@ -50,3 +50,70 @@ Important constraints:
 - Do NOT output any text before, after, or between the JSON objects. No prose, no markdown, no comments.
 - Do NOT include fields other than: figma_component_id, figma_component_name, status, confidence, files, notes.
 - Do NOT hallucinate file paths. Only use paths that appear in the repo summary JSON.
+
+FIGMA_INDEX:
+{
+  "fileKey": "dummy-angular",
+  "fileName": "Angular Fixture",
+  "components": [
+    {
+      "id": "angular-1",
+      "name": "Button"
+    }
+  ]
+}
+
+REPO_SUMMARY:
+{
+  "root": "/Users/brandonharvey/src/superconnect/fixtures/angular-sample",
+  "packageJson": {
+    "path": "package.json",
+    "name": "angular-sample",
+    "version": "0.0.1",
+    "workspaces": null,
+    "scripts": null
+  },
+  "tsconfig": {
+    "primary": null,
+    "all": []
+  },
+  "codeConnect": {
+    "config": [
+      "figma.config.json"
+    ],
+    "files": {
+      "count": 0,
+      "samples": []
+    }
+  },
+  "components": {
+    "roots": []
+  },
+  "themes": {
+    "recipes": []
+  },
+  "angular_components": [
+    {
+      "selector": "zap-button",
+      "class_name": "ZapButtonComponent",
+      "ts_file": "src/app/components/zap-button/zap-button.component.ts",
+      "html_file": "src/app/components/zap-button/zap-button.component.html",
+      "module_file": "src/app/app.module.ts"
+    }
+  ],
+  "component_source_files": [],
+  "component_source_files_meta": {
+    "total": 0,
+    "selectedCount": 0
+  },
+  "frameworks": [
+    "angular"
+  ],
+  "primary_framework": "angular",
+  "locks": [],
+  "env": [],
+  "config": []
+}
+
+TARGET_FRAMEWORK:
+"angular"

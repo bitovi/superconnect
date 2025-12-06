@@ -169,6 +169,7 @@ async function promptForConfig() {
 
   const toml = [
     '[inputs]',
+    '# (Requires FIGMA_ACCESS_TOKEN environment var)',
     `figma_url = "${figmaUrl}"`,
     `component_repo_path = "${repoPath}"`,
     '',
@@ -212,19 +213,30 @@ function parseArgv(argv) {
     .option('--figma-url <value>', 'Figma file URL or key (needed for figma scan when not cached)')
     .option('--figma-token <token>', 'Figma API token (or FIGMA_ACCESS_TOKEN/.env)')
     .option('--target <path>', 'Target repo to write Code Connect into')
+    .option('--framework <name>', 'Target framework override (react|angular)')
     .option('--force', 'Re-run stages even if outputs exist')
-    .option('--only <list>', 'Comma-separated component names/IDs (globs allowed) to include in codegen')
-    .option('--exclude <list>', 'Comma-separated component names/IDs (globs allowed) to skip in codegen');
+    .option('--dry-run', 'Skip agent-powered stages; still run summary', false)
+    .option('--only <list...>', 'Component names/IDs (globs allowed) to include; accepts comma or space separated values')
+    .option('--exclude <list...>', 'Component names/IDs (globs allowed) to skip');
   program.parse(argv);
   const opts = program.opts();
+  const parseList = (values) => {
+    const raw = Array.isArray(values) ? values : values ? [values] : [];
+    return raw
+      .flatMap((item) => String(item).split(','))
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
 
   return {
     figmaUrl: opts.figmaUrl || undefined,
     figmaToken: opts.figmaToken,
     target: opts.target ? path.resolve(opts.target) : undefined,
     force: Boolean(opts.force),
-    only: typeof opts.only === 'string' ? opts.only.split(',').map((s) => s.trim()).filter(Boolean) : [],
-    exclude: typeof opts.exclude === 'string' ? opts.exclude.split(',').map((s) => s.trim()).filter(Boolean) : []
+    framework: opts.framework || undefined,
+    dryRun: Boolean(opts.dryRun),
+    only: parseList(opts.only),
+    exclude: parseList(opts.exclude)
   };
 }
 
@@ -236,6 +248,20 @@ function loadEnvToken() {
     .readFileSync(envPath, 'utf8')
     .split(/\r?\n/)
     .find((l) => l.trim().startsWith('FIGMA_ACCESS_TOKEN='));
+  if (!line) return null;
+  const [, value] = line.split('=');
+  return (value || '').trim() || null;
+}
+
+function loadAgentToken(backend) {
+  const envVar = backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+  if (process.env[envVar]) return process.env[envVar];
+  const envPath = path.resolve('.env');
+  if (!fs.existsSync(envPath)) return null;
+  const line = fs
+    .readFileSync(envPath, 'utf8')
+    .split(/\r?\n/)
+    .find((l) => l.trim().startsWith(`${envVar}=`));
   if (!line) return null;
   const [, value] = line.split('=');
   return (value || '').trim() || null;
@@ -304,6 +330,8 @@ async function main() {
     (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));
   const figmaToken = args.figmaToken || loadEnvToken();
   const agentConfig = normalizeAgentConfig(cfg.agent || {});
+  const agentEnvVar = agentConfig.backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+  const agentToken = loadAgentToken(agentConfig.backend);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
@@ -324,12 +352,17 @@ async function main() {
   const needOrientation = args.force || !fs.existsSync(paths.orientation);
   const rel = (p) => path.relative(process.cwd(), p) || p;
 
+  const needsAgent = !args.dryRun;
+  if (needsAgent && !agentToken) {
+    console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.backend}).`);
+    console.error(`   Set ${agentEnvVar} in your environment or .env, or switch to --dry-run.`);
+    process.exit(1);
+  }
+
   if (needRepoSummary) {
     const cmd = [
       `node ${path.join(paths.scriptDir, 'summarize-repo.js')}`,
-      `--root "${paths.target}"`,
-      '>',
-      `"${paths.repoSummary}"`
+      `--root "${paths.target}"`
     ].join(' ');
     runCommand(`${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`, cmd, { shell: '/bin/zsh' });
   } else {
@@ -338,6 +371,15 @@ async function main() {
         rel(paths.repoSummary)
       )} present)`
     );
+  }
+  let inferredFramework = args.framework || null;
+  try {
+    const summaryData = fs.readJsonSync(paths.repoSummary);
+    if (!inferredFramework && summaryData?.primary_framework) {
+      inferredFramework = summaryData.primary_framework;
+    }
+  } catch {
+    // ignore; will remain null
   }
 
   if (needFigmaScan && !figmaToken) {
@@ -375,7 +417,9 @@ async function main() {
       `--output "${paths.orientation}"`,
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
-      agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : ''
+      agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
+      inferredFramework ? `--target-framework "${inferredFramework}"` : '',
+      args.dryRun ? '--dry-run' : ''
     ].join(' ');
     runCommand(`${highlight('Repo orientation')} → ${generatedColor(rel(paths.orientation))}`, cmd);
   } else {
@@ -386,16 +430,18 @@ async function main() {
     );
   }
 
-  {
+  if (!args.dryRun) {
     const codegenCmd = [
       `node ${path.join(paths.scriptDir, 'run-codegen.js')}`,
       `--figma-index "${paths.figmaIndex}"`,
       `--orienter "${paths.orientation}"`,
+      `--repo-summary "${paths.repoSummary}"`,
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
       args.only && args.only.length ? `--only "${args.only.join(',')}"` : '',
       args.exclude && args.exclude.length ? `--exclude "${args.exclude.join(',')}"` : '',
+      inferredFramework ? `--target-framework "${inferredFramework}"` : '',
       args.force ? '--force' : ''
     ]
       .filter(Boolean)
@@ -405,6 +451,8 @@ async function main() {
       codegenCmd,
       { cwd: paths.target, allowInterrupt: true }
     );
+  } else {
+    console.log(`${chalk.dim('•')} ${highlight('Code generation')} skipped (dry run)`);
   }
 
   {
@@ -412,9 +460,10 @@ async function main() {
       `node ${path.join(paths.scriptDir, 'finalize.js')}`,
       `--superconnect "${paths.superconnectDir}"`,
       `--codeConnect "${paths.codeConnectDir}"`,
-      `--cwd "${paths.target}"`
+      `--cwd "${paths.target}"`,
+      inferredFramework ? `--target-framework "${inferredFramework}"` : ''
     ].join(' ');
-    runCommand(`${highlight('Finalize')} (summarizing ${generatedColor(rel(paths.superconnectDir))})`, cmd);
+    runCommand(`${highlight('Finalize')}`, cmd);
   }
 
   console.log(`${chalk.green('✓')} Pipeline complete.`);

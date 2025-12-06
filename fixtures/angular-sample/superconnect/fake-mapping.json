@@ -1,0 +1,20 @@
+{
+  "framework": "angular",
+  "selector": "zap-button",
+  "inputs": {
+    "variant": {
+      "type": "enum",
+      "values": ["primary", "secondary"]
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "label": { "type": "string" },
+        "value": { "type": "string" }
+      }
+    }
+  },
+  "outputs": {},
+  "example_template": "<zap-button [variant]=\"'primary'\" [options]=\"[{ label: 'Primary', value: 'primary' }]\"></zap-button>",
+  "reason": "Fixture mapping"
+}

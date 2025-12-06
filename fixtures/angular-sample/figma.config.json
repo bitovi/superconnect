@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "codeConnect": {
+    "include": [
+      "codeConnect/**/*.figma.ts",
+      "packages/**/*.{ts,tsx}",
+      "apps/**/*.{ts,tsx}"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.next/**"
+    ],
+    "parser": "html",
+    "label": "angular",
+    "interactiveSetupFigmaFileUrl": "https://www.figma.com/design/dummy-angular",
+    "documentUrlSubstitutions": {
+      "<FIGMA_ICONS_BASE>": "https://www.figma.com/design/dummy-angular"
+    }
+  }
+}

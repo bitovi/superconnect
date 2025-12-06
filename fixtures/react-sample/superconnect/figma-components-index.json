@@ -1,0 +1,10 @@
+{
+  "fileKey": "dummy-react",
+  "fileName": "React Fixture",
+  "components": [
+    {
+      "id": "react-1",
+      "name": "FixtureComponent"
+    }
+  ]
+}

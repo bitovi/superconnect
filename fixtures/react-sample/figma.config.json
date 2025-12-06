@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "codeConnect": {
+    "include": [
+      "codeConnect/**/*.figma.tsx",
+      "packages/**/*.{ts,tsx}",
+      "apps/**/*.{ts,tsx}"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.next/**"
+    ],
+    "parser": "react",
+    "label": "react",
+    "interactiveSetupFigmaFileUrl": "https://www.figma.com/design/dummy-react",
+    "documentUrlSubstitutions": {
+      "<FIGMA_ICONS_BASE>": "https://www.figma.com/design/dummy-react"
+    }
+  }
+}

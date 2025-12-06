@@ -14,6 +14,8 @@
 const fs = require('fs/promises');
 const path = require('path');
 const fg = require('fast-glob');
+const { detectFrameworks } = require('../src/util/detect-framework');
+const { detectAngularComponents } = require('../src/util/scan-angular');
 
 const DEFAULT_IGNORES = [
   '**/node_modules/**',
@@ -38,17 +40,24 @@ const parseArgs = (argv) => {
   const args = argv.slice(2);
   let flagRoot = null;
   let positionalRoot = null;
+  let output = null;
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if ((arg === '--root' || arg === '-r') && args[i + 1]) {
       flagRoot = args[i + 1];
+      i += 1;
+    } else if (arg === '--output' && args[i + 1]) {
+      output = args[i + 1];
       i += 1;
     } else if (!arg.startsWith('-') && positionalRoot === null) {
       positionalRoot = arg;
     }
   }
   const root = flagRoot || positionalRoot || process.cwd();
-  return { root: path.resolve(root) };
+  return {
+    root: path.resolve(root),
+    output: output ? path.resolve(output) : path.join(path.resolve(root), 'superconnect', 'repo-summary.json'),
+  };
 };
 
 const readJsonIfExists = async (filePath) => {
@@ -294,8 +303,10 @@ const summarize = async (root) => {
     summarizeConfigs(root),
   ]);
 
+  const frameworkInfo = await detectFrameworks({ root, packageJson: pkg, ignore: DEFAULT_IGNORES });
   const allFiles = await summarizeTsFiles(root, componentRoots, themes.recipes);
   const selectedFiles = allFiles;
+  const angularComponents = await detectAngularComponents({ root, ignore: DEFAULT_IGNORES });
 
   return {
     root,
@@ -304,11 +315,14 @@ const summarize = async (root) => {
     codeConnect,
     components: { roots: componentRoots },
     themes,
+    angular_components: angularComponents,
     component_source_files: selectedFiles,
     component_source_files_meta: {
       total: allFiles.length,
       selectedCount: selectedFiles.length
     },
+    frameworks: frameworkInfo.frameworks,
+    primary_framework: frameworkInfo.primaryFramework,
     locks,
     env,
     config,
@@ -316,9 +330,18 @@ const summarize = async (root) => {
 };
 
 const main = async () => {
-  const { root } = parseArgs(process.argv);
+  const { root, output } = parseArgs(process.argv);
   const summary = await summarize(root);
-  process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+  const serialized = `${JSON.stringify(summary, null, 2)}\n`;
+  if (output) {
+    await fs.mkdir(path.dirname(output), { recursive: true });
+    await fs.writeFile(output, serialized, 'utf8');
+  }
+  if (output) {
+    console.log(`Repo summary written to ${output}`);
+  } else {
+    process.stdout.write(serialized);
+  }
 };
 
 if (require.main === module) {
