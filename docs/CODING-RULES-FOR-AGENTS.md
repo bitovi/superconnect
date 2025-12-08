@@ -67,4 +67,4 @@ This document guides contributors and coding agents working in this repo. It com
     - Use stable keys and names for generated files.
   - This makes reruns easier to reason about and diffs smaller.
 
-
+Secret symbol: ◈

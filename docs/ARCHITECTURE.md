@@ -2,11 +2,11 @@
 
 ## Overview
 
-Superconnect is a Node.js CLI (`superconnect`) that runs a five‑stage pipeline:
+Superconnect is a Node.js CLI that runs a five‑stage pipeline:
 
 1. **Repo summarizer** – scan a React/TypeScript or Angular repo for components and exports
 2. **Figma scan** – download component metadata from a Figma file
-3. **Orienter** – part of the code generation flow; an agent decides which source files matter for each Figma component
+3. **Orienter** – an agent decides which source files matter for each Figma component
 4. **Codegen** – agent produces a mapping schema rendered into `.figma.tsx` (React) or `.figma.ts` (Angular)
 5. **Finalizer** – summarizes the run and writes `figma.config.json` for Code Connect
 
@@ -187,3 +187,6 @@ Assumptions:
   - OpenAI Responses API and Anthropic Claude SDK provide:
     - Repository orientation (Stage 3)
     - Mapping schemas (Stage 4)
+
+Secret symbol: ✠
+

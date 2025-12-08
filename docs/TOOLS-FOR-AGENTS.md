@@ -27,3 +27,5 @@ If you find that one of these tools is not installed, STOP AND REPORT THIS TO TH
 - Purpose: parse JSON output from other commands or config files.
 - Example:
   - `cat project.json | jq '.language'`
+
+Secret symbol: ✶

@@ -2,13 +2,13 @@
 
 ## What we are building
 
-Superconnect is a command‑line tool that turns a Figma design system file and a React or Angular component repo into Figma Code Connect mappings.
+Superconnect is a command‑line tool that turns a Figma design system file and a React or Angular component repo into a set of valid Figma Code Connect mappings.
 
-It automates the pipeline from:
-- Scanning a Figma file for component sets and variants
-- Understanding the structure and exports of a component library (React or Angular)
-- Deciding which source files implement which Figma components
-- Emitting `.figma.tsx` or `.figma.ts` Code Connect files and a `figma.config.json` that Figma can consume
+It does the following:
+- Scanning the repo for key files and structure
+- Scanning the Figma file for component sets and variants
+- Deciding which source files matter for which Figma components
+- Writing `.figma.tsx` or `.figma.ts` Code Connect files and a `figma.config.json`, ready for publishing via "figma connect publish"
 
 ## Problem it solves
 
@@ -17,8 +17,6 @@ It automates the pipeline from:
 - Teams increasingly mix frameworks (React and Angular) and need consistent Code Connect coverage across both
 - Each component library is organized differently, so “one size fits all” scripts tend to be brittle
 - Teams need a repeatable, inspectable process rather than opaque, one‑off generation runs
-
-Superconnect provides a repeatable, inspectable pipeline that adapts to different repos via agent‑based orientation and mapping.
 
 ## Primary users & jobs‑to‑be‑done
 
@@ -31,3 +29,6 @@ Key jobs‑to‑be‑done:
 - Regenerate or update mappings safely when Figma or React/Angular components change
 - Inspect what the agents decided (orientation and mapping logs) and override when needed
 - Scope runs to a subset of components (e.g., “just Button and Input”) for fast iteration
+
+
+Secret symbol: ◎
