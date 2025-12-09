@@ -189,8 +189,9 @@ function runCommand(label, command, options = {}) {
   console.log(`${chalk.dim('•')} ${label}`);
   const { env: extraEnv, allowInterrupt = false, ...rest } = options || {};
   const mergedEnv = { ...process.env, ...(extraEnv || {}) };
+  const shouldCapture = ['1', 'true', 'yes', 'on'].includes(String(process.env.SUPERCONNECT_E2E_VERBOSE || '').toLowerCase());
   const result = spawnSync(command, {
-    stdio: 'inherit',
+    stdio: shouldCapture ? 'pipe' : 'inherit',
     shell: true,
     env: mergedEnv,
     ...rest
@@ -200,7 +201,14 @@ function runCommand(label, command, options = {}) {
     return;
   }
   if (result.status !== 0) {
-    console.error(`❌ ${label} failed with code ${result.status || 1}`);
+    const status = result.status || 1;
+    if (shouldCapture) {
+      const stdout = result.stdout ? result.stdout.toString().trim() : '';
+      const stderr = result.stderr ? result.stderr.toString().trim() : '';
+      if (stdout) console.error(`stdout:\n${stdout}`);
+      if (stderr) console.error(`stderr:\n${stderr}`);
+    }
+    console.error(`❌ ${label} failed with code ${status}`);
     process.exit(result.status || 1);
   }
 }
