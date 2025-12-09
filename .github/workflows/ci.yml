@@ -1,6 +1,9 @@
 name: CI
 
-on: [push]
+on:
+  push:
+    branches:
+      - '**'
 
 jobs:
   test:
@@ -9,6 +12,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -19,5 +24,29 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run tests
+      - name: Run unit tests
         run: npm test
+
+      - name: Run Chakra E2E tests
+        if: ${{ github.ref == 'refs/heads/main' && secrets.FIGMA_ACCESS_TOKEN != '' && secrets.ANTHROPIC_API_KEY != '' }}
+        env:
+          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ ! -f fixtures/chakra-ui/package.json ]; then
+            echo "Skipping Chakra E2E: fixtures/chakra-ui not present after checkout"
+            exit 0
+          fi
+          npm run test:e2e:chakra
+
+      - name: Run ZapUI E2E tests
+        if: ${{ github.ref == 'refs/heads/main' && secrets.FIGMA_ACCESS_TOKEN != '' && secrets.ANTHROPIC_API_KEY != '' }}
+        env:
+          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ ! -f fixtures/zapui/package.json ]; then
+            echo "Skipping ZapUI E2E: fixtures/zapui not present after checkout"
+            exit 0
+          fi
+          npm run test:e2e:zapui
