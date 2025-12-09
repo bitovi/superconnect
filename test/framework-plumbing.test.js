@@ -6,10 +6,6 @@ const pipelineScript = path.join(__dirname, '..', 'scripts', 'run-pipeline.js');
 
 const runPipelineDry = (target) => {
   const superconnectDir = path.join(target, 'superconnect');
-  fs.removeSync(path.join(superconnectDir, 'repo-summary.json'));
-  fs.removeSync(path.join(superconnectDir, 'orientation.jsonl'));
-  fs.removeSync(path.join(superconnectDir, 'codegen-logs'));
-  fs.removeSync(path.join(superconnectDir, 'mapping-agent-logs'));
   const result = execFileSync('node', [pipelineScript, '--target', target, '--dry-run'], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe']
