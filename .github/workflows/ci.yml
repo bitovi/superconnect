@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -29,10 +32,7 @@ jobs:
         run: npm test
 
       - name: Run Chakra E2E tests
-        if: ${{ github.ref == 'refs/heads/main' && secrets.FIGMA_ACCESS_TOKEN != '' && secrets.ANTHROPIC_API_KEY != '' }}
-        env:
-          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        if: github.ref == 'refs/heads/main' && env.FIGMA_ACCESS_TOKEN != '' && env.ANTHROPIC_API_KEY != ''
         run: |
           if [ ! -f fixtures/chakra-ui/package.json ]; then
             echo "Skipping Chakra E2E: fixtures/chakra-ui not present after checkout"
@@ -41,10 +41,7 @@ jobs:
           npm run test:e2e:chakra
 
       - name: Run ZapUI E2E tests
-        if: ${{ github.ref == 'refs/heads/main' && secrets.FIGMA_ACCESS_TOKEN != '' && secrets.ANTHROPIC_API_KEY != '' }}
-        env:
-          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        if: github.ref == 'refs/heads/main' && env.FIGMA_ACCESS_TOKEN != '' && env.ANTHROPIC_API_KEY != ''
         run: |
           if [ ! -f fixtures/zapui/package.json ]; then
             echo "Skipping ZapUI E2E: fixtures/zapui not present after checkout"
