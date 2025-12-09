@@ -1,3 +1,6 @@
 [submodule "fixtures/zapui"]
 	path = fixtures/zapui
 	url = git@github.com:zapuilib/zapui.git
+[submodule "fixtures/chakra-ui"]
+	path = fixtures/chakra-ui
+	url = https://github.com/chakra-ui/chakra-ui

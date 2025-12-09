@@ -123,6 +123,12 @@ Running the full pipeline (once configured) produces (in your component repo):
 - Run `npm run test:e2e:zapui` to copy the ZapUI repo to a temp dir, run Superconnect for Angular, then `figma connect parse` and `figma connect publish --dry-run`
 - Optional verbose mode: add an npm config flag (`npm run test:e2e:zapui --zapui-e2e-verbose=true`) or pass `--verbose` (`npm run test:e2e:zapui -- --verbose`, note npm itself becomes verbose); env alternative: `ZAPUI_E2E_VERBOSE=1`
 - Uses the Zap UI Kit Figma file at https://www.figma.com/design/GqZ6Bvsu8w8q2ukS1FDPX7/Zap-UI-Kit--Community-?m=auto&t=GVF9lkWuNBY6BgRq-6
+- Chakra React E2E:
+  - Initialize the Chakra submodule: `git submodule update --init fixtures/chakra-ui`
+  - Ensure FIGMA_ACCESS_TOKEN and ANTHROPIC_API_KEY are set (or stored in .env)
+  - Run `npm run test:e2e:chakra` to copy Chakra to a temp dir, run Superconnect for React with a limited `--only` subset, then `figma connect parse` and `figma connect publish --dry-run`
+  - Default subset (~10): Button, Input, Checkbox, Switch, Select, Tabs.List, Tabs.Trigger, Accordion, Tooltip, Card (override via `CHAKRA_E2E_ONLY` or `--chakra-e2e-only=`); verbose via `--chakra-e2e-verbose` or `-- --verbose`
+  - Uses the Chakra UI Figma file at https://www.figma.com/design/mgzCV3zD3iWpctEI6UoUhB/Chakra-UI
 
 # Interrupts & Reruns
 

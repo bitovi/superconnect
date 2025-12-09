@@ -77,3 +77,63 @@ By default the E2E test deletes its temp directory in a `finally` block
   - Temporarily comment out the `fs.removeSync(tmpDir)` call at the end of `test/zapui-e2e.test.js`
   - Add a `console.log(tmpDir)` near where `tmpDir` is created
   - Re-run the test, then manually inspect that directory
+
+## Chakra UI React E2E validation
+
+The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI React repo and Figma file, then validates via the Figma CLI
+
+### What it does
+
+- Uses the Chakra UI git submodule at `fixtures/chakra-ui` (remote `https://github.com/chakra-ui/chakra-ui`)
+- Copies Chakra UI into a temporary directory under your OS temp folder
+- Writes a `superconnect.toml` that points to the Chakra UI Figma file
+  - `https://www.figma.com/design/mgzCV3zD3iWpctEI6UoUhB/Chakra-UI`
+- Runs the full pipeline for React, limited to a small component subset via `--only`
+  - `node scripts/run-pipeline.js --framework react --force --only <subset>`
+- Runs Figma Code Connect validation in the temp copy
+  - `figma connect parse`
+  - `figma connect publish --dry-run`
+- Cleans up the temp directory when the test finishes
+
+### One-time setup
+
+- Initialize the Chakra UI submodule
+  - `git submodule update --init fixtures/chakra-ui`
+- Ensure Figma and agent tokens are available
+  - Either export `FIGMA_ACCESS_TOKEN` and `ANTHROPIC_API_KEY`
+  - Or put them in `.env` in this repo root
+
+### Component subset
+
+- Default subset (~10 components): Button, Input, Checkbox, Switch, Select, Tabs.List, Tabs.Trigger, Accordion, Tooltip, Card
+- Override via env or npm config: `CHAKRA_E2E_ONLY="Button,Input,..."`
+  - Example: `CHAKRA_E2E_ONLY="Button,Input,Checkbox" npm run test:e2e:chakra`
+
+### Running the E2E test
+
+- Standard run
+  - `npm run test:e2e:chakra`
+- This will
+  - Gate on `RUN_CHAKRA_E2E=1` via the npm script
+  - Use your FIGMA_ACCESS_TOKEN and ANTHROPIC_API_KEY from env or `.env`
+  - Make live calls to the Figma API and the configured agent backend
+
+### Verbose output
+
+The Chakra E2E test can print each child command and its combined stdout/stderr
+
+- Enable verbose mode via npm config flag
+  - `npm run test:e2e:chakra --chakra-e2e-verbose=true`
+- Or pass Jest’s `--verbose` flag through npm
+  - `npm run test:e2e:chakra -- --verbose`
+- Or use an environment variable
+  - `CHAKRA_E2E_VERBOSE=1 npm run test:e2e:chakra`
+
+### Inspecting artifacts
+
+By default the E2E test deletes its temp directory in a `finally` block
+
+- To inspect outputs (generated `codeConnect/*.figma.tsx`, `superconnect/*`, logs)
+  - Temporarily comment out the `fs.removeSync(tmpDir)` call at the end of `test/chakra-e2e.test.js`
+  - Add a `console.log(tmpDir)` near where `tmpDir` is created
+  - Re-run the test, then manually inspect that directory

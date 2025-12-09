@@ -261,38 +261,81 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaCompone
   const isValidIdentifier = (name) => /^[A-Za-z_$][\w$]*$/.test(name);
 
   const baseProps = Array.isArray(schema.props) ? schema.props : [];
-  const existingNames = new Set(baseProps.map((p) => p?.name).filter(Boolean));
+  const normalizedComponentProps = Array.isArray(figmaComponentProperties) ? figmaComponentProperties : [];
+  const normalizedVariantProps =
+    figmaVariantProperties && typeof figmaVariantProperties === 'object' ? figmaVariantProperties : {};
 
-  const inferredProps = Array.isArray(figmaComponentProperties)
-    ? figmaComponentProperties
-        .map((cp) => {
-          const rawName = cp?.name || '';
-          if (!rawName) return null;
-          const isBoolean = rawName.trim().endsWith('?');
-          const rawLower = rawName.toLowerCase();
-          const normalizedKey = normalizeFigmaKey(rawName);
-          const jsBase = sanitizeJsName(normalizedKey) || 'prop';
-          const wantsChildren = !isBoolean && rawLower === 'label';
-          const name = wantsChildren ? 'children' : isBoolean ? `${jsBase}Enabled` : jsBase;
-          if (existingNames.has(name)) return null;
-          const kind = isBoolean ? 'boolean' : cp?.type === 'STRING' || wantsChildren ? 'string' : 'instance';
-          existingNames.add(name);
-          return { name, figmaKey: rawName, kind };
-        })
-        .filter(Boolean)
-    : [];
-  const propEntries = [...baseProps, ...inferredProps];
-  const variantKeySet =
-    figmaVariantProperties && typeof figmaVariantProperties === 'object'
-      ? new Set(Object.keys(figmaVariantProperties))
-      : new Set();
-  const componentPropKeySet = Array.isArray(figmaComponentProperties)
-    ? new Set(figmaComponentProperties.map((p) => p?.name).filter(Boolean))
-    : new Set();
+  const deriveVariantProps = () =>
+    Object.entries(normalizedVariantProps)
+      .map(([name, values]) => {
+        if ((name || '').trim().startsWith('.')) return null;
+        const figmaKey = name || '';
+        const normalizedName = sanitizeJsName(normalizeFigmaKey(name)) || 'prop';
+        const enumValues = Array.isArray(values) ? values : Object.keys(values || {});
+        const valueMapping = enumValues.reduce((acc, v) => {
+          acc[v] = v;
+          return acc;
+        }, {});
+        return { name: normalizedName, figmaKey, kind: 'enum', values: enumValues, valueMapping };
+      })
+      .filter(Boolean);
+
+  const deriveComponentProps = () =>
+    normalizedComponentProps
+      .map((cp) => {
+        const rawName = cp?.name || '';
+        if (!rawName) return null;
+        if (rawName.trim().startsWith('.')) return null;
+        if (cp?.type === 'STRING') return null;
+        const normalizedKey = normalizeFigmaKey(rawName);
+        const jsBase = sanitizeJsName(normalizedKey) || 'prop';
+        const isOptionalFlag = rawName.trim().endsWith('?');
+        const wantsChildren = jsBase.toLowerCase() === 'label';
+        const name = wantsChildren ? 'children' : isOptionalFlag ? `${jsBase}Enabled` : jsBase;
+        const kind =
+          cp?.type === 'BOOLEAN'
+            ? 'boolean'
+            : cp?.type === 'INSTANCE_SWAP'
+              ? 'instance'
+              : cp?.type === 'NUMBER'
+                ? 'string'
+                : 'string';
+        return { name, figmaKey: rawName, kind };
+      })
+      .filter(Boolean);
+
+  const derivedVariantProps = deriveVariantProps();
+  const derivedComponentProps = deriveComponentProps();
+  const shouldUseFigmaProps = derivedVariantProps.length > 0 || derivedComponentProps.length > 0;
+
+  const seenPropNames = new Set();
+  const sourceProps = (shouldUseFigmaProps ? [...derivedVariantProps, ...derivedComponentProps] : baseProps).filter(
+    (p) => {
+      const name = p?.name || '';
+      if (!name) return false;
+      if (seenPropNames.has(name)) return false;
+      seenPropNames.add(name);
+      return true;
+    }
+  );
+
+  const propEntries = sourceProps.map((p) => {
+    const figmaKeyRaw = p && typeof p === 'object' ? p.figmaKey || p.name || null : null;
+    const figmaKey = normalizeFigmaKey(figmaKeyRaw);
+    return { ...p, figmaKey };
+  });
+  const variantKeySet = new Set(Object.keys(normalizedVariantProps).map(normalizeFigmaKey));
+  const componentPropKeySet = new Set(
+    normalizedComponentProps.map((p) => normalizeFigmaKey(p?.name)).filter(Boolean)
+  );
   const allowedKeys = new Set([...variantKeySet, ...componentPropKeySet]);
+  const hasExplicitFigmaProps = figmaVariantProperties !== null || figmaComponentProperties !== null;
 
-  const filteredPropsRaw =
-    allowedKeys.size > 0 ? propEntries.filter((p) => !p.figmaKey || allowedKeys.has(p.figmaKey)) : propEntries;
+  const filteredPropsRaw = shouldUseFigmaProps
+    ? propEntries
+    : hasExplicitFigmaProps
+      ? propEntries.filter((p) => p.figmaKey && allowedKeys.has(p.figmaKey))
+      : propEntries;
 
   const assignVarNames = (props) => {
     const used = new Set();
