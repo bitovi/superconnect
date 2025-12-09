@@ -1,8 +1,20 @@
 const fs = require('fs-extra');
 const path = require('path');
+const os = require('os');
 const { execFileSync } = require('child_process');
 
 const orienterScript = path.join(__dirname, '..', 'scripts', 'run-orienter.js');
+
+const copyFixture = (fixtureDir) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'angular-orienter-'));
+  fs.copySync(fixtureDir, tmpDir);
+  const repoSummarySrc = path.join(fixtureDir, 'superconnect', 'repo-summary.json');
+  const repoSummaryDest = path.join(tmpDir, 'superconnect', 'repo-summary.json');
+  if (!fs.existsSync(repoSummaryDest) && fs.existsSync(repoSummarySrc)) {
+    fs.copySync(repoSummarySrc, repoSummaryDest);
+  }
+  return tmpDir;
+};
 
 const runOrienterFake = (fixtureDir) => {
   const output = path.join(fixtureDir, 'superconnect', 'orientation.jsonl');
@@ -34,7 +46,7 @@ const readOrientationLines = (filePath) =>
 
 describe('angular-aware orienter', () => {
   test('includes angular component file in orientation output', () => {
-    const fixtureDir = path.join(__dirname, '..', 'fixtures', 'angular-sample');
+    const fixtureDir = copyFixture(path.join(__dirname, '..', 'fixtures', 'angular-sample'));
     const { output, stdout } = runOrienterFake(fixtureDir);
     expect(fs.existsSync(output)).toBe(true);
     expect(stdout.toLowerCase()).toContain('fake orienter output');

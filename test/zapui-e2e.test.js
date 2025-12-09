@@ -13,10 +13,7 @@ const superconnectScript = path.join(__dirname, '..', 'scripts', 'run-pipeline.j
 const figmaCli = path.join(__dirname, '..', 'node_modules', '.bin', 'figma');
 
 const isVerbose = () => {
-  const val =
-    process.env.ZAPUI_E2E_VERBOSE ||
-    process.env.npm_config_zapui_e2e_verbose ||
-    process.env.npm_config_verbose;
+  const val = process.env.SUPERCONNECT_E2E_VERBOSE;
   if (val === undefined || val === null) return false;
   const normalized = String(val).toLowerCase();
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';

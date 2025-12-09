@@ -9,7 +9,16 @@ const fixtureDir = path.join(__dirname, '..', 'fixtures', 'angular-sample');
 describe('angular figma config', () => {
   const runFinalize = () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'finalize-angular-'));
-    fs.copySync(fixtureDir, tmpDir);
+    fs.copySync(fixtureDir, tmpDir, {
+      dereference: true,
+      filter: (src) => !src.endsWith(`${path.sep}repo-summary.json`)
+    });
+    const repoSummarySrc = path.join(fixtureDir, 'superconnect', 'repo-summary.json');
+    const repoSummaryDest = path.join(tmpDir, 'superconnect', 'repo-summary.json');
+    if (fs.existsSync(repoSummarySrc)) {
+      fs.ensureDirSync(path.dirname(repoSummaryDest));
+      fs.writeFileSync(repoSummaryDest, fs.readFileSync(repoSummarySrc));
+    }
     execFileSync('node', [finalizeScript, '--cwd', tmpDir, '--target-framework', 'angular'], {
       cwd: tmpDir,
       stdio: 'ignore'

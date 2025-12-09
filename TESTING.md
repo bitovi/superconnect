@@ -1,14 +1,18 @@
 # Testing Superconnect
 
-This repo has fast unit tests and an optional end-to-end (E2E) validation against the ZapUI Angular design system
+This repo has fast unit tests and optional end-to-end (E2E) validations against real design systems
 
-## Prerequisites
+## How to run all tests
 
-- Node 18+ installed
-- Dependencies installed in this repo: `npm install`
-- Optional but recommended: `.env` in repo root containing
-  - `FIGMA_ACCESS_TOKEN=...`
-  - `ANTHROPIC_API_KEY=...`
+- Core unit suite (what CI should run)
+  - `npm test`
+- Optional live E2E suites (run manually when you want full coverage)
+  - `npm run test:e2e:zapui` for Angular (ZapUI)
+  - `npm run test:e2e:chakra` for React (Chakra UI)
+  - These require Figma + agent tokens and network access
+    - `FIGMA_ACCESS_TOKEN=...`
+    - `ANTHROPIC_API_KEY=...`
+  - E2E tests first look in `process.env`, then fall back to `.env` in this repo root for those values
 
 ## Unit tests
 
@@ -62,12 +66,8 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 
 The ZapUI E2E test can print each child command and its combined stdout/stderr
 
-- Enable verbose mode via npm config flag
-  - `npm run test:e2e:zapui --zapui-e2e-verbose=true`
-- Or pass Jest’s `--verbose` flag through npm
-  - `npm run test:e2e:zapui -- --verbose`
-- Or use an environment variable
-  - `ZAPUI_E2E_VERBOSE=1 npm run test:e2e:zapui`
+- Enable command echoing with an env var
+  - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui`
 
 ### Inspecting artifacts
 
@@ -122,12 +122,8 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 
 The Chakra E2E test can print each child command and its combined stdout/stderr
 
-- Enable verbose mode via npm config flag
-  - `npm run test:e2e:chakra --chakra-e2e-verbose=true`
-- Or pass Jest’s `--verbose` flag through npm
-  - `npm run test:e2e:chakra -- --verbose`
-- Or use an environment variable
-  - `CHAKRA_E2E_VERBOSE=1 npm run test:e2e:chakra`
+- Enable command echoing with an env var
+  - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra`
 
 ### Inspecting artifacts
 

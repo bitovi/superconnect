@@ -11,6 +11,13 @@
     "test:e2e:zapui": "RUN_ZAPUI_E2E=1 NODE_OPTIONS=\"${NODE_OPTIONS:-} --localstorage-file=.jest-localstorage\" jest test/zapui-e2e.test.js",
     "test:watch": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --localstorage-file=.jest-localstorage\" jest --watch"
   },
+  "jest": {
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/fixtures/zapui/",
+      "/fixtures/chakra-ui/"
+    ]
+  },
   "keywords": [
     "figma",
     "code-connect",

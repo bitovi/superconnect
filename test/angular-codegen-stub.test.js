@@ -34,9 +34,9 @@ describe('angular codegen stub', () => {
     expect(contents).toContain('figma.connect');
     expect(contents).toContain('html`');
     expect(contents).toMatch(/zap-button/);
-    expect(contents).toContain("variant: figma.enum('variant', {\"primary\":\"primary\",\"secondary\":\"secondary\"})");
-    expect(contents).toContain("options: figma.string('options'");
-    expect(contents).toContain("[options]");
+    expect(contents).toContain('props: {}');
+    expect(contents).toContain("[variant]=\"'primary'\"");
+    expect(contents).toContain('[options]');
     expect(contents.toLowerCase()).toContain('example');
   });
 });

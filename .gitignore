@@ -9,7 +9,7 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .DS_Store
-.jest-localstorage
+.jest-localstorage*
 tmp/
 
 # Env/config (keep sample)
