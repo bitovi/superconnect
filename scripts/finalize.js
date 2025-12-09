@@ -16,7 +16,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const { Command } = require('commander');
 const { generate } = require('fast-glob/out/managers/tasks');
-const chalk = require('chalk').default;
+const chalk = require('chalk');
 
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 const stripAnsi = (value = '') => value.replace(/\u001b\[[0-9;]*m/g, '');

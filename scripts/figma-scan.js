@@ -19,7 +19,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { fetch } = require('undici');
 const { Command } = require('commander');
-const chalk = require('chalk').default;
+const chalk = require('chalk');
 const stringifyCompact = require('json-stringify-pretty-compact').default;
 const { figmaColor } = require('./colors');
 

@@ -1,4 +1,4 @@
-const chalk = require('chalk').default;
+const chalk = require('chalk');
 
 const figmaColor = (text) => chalk.hex('#ff6b6b')(text);
 const codeColor = (text) => chalk.hex('#2f9cf4')(text);

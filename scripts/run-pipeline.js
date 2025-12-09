@@ -14,7 +14,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { Command } = require('commander');
 const readline = require('readline');
-const chalk = require('chalk').default;
+const chalk = require('chalk');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
