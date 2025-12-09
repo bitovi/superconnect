@@ -6,10 +6,10 @@
     "superconnect": "scripts/run-pipeline.js"
   },
   "scripts": {
-    "test": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --localstorage-file=.jest-localstorage\" jest",
-    "test:e2e:chakra": "RUN_CHAKRA_E2E=1 NODE_OPTIONS=\"${NODE_OPTIONS:-} --localstorage-file=.jest-localstorage\" jest test/chakra-e2e.test.js",
-    "test:e2e:zapui": "RUN_ZAPUI_E2E=1 NODE_OPTIONS=\"${NODE_OPTIONS:-} --localstorage-file=.jest-localstorage\" jest test/zapui-e2e.test.js",
-    "test:watch": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --localstorage-file=.jest-localstorage\" jest --watch"
+    "test": "jest",
+    "test:e2e:chakra": "RUN_CHAKRA_E2E=1 jest test/chakra-e2e.test.js",
+    "test:e2e:zapui": "RUN_ZAPUI_E2E=1 jest test/zapui-e2e.test.js",
+    "test:watch": "jest --watch"
   },
   "jest": {
     "testPathIgnorePatterns": [

@@ -7,6 +7,8 @@ const codegenScript = path.join(__dirname, '..', 'scripts', 'run-codegen.js');
 const runCodegenStub = (fixtureDir) => {
   const superconnect = path.join(fixtureDir, 'superconnect');
   const codeConnectDir = path.join(fixtureDir, 'codeConnect');
+  const codegenLogsDir = path.join(superconnect, 'codegen-logs');
+  fs.removeSync(codegenLogsDir);
   fs.removeSync(codeConnectDir);
   const args = [
     codegenScript,
