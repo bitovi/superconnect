@@ -205,11 +205,25 @@ function runCommand(label, command, options = {}) {
     if (shouldCapture) {
       const stdout = result.stdout ? result.stdout.toString().trim() : '';
       const stderr = result.stderr ? result.stderr.toString().trim() : '';
-      if (stdout) console.error(`stdout:\n${stdout}`);
-      if (stderr) console.error(`stderr:\n${stderr}`);
+      console.error(`❌ ${label} failed with code ${status}`);
+      console.error(`Command: ${command}`);
+      if (stdout) {
+        console.error(`stdout:\n${stdout}`);
+      } else {
+        console.error('stdout: (empty)');
+      }
+      if (stderr) {
+        console.error(`stderr:\n${stderr}`);
+      } else {
+        console.error('stderr: (empty)');
+      }
+      if (result.error) {
+        console.error(`spawn error: ${result.error.stack || result.error.message || result.error}`);
+      }
+    } else {
+      console.error(`❌ ${label} failed with code ${status}`);
     }
-    console.error(`❌ ${label} failed with code ${status}`);
-    process.exit(result.status || 1);
+    process.exit(status);
   }
 }
 
