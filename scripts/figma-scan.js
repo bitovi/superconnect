@@ -20,7 +20,13 @@ const crypto = require('crypto');
 const { fetch } = require('undici');
 const { Command } = require('commander');
 const chalk = require('chalk');
-const stringifyCompact = require('json-stringify-pretty-compact').default;
+const stringifyCompact = (value) => {
+  // Lazy-load ESM helper from CommonJS to keep formatting compact while avoiding top-level require issues on Node 18.
+  // This keeps behavior identical to json-stringify-pretty-compact without forcing ESM import at module load.
+  const pkg = require('json-stringify-pretty-compact');
+  const fn = pkg.default || pkg;
+  return fn(value);
+};
 const { figmaColor } = require('./colors');
 
 const SCHEMA_VERSION = 'figma-component@1';
