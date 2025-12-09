@@ -116,6 +116,14 @@ Running the full pipeline (once configured) produces (in your component repo):
         - Codegen stats (orientation coverage, candidates, built vs skipped, reasons)
         - Where logs and generated files live
 
+# ZapUI E2E validation
+
+- Initialize the ZapUI fixture submodule: `git submodule update --init fixtures/zapui`
+- Ensure FIGMA_ACCESS_TOKEN and ANTHROPIC_API_KEY are set (or stored in .env)
+- Run `npm run test:e2e:zapui` to copy the ZapUI repo to a temp dir, run Superconnect for Angular, then `figma connect parse` and `figma connect publish --dry-run`
+- Optional verbose mode: add an npm config flag (`npm run test:e2e:zapui --zapui-e2e-verbose=true`) or pass `--verbose` (`npm run test:e2e:zapui -- --verbose`, note npm itself becomes verbose); env alternative: `ZAPUI_E2E_VERBOSE=1`
+- Uses the Zap UI Kit Figma file at https://www.figma.com/design/GqZ6Bvsu8w8q2ukS1FDPX7/Zap-UI-Kit--Community-?m=auto&t=GVF9lkWuNBY6BgRq-6
+
 # Interrupts & Reruns
 
 The pipeline is designed for graceful partial runs:

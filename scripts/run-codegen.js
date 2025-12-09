@@ -449,7 +449,12 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaCompone
   return lines.join('\n');
 };
 
-const renderAngularFromSchema = (schema, figmaUrl, angularSelectorFallback = 'component') => {
+const renderAngularFromSchema = (
+  schema,
+  figmaUrl,
+  angularSelectorFallback = 'component',
+  figmaComponentProperties = null
+) => {
   const normalizeType = (value) => (value ? String(value).toLowerCase() : '');
   const ARRAY_LIKE_INPUTS = new Set(['options', 'items', 'choices']);
   const defaultArrayItems = { label: { type: 'string' }, value: { type: 'string' } };
@@ -531,11 +536,20 @@ const renderAngularFromSchema = (schema, figmaUrl, angularSelectorFallback = 'co
 
   const selector = schema.selector || angularSelectorFallback || 'component';
   const inputs = normalizeInputs(schema.inputs);
+  const hasComponentProps = Array.isArray(figmaComponentProperties);
+  const allowedKeys = hasComponentProps
+    ? new Set(figmaComponentProperties.map((p) => p?.name).filter(Boolean))
+    : null;
+  const filteredInputs = !hasComponentProps
+    ? {}
+    : allowedKeys && allowedKeys.size === 0
+      ? {}
+      : Object.fromEntries(Object.entries(inputs).filter(([name]) => allowedKeys.has(name)));
 
-  const propLines = Object.entries(inputs).map(([name, def = {}]) => buildControl(name, def));
+  const propLines = Object.entries(filteredInputs).map(([name, def = {}]) => buildControl(name, def));
 
   const propsBlock = propLines.length ? ['  props: {', ...propLines.map((l) => `${l},`), '  },'] : ['  props: {},'];
-  const exampleTemplate = resolveExampleTemplate(schema.example_template, selector, inputs);
+  const exampleTemplate = resolveExampleTemplate(schema.example_template, selector, filteredInputs);
 
   lines.push('');
   lines.push(`figma.connect('${figmaUrl}', {`);
@@ -745,6 +759,11 @@ const processAngularEntry = async (orienterEntry, ctx) => {
   const orienterName =
     normalized.figmaComponentName || normalized.canonicalName || normalized.figmaComponentId || 'component';
   const logBaseName = componentMeta.name || componentMeta.id || orienterName || 'component';
+  const componentKey =
+    componentMeta.id ||
+    normalized.figmaComponentId ||
+    (componentMeta.name ? componentMeta.name.toLowerCase() : orienterName ? orienterName.toLowerCase() : null);
+  const componentJson = componentKey ? ctx.figmaComponents[componentKey] || null : null;
 
   const requiredPaths = Array.isArray(normalized.files)
     ? normalized.files.map((f) => (typeof f === 'string' ? f : f?.path)).filter(Boolean)
@@ -773,7 +792,7 @@ const processAngularEntry = async (orienterEntry, ctx) => {
     const payload = buildAgentPayload(
       ctx.promptText,
       componentMeta,
-      null,
+      componentJson,
       normalized,
       files,
       figmaInfo,
@@ -813,7 +832,12 @@ const processAngularEntry = async (orienterEntry, ctx) => {
 
   const selector = parsed.selector || fallbackSelector;
   const fileName = `${sanitizeSlug(componentMeta.name || orienterName || 'component')}.figma.ts`;
-  const tsContents = renderAngularFromSchema(parsed, figmaUrl, selector);
+  const tsContents = renderAngularFromSchema(
+    parsed,
+    figmaUrl,
+    selector,
+    componentJson?.data?.componentProperties || componentJson?.componentProperties || null
+  );
   const targetPath = path.join(ctx.repo, ctx.codeConnectDir, fileName);
   const exists = fs.existsSync(targetPath);
   if (exists && !ctx.force) {

@@ -17,4 +17,3 @@ Before work in this project, read these essential docs:
 # Other guidance
 - In markdown lists, don't end each entry with a period
 
-Secret symbol: ✶

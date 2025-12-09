@@ -1,0 +1,3 @@
+[submodule "fixtures/zapui"]
+	path = fixtures/zapui
+	url = git@github.com:zapuilib/zapui.git
