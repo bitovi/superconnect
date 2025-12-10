@@ -21,6 +21,7 @@ const path = require('path');
 const { Command } = require('commander');
 const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
+const { renderAngularFromSchema } = require('../src/angular/render-angular');
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
 const defaultPromptPath = path.join(__dirname, '..', 'prompts', 'react-mapping-agent.md');
@@ -489,117 +490,6 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaCompone
   }
   lines.push('});');
 
-  return lines.join('\n');
-};
-
-const renderAngularFromSchema = (
-  schema,
-  figmaUrl,
-  angularSelectorFallback = 'component',
-  figmaComponentProperties = null
-) => {
-  const normalizeType = (value) => (value ? String(value).toLowerCase() : '');
-  const ARRAY_LIKE_INPUTS = new Set(['options', 'items', 'choices']);
-  const defaultArrayItems = { label: { type: 'string' }, value: { type: 'string' } };
-
-  const normalizeInputs = (rawInputs) => {
-    const inputs = rawInputs && typeof rawInputs === 'object' ? rawInputs : {};
-    return Object.entries(inputs).reduce((acc, [name, def = {}]) => {
-      const type = normalizeType(def.type);
-      const needsArray = type !== 'array' && ARRAY_LIKE_INPUTS.has(name.toLowerCase());
-      if (type === 'array' || needsArray) {
-        acc[name] = {
-          ...def,
-          type: 'string',
-          _isArray: true,
-          items:
-            def.items && typeof def.items === 'object' && !Array.isArray(def.items)
-              ? def.items
-              : defaultArrayItems
-        };
-        return acc;
-      }
-      acc[name] = { ...def, type, _isArray: false };
-      return acc;
-    }, {});
-  };
-
-  const buildScalarControl = (propName, def = {}) => {
-    const type = normalizeType(def.type);
-    if (type === 'enum' && Array.isArray(def.values)) {
-      const mapped = def.values.reduce((obj, val) => {
-        obj[val] = val;
-        return obj;
-      }, {});
-      return `figma.enum('${propName}', ${JSON.stringify(mapped)})`;
-    }
-    if (type === 'boolean') {
-      return `figma.boolean('${propName}')`;
-    }
-    if (type === 'number') {
-      return `figma.string('${propName}')`;
-    }
-    return `figma.string('${propName}')`;
-  };
-
-  const buildControl = (propName, def = {}) => {
-    if (def._isArray) {
-      return `    ${propName}: figma.string('${propName}')`;
-    }
-    return `    ${propName}: ${buildScalarControl(propName, def)}`;
-  };
-
-  const buildArrayLiteral = (def = {}) => {
-    const items = def.items;
-    if (items && typeof items === 'object' && !Array.isArray(items)) {
-      const keys = Object.keys(items);
-      const pairs = (keys.length ? keys : ['value']).slice(0, 3).map((key) => `${key}: '${key}'`);
-      return `[ { ${pairs.join(', ')} } ]`;
-    }
-    return "['item']";
-  };
-
-  const resolveExampleTemplate = (userTemplate, selector, inputs) => {
-    if (userTemplate && String(userTemplate).trim()) {
-      return String(userTemplate).trim();
-    }
-    const arrayEntry =
-      inputs &&
-      Object.entries(inputs).find(([, def = {}]) => def && def._isArray);
-    if (arrayEntry) {
-      const [name, def] = arrayEntry;
-      return `<${selector} [${name}]="${buildArrayLiteral(def)}"></${selector}>`;
-    }
-    return `<${selector}></${selector}>`;
-  };
-
-  const lines = [];
-  lines.push("import figma from '@figma/code-connect';");
-  lines.push("import { html } from 'lit-html';");
-
-  const selector = schema.selector || angularSelectorFallback || 'component';
-  const inputs = normalizeInputs(schema.inputs);
-  const hasComponentProps = Array.isArray(figmaComponentProperties);
-  const allowedKeys = hasComponentProps
-    ? new Set(figmaComponentProperties.map((p) => p?.name).filter(Boolean))
-    : null;
-  const filteredInputs = !hasComponentProps
-    ? {}
-    : allowedKeys && allowedKeys.size === 0
-      ? {}
-      : Object.fromEntries(Object.entries(inputs).filter(([name]) => allowedKeys.has(name)));
-
-  const propLines = Object.entries(filteredInputs).map(([name, def = {}]) => buildControl(name, def));
-
-  const propsBlock = propLines.length ? ['  props: {', ...propLines.map((l) => `${l},`), '  },'] : ['  props: {},'];
-  const exampleTemplate = resolveExampleTemplate(schema.example_template, selector, filteredInputs);
-
-  lines.push('');
-  lines.push(`figma.connect('${figmaUrl}', {`);
-  propsBlock.forEach((l) => lines.push(l));
-  lines.push(`  example: (props) => html\`${exampleTemplate}\``);
-  lines.push('});');
-  lines.push('');
   return lines.join('\n');
 };
 

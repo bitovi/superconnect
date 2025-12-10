@@ -6,7 +6,7 @@ const { spawnSync } = require('child_process');
 jest.setTimeout(300000);
 
 const FIGMA_URL =
-  'https://www.figma.com/design/GqZ6Bvsu8w8q2ukS1FDPX7/Zap-UI-Kit--Community-?m=auto&t=GVF9lkWuNBY6BgRq-6';
+  'https://www.figma.com/design/ChohwrZwvllBgHWzBslmUg/Zap-UI-Kit--Bitovi---Copy-?m=auto&t=0XdgVxllEy8vO4w1-6';
 const RUN_E2E = process.env.RUN_ZAPUI_E2E === '1';
 const fixtureRoot = path.join(__dirname, '..', 'fixtures', 'zapui');
 const superconnectScript = path.join(__dirname, '..', 'scripts', 'run-pipeline.js');
