@@ -83,6 +83,13 @@ const run = (cmd, args, options) => {
   return output;
 };
 
+const shouldKeep = () => {
+  const val = process.env.ZAPUI_E2E_KEEP || process.env.npm_config_zapui_e2e_keep;
+  if (!val) return false;
+  const normalized = String(val).toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+};
+
 const maybeTest = RUN_E2E ? test : test.skip;
 
 maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
@@ -125,6 +132,10 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
 
     expect(publishOutput).toEqual(expect.stringContaining('All Code Connect files are valid'));
   } finally {
-    fs.removeSync(tmpDir);
+    if (shouldKeep()) {
+      console.log(`ZAPUI_E2E_KEEP set; leaving temp dir at ${tmpDir}`);
+    } else {
+      fs.removeSync(tmpDir);
+    }
   }
 });
