@@ -262,9 +262,9 @@ function parseArgv(argv) {
   };
 }
 
-function loadEnvToken() {
+function loadEnvToken(baseDir = process.cwd()) {
   if (process.env.FIGMA_ACCESS_TOKEN) return process.env.FIGMA_ACCESS_TOKEN;
-  const envPath = path.resolve('.env');
+  const envPath = path.resolve(baseDir, '.env');
   if (!fs.existsSync(envPath)) return null;
   const line = fs
     .readFileSync(envPath, 'utf8')
@@ -275,10 +275,10 @@ function loadEnvToken() {
   return (value || '').trim() || null;
 }
 
-function loadAgentToken(backend) {
+function loadAgentToken(backend, baseDir = process.cwd()) {
   const envVar = backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
   if (process.env[envVar]) return process.env[envVar];
-  const envPath = path.resolve('.env');
+  const envPath = path.resolve(baseDir, '.env');
   if (!fs.existsSync(envPath)) return null;
   const line = fs
     .readFileSync(envPath, 'utf8')
@@ -330,7 +330,7 @@ async function main() {
   const prospectiveFigmaIndex = path.join(prospectiveTarget, 'superconnect', 'figma-components-index.json');
   const figmaIndexMissing = !fs.existsSync(prospectiveFigmaIndex);
 
-  if (figmaIndexMissing && !args.figmaToken && !loadEnvToken()) {
+  if (figmaIndexMissing && !args.figmaToken && !loadEnvToken(prospectiveTarget)) {
     console.error('❌ FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
     console.error('   Set FIGMA_ACCESS_TOKEN in your environment or .env, or pass --figma-token.');
     process.exit(1);
@@ -350,10 +350,10 @@ async function main() {
   const target =
     args.target ||
     (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));
-  const figmaToken = args.figmaToken || loadEnvToken();
+  const figmaToken = args.figmaToken || loadEnvToken(target);
   const agentConfig = normalizeAgentConfig(cfg.agent || {});
   const agentEnvVar = agentConfig.backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  const agentToken = loadAgentToken(agentConfig.backend);
+  const agentToken = loadAgentToken(agentConfig.backend, target);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
@@ -443,7 +443,12 @@ async function main() {
       inferredFramework ? `--target-framework "${inferredFramework}"` : '',
       args.dryRun ? '--dry-run' : ''
     ].join(' ');
-    runCommand(`${highlight('Repo orientation')} → ${generatedColor(rel(paths.orientation))}`, cmd);
+    runCommand(`${highlight('Repo orientation')} → ${generatedColor(rel(paths.orientation))}`, cmd, {
+      env: {
+        FIGMA_ACCESS_TOKEN: figmaToken || process.env.FIGMA_ACCESS_TOKEN,
+        [agentEnvVar]: agentToken || process.env[agentEnvVar]
+      }
+    });
   } else {
     console.log(
       `${chalk.dim('•')} ${highlight('Repo orientation')} (skipped, ${generatedColor(
@@ -471,7 +476,14 @@ async function main() {
     runCommand(
       `${highlight('Code generation')} (${codeColor(rel(paths.orientation))} → ${generatedColor(rel(paths.codeConnectDir))})`,
       codegenCmd,
-      { cwd: paths.target, allowInterrupt: true }
+      {
+        cwd: paths.target,
+        allowInterrupt: true,
+        env: {
+          FIGMA_ACCESS_TOKEN: figmaToken || process.env.FIGMA_ACCESS_TOKEN,
+          [agentEnvVar]: agentToken || process.env[agentEnvVar]
+        }
+      }
     );
   } else {
     console.log(`${chalk.dim('•')} ${highlight('Code generation')} skipped (dry run)`);
@@ -485,7 +497,12 @@ async function main() {
       `--cwd "${paths.target}"`,
       inferredFramework ? `--target-framework "${inferredFramework}"` : ''
     ].join(' ');
-    runCommand(`${highlight('Finalize')}`, cmd);
+    runCommand(`${highlight('Finalize')}`, cmd, {
+      env: {
+        FIGMA_ACCESS_TOKEN: figmaToken || process.env.FIGMA_ACCESS_TOKEN,
+        [agentEnvVar]: agentToken || process.env[agentEnvVar]
+      }
+    });
   }
 
   console.log(`${chalk.green('✓')} Pipeline complete.`);

@@ -15,8 +15,8 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { Command } = require('commander');
-const { generate } = require('fast-glob/out/managers/tasks');
 const chalk = require('chalk');
+const fg = require('fast-glob');
 
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 const stripAnsi = (value = '') => value.replace(/\u001b\[[0-9;]*m/g, '');
@@ -46,10 +46,8 @@ const readJsonLines = async (filePath) => {
 
 const listCodeConnectFiles = (dir) => {
   if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.figma.ts') || f.endsWith('.figma.tsx'))
-    .map((f) => path.join(dir, f));
+  const pattern = path.join(dir, '**', '*.figma.{ts,tsx}');
+  return fg.sync(pattern.replace(/\\/g, '/')).map((p) => path.resolve(p));
 };
 
 const toTokenName = (value) =>
@@ -112,6 +110,11 @@ const buildSummary = (context) => {
       : context.builtCount > 0
       ? '🟡 (partial)'
       : '🔴 (failed)';
+  const repoHeading = context.targetFramework
+    ? `=== ${context.targetFramework.toUpperCase()} REPO SCANNING ===`
+    : '=== REPO SCANNING ===';
+  const figmaStatusEmoji = context.figmaCount > 0 ? '🟢' : '🔴';
+  const figmaExtractStatus = context.figmaComponentsDirExists ? figmaStatusEmoji : '🟡';
 
   lines.push('');
   lines.push(highlight('====== SUPERCONNECT RUN SUMMARY ======'));
@@ -125,7 +128,7 @@ const buildSummary = (context) => {
   );
   lines.push('');
 
-  lines.push(codeColor(chalk.bold('=== REACT REPO SCANNING ===')));
+  lines.push(codeColor(chalk.bold(repoHeading)));
   lines.push(
     formatRow(
       context.repoSummaryExists ? '🟢' : '🟡',
@@ -133,26 +136,27 @@ const buildSummary = (context) => {
       codeColor(context.repoSummaryRel || '(not found)')
     )
   );
+  lines.push(continuationRow('', `Status: ${codeColor(scanStatus)}`));
   lines.push('');
 
   lines.push(figmaColor(chalk.bold('=== FIGMA SCANNING ===')));
   lines.push(
     formatRow(
-      '🟢',
+      figmaStatusEmoji,
       `Read from Figma:`,
       figmaColor(context.figmaUrl || context.figmaFileKey || context.figmaFileName || context.figmaIndexRel)
     )
   );
   lines.push(
     formatRow(
-      '🟢',
+      figmaStatusEmoji,
       `Wrote Figma index file (${context.figmaCount} components):`,
       figmaColor(context.figmaIndexRel)
     )
   );
   lines.push(
     formatRow(
-      '🟢',
+      figmaExtractStatus,
       `Wrote extracts for ${context.figmaCount} Figma components:`,
       figmaColor(context.figmaComponentsDirRel || '(not found)')
     )
@@ -160,6 +164,7 @@ const buildSummary = (context) => {
   lines.push('');
 
   lines.push(generatedColor(chalk.bold('=== CODE GENERATION SUMMARY ===')));
+  lines.push(continuationRow('', `Status: ${generatedColor(codegenStatus)}`));
   lines.push(
     formatRow(
       context.orientationMapped >= context.figmaCount
@@ -256,6 +261,7 @@ async function main() {
   const repoSummaryPath = path.join(config.superconnectDir, 'repo-summary.json');
   const repoSummary = await readJsonSafe(repoSummaryPath);
   const targetFramework = config.targetFramework || repoSummary?.primary_framework || null;
+  const figmaComponentsDir = path.join(config.superconnectDir, 'figma-components');
   const orientationIdSet = new Set(
     orientationEntries
       .map((e) => e.figmaComponentId || e.figma_component_id || null)
@@ -304,7 +310,9 @@ async function main() {
       path.relative(config.baseCwd, path.join(config.superconnectDir, 'repo-summary.json')) || null,
     repoSummaryExists: fs.existsSync(path.join(config.superconnectDir, 'repo-summary.json')),
     figmaComponentsDirRel:
-      path.relative(config.baseCwd, path.join(config.superconnectDir, 'figma-components')) || null,
+      path.relative(config.baseCwd, figmaComponentsDir) || null,
+    figmaComponentsDirExists:
+      fs.existsSync(figmaComponentsDir) && fs.statSync(figmaComponentsDir).isDirectory(),
     targetFramework
   };
 

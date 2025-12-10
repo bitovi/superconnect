@@ -11,7 +11,7 @@
  * No external CLIs required; uses built-in Node + fast-glob.
  */
 
-const fs = require('fs/promises');
+const fs = require('fs-extra');
 const path = require('path');
 const fg = require('fast-glob');
 const { detectFrameworks } = require('../src/util/detect-framework');
@@ -117,11 +117,12 @@ const summarizeTsconfigs = async (root) => {
 
 const summarizeCodeConnect = async (root) => {
   const configs = await listMatches(['figma.config.json', '**/figma.config.json'], { cwd: root, limit: 20 });
-  const files = await listMatches(['**/*.figma.tsx'], { cwd: root, limit: 20 });
+  const ccPatterns = ['**/*.figma.tsx', '**/*.figma.ts'];
+  const files = await listMatches(ccPatterns, { cwd: root, limit: 20 });
   return {
     config: configs,
     files: {
-      count: await countFiles('**/*.figma.tsx', { cwd: root }),
+      count: await countFiles(ccPatterns, { cwd: root }),
       samples: files,
     },
   };
