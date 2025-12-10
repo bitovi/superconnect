@@ -24,6 +24,7 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 const { renderAngularFromSchema } = require('../src/angular/render-angular');
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
+const EXISTING_FILE_REASON = 'Existing Code Connect file present (rerun with --force to overwrite)';
 const defaultPromptPath = path.join(__dirname, '..', 'prompts', 'react-mapping-agent.md');
 const angularPromptPath = path.join(__dirname, '..', 'prompts', 'angular-mapping-agent.md');
 
@@ -635,25 +636,119 @@ const filterOrienterEntries = (entries, figmaIndex, onlyTokens = [], excludeToke
   return filtered;
 };
 
-const buildAngularStub = async (orienterEntry, ctx) => {
-  const normalized = normalizeOrienterRecord(orienterEntry);
-  const componentMeta = findComponentMeta(ctx.figmaIndex, normalized) || {};
-  const componentName = componentMeta.name || normalized.figmaComponentName || normalized.canonicalName || 'component';
+const extractRequiredPaths = (normalized) => {
+  if (!Array.isArray(normalized.files)) return [];
+  return normalized.files.map((f) => (typeof f === 'string' ? f : f?.path)).filter(Boolean);
+};
+
+const resolveComponentIdentity = (normalized, figmaIndex) => {
+  const componentMeta = findComponentMeta(figmaIndex, normalized) || {};
+  const orienterName =
+    normalized.figmaComponentName || normalized.canonicalName || normalized.figmaComponentId || 'component';
+  const logBaseName = componentMeta.name || componentMeta.id || orienterName || 'component';
+  const componentKey =
+    componentMeta.id ||
+    normalized.figmaComponentId ||
+    (componentMeta.name ? componentMeta.name.toLowerCase() : orienterName ? orienterName.toLowerCase() : null);
+  return { componentMeta, orienterName, logBaseName, componentKey };
+};
+
+const getComponentJson = (componentKey, figmaComponents) =>
+  componentKey ? figmaComponents[componentKey] || null : null;
+
+const markSeenOrSkip = (normalized, seen) => {
+  const key = normalized.figmaComponentId || (normalized.figmaComponentName || '').toLowerCase();
+  if (!key) return false;
+  if (seen.has(key)) return true;
+  seen.add(key);
+  return false;
+};
+
+const buildFigmaInfoBlock = (figmaIndex, componentMeta) => ({
+  file: {
+    key: figmaIndex.fileKey || null,
+    name: figmaIndex.fileName || null
+  },
+  nodeUrl: buildFigmaNodeUrl(figmaIndex.fileKey, figmaIndex.fileName, componentMeta.id || null)
+});
+
+const findAngularMatch = (angularComponents, orienterFile) =>
+  (angularComponents || []).find((c) => c.ts_file === orienterFile) ||
+  (angularComponents || []).find((c) => path.normalize(c.ts_file || '') === path.normalize(orienterFile || ''));
+
+const runMappingAgent = async ({ ctx, payload, logBaseName }) => {
+  if (ctx.fakeMappingOutput) {
+    const parsed = await readJsonSafe(ctx.fakeMappingOutput);
+    return { parsed, agentResult: { code: 0, stdout: '', stderr: '' }, rawAgentOutput: '' };
+  }
+  const agentResult = await ctx.agent.codegen({
+    payload,
+    cwd: ctx.repo,
+    logLabel: logBaseName,
+    logDir: ctx.agentLogDir
+  });
+  const rawAgentOutput = agentResult.stdout || agentResult.stderr || '';
+  const parsed = extractJsonResponse(rawAgentOutput);
+  return { parsed, agentResult, rawAgentOutput };
+};
+
+const recordResult = async (ctx, logBaseName, entry) => {
+  await writeLog(ctx.logDir, logBaseName, entry);
+  ctx.summaries.push(entry);
+  return entry;
+};
+
+const ensureCodeConnectWrite = async (ctx, fileName, contents) => {
+  const targetPath = path.join(ctx.repo, ctx.codeConnectDir, fileName);
+  const exists = fs.existsSync(targetPath);
+  if (exists && !ctx.force) {
+    return {
+      status: 'skipped',
+      reason: EXISTING_FILE_REASON,
+      codeConnectFile: path.relative(ctx.repo, targetPath)
+    };
+  }
+  const written = await writeCodeConnectFile(ctx.repo, ctx.codeConnectDir, fileName, contents);
+  return {
+    status: 'built',
+    codeConnectFile: path.relative(ctx.repo, written),
+    overwritten: exists && ctx.force
+  };
+};
+
+const ensureLogReason = (parsed, logEntry, rawAgentOutput) => {
+  if (logEntry.status === 'built') return logEntry;
+  if (!parsed) {
+    const snippet = (rawAgentOutput || '').split('\n').slice(-10).join(' ').trim();
+    const suffix = snippet ? ` (tail: ${snippet.slice(0, 200)})` : '';
+    logEntry.reason =
+      logEntry.reason || `Agent response was not valid JSON (see mapping-agent log)${suffix}`;
+    return logEntry;
+  }
+  if (!logEntry.reason) {
+    logEntry.reason = 'Agent returned a non-built status without a reason.';
+  }
+  return logEntry;
+};
+
+const buildFigmaUrlWithFallback = (figmaIndex, componentMeta, orienterName, normalized) =>
+  buildFigmaNodeUrl(
+    figmaIndex.fileKey || null,
+    figmaIndex.fileName || componentMeta.name || orienterName,
+    componentMeta.id || normalized?.figmaComponentId || null
+  ) || toTokenName(componentMeta.name || orienterName);
+
+const listMissingFiles = (files) => files.filter((f) => f.error).map((f) => f.path);
+
+const buildAngularStub = async ({ normalized, ctx, componentMeta, orienterName, logBaseName, requiredPaths }) => {
+  const componentName =
+    componentMeta.name || orienterName || normalized.figmaComponentId || normalized.figmaComponentName || 'component';
   const fileName = `${sanitizeSlug(componentName)}.figma.ts`;
-  const orienterFile = Array.isArray(normalized.files) && normalized.files.length ? normalized.files[0] : null;
-  const angularMatch =
-    (ctx.angularComponents || []).find((c) => c.ts_file === orienterFile) ||
-    (ctx.angularComponents || []).find(
-      (c) => path.normalize(c.ts_file || '') === path.normalize(orienterFile || '')
-    );
+  const orienterFile = Array.isArray(requiredPaths) && requiredPaths.length ? requiredPaths[0] : null;
+  const angularMatch = findAngularMatch(ctx.angularComponents, orienterFile);
   const selector = angularMatch?.selector || null;
   const tag = selector || 'component';
-  const figmaUrl =
-    buildFigmaNodeUrl(
-      ctx.figmaIndex.fileKey || null,
-      ctx.figmaIndex.fileName || componentMeta.name || componentName,
-      componentMeta.id || normalized.figmaComponentId || null
-    ) || toTokenName(componentName);
+  const figmaUrl = buildFigmaUrlWithFallback(ctx.figmaIndex, componentMeta, componentName, normalized);
 
   const lines = [];
   lines.push("import figma from '@figma/code-connect';");
@@ -675,93 +770,53 @@ const buildAngularStub = async (orienterEntry, ctx) => {
     codeConnectFile: path.relative(ctx.repo, targetPath),
     missingFiles: []
   };
-  await writeLog(ctx.logDir, componentName, logEntry);
-  ctx.summaries.push(logEntry);
-  return logEntry;
+  return recordResult(ctx, logBaseName || componentName, logEntry);
 };
 
 const processAngularEntry = async (orienterEntry, ctx) => {
   const normalized = normalizeOrienterRecord(orienterEntry);
   if (normalized.status !== 'mapped') return null;
 
-  const key = normalized.figmaComponentId || (normalized.figmaComponentName || '').toLowerCase();
-  if (key && ctx.seen.has(key)) return null;
-  if (key) ctx.seen.add(key);
+  if (markSeenOrSkip(normalized, ctx.seen)) return null;
 
-  const componentMeta = findComponentMeta(ctx.figmaIndex, normalized) || {};
-  const orienterName =
-    normalized.figmaComponentName || normalized.canonicalName || normalized.figmaComponentId || 'component';
-  const logBaseName = componentMeta.name || componentMeta.id || orienterName || 'component';
-  const componentKey =
-    componentMeta.id ||
-    normalized.figmaComponentId ||
-    (componentMeta.name ? componentMeta.name.toLowerCase() : orienterName ? orienterName.toLowerCase() : null);
-  const componentJson = componentKey ? ctx.figmaComponents[componentKey] || null : null;
+  const { componentMeta, orienterName, logBaseName, componentKey } = resolveComponentIdentity(
+    normalized,
+    ctx.figmaIndex
+  );
+  const componentJson = getComponentJson(componentKey, ctx.figmaComponents);
 
-  const requiredPaths = Array.isArray(normalized.files)
-    ? normalized.files.map((f) => (typeof f === 'string' ? f : f?.path)).filter(Boolean)
-    : [];
+  const requiredPaths = extractRequiredPaths(normalized);
   const files = await readRequestedFiles(ctx.repo, requiredPaths);
-  const missingFiles = files.filter((f) => f.error).map((f) => f.path);
-  const angularMatch =
-    (ctx.angularComponents || []).find((c) => c.ts_file === requiredPaths[0]) ||
-    (ctx.angularComponents || []).find(
-      (c) => path.normalize(c.ts_file || '') === path.normalize(requiredPaths[0] || '')
-    );
+  const missingFiles = listMissingFiles(files);
+  const angularMatch = findAngularMatch(ctx.angularComponents, requiredPaths[0]);
   const fallbackSelector = angularMatch?.selector || 'component';
 
-  const figmaInfo = {
-    file: {
-      key: ctx.figmaIndex.fileKey || null,
-      name: ctx.figmaIndex.fileName || null
-    },
-    nodeUrl: buildFigmaNodeUrl(ctx.figmaIndex.fileKey, ctx.figmaIndex.fileName, componentMeta.id || null)
-  };
+  const figmaInfo = buildFigmaInfoBlock(ctx.figmaIndex, componentMeta);
 
-  let parsed = null;
-  if (ctx.fakeMappingOutput) {
-    parsed = await readJsonSafe(ctx.fakeMappingOutput);
-  } else if (ctx.agent) {
-    const payload = buildAgentPayload(
-      ctx.promptText,
-      componentMeta,
-      componentJson,
-      normalized,
-      files,
-      figmaInfo,
-      ctx.targetFramework,
-      ctx.angularComponents
-    );
-    const agentResult = await ctx.agent.codegen({
-      payload,
-      cwd: ctx.repo,
-      logLabel: logBaseName,
-      logDir: ctx.agentLogDir
-    });
-    const rawAgentOutput = agentResult.stdout || agentResult.stderr || '';
-    parsed = extractJsonResponse(rawAgentOutput);
-  }
-
-  const figmaUrl =
-    buildFigmaNodeUrl(
-      ctx.figmaIndex.fileKey || null,
-      ctx.figmaIndex.fileName || componentMeta.name || orienterName,
-      componentMeta.id || normalized.figmaComponentId || null
-    ) || toTokenName(componentMeta.name || orienterName);
-
-  let logEntry = {
-    figmaName: componentMeta.name || normalized.figmaComponentName || null,
-    figmaId: componentMeta.id || normalized.figmaComponentId || null,
-    status: 'built',
-    reason: parsed?.reason || 'Angular mapping generated',
-    reactComponentName: null,
-    missingFiles,
-    agentExitCode: 0
-  };
+  const payload = buildAgentPayload(
+    ctx.promptText,
+    componentMeta,
+    componentJson,
+    normalized,
+    files,
+    figmaInfo,
+    ctx.targetFramework,
+    ctx.angularComponents
+  );
+  const { parsed } = await runMappingAgent({ ctx, payload, logBaseName });
 
   if (!parsed) {
-    return buildAngularStub(orienterEntry, ctx);
+    return buildAngularStub({
+      normalized,
+      ctx,
+      componentMeta,
+      orienterName,
+      logBaseName,
+      requiredPaths
+    });
   }
+
+  const figmaUrl = buildFigmaUrlWithFallback(ctx.figmaIndex, componentMeta, orienterName, normalized);
 
   const selector = parsed.selector || fallbackSelector;
   const fileName = `${sanitizeSlug(componentMeta.name || orienterName || 'component')}.figma.ts`;
@@ -771,46 +826,39 @@ const processAngularEntry = async (orienterEntry, ctx) => {
     selector,
     componentJson?.data?.componentProperties || componentJson?.componentProperties || null
   );
-  const targetPath = path.join(ctx.repo, ctx.codeConnectDir, fileName);
-  const exists = fs.existsSync(targetPath);
-  if (exists && !ctx.force) {
-    logEntry = {
-      ...logEntry,
-      status: 'skipped',
-      reason: 'Existing Code Connect file present (rerun with --force to overwrite)',
-      codeConnectFile: path.relative(ctx.repo, targetPath)
-    };
-  } else {
-    const written = await writeCodeConnectFile(ctx.repo, ctx.codeConnectDir, fileName, tsContents);
-    logEntry = {
-      ...logEntry,
-      status: 'built',
-      codeConnectFile: path.relative(ctx.repo, written),
-      overwritten: exists && ctx.force
-    };
+  const writeOutcome = await ensureCodeConnectWrite(ctx, fileName, tsContents);
+  const logEntry = {
+    figmaName: componentMeta.name || normalized.figmaComponentName || null,
+    figmaId: componentMeta.id || normalized.figmaComponentId || null,
+    status: writeOutcome.status,
+    reason:
+      writeOutcome.status === 'skipped'
+        ? writeOutcome.reason
+        : parsed?.reason || 'Angular mapping generated',
+    reactComponentName: null,
+    missingFiles,
+    agentExitCode: 0,
+    codeConnectFile: writeOutcome.codeConnectFile
+  };
+  if (writeOutcome.overwritten !== undefined) {
+    logEntry.overwritten = writeOutcome.overwritten;
   }
 
-  await writeLog(ctx.logDir, logBaseName, logEntry);
-  ctx.summaries.push(logEntry);
-  return logEntry;
+  return recordResult(ctx, logBaseName, logEntry);
 };
 
 const processOrienterEntry = async (orienterEntry, ctx) => {
   const normalized = normalizeOrienterRecord(orienterEntry);
   if (normalized.status !== 'mapped') return null;
 
-  const key = normalized.figmaComponentId || (normalized.figmaComponentName || '').toLowerCase();
-  if (key && ctx.seen.has(key)) return null;
-  if (key) ctx.seen.add(key);
+  if (markSeenOrSkip(normalized, ctx.seen)) return null;
 
-  const componentMeta = findComponentMeta(ctx.figmaIndex, normalized) || {};
-  const orienterName =
-    normalized.figmaComponentName || normalized.canonicalName || normalized.figmaComponentId || 'component';
-  const logBaseName = componentMeta.name || componentMeta.id || orienterName || 'component';
+  const { componentMeta, orienterName, logBaseName, componentKey } = resolveComponentIdentity(
+    normalized,
+    ctx.figmaIndex
+  );
 
-  const requiredPaths = Array.isArray(normalized.files)
-    ? normalized.files.map((f) => (typeof f === 'string' ? f : f?.path)).filter(Boolean)
-    : [];
+  const requiredPaths = extractRequiredPaths(normalized);
   if (requiredPaths.length === 0) {
     const entry = {
       figmaName: componentMeta.name || normalized.figmaComponentName || null,
@@ -818,31 +866,19 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
       status: 'skipped',
       reason: 'Orienter provided no files to read'
     };
-    await writeLog(ctx.logDir, logBaseName, entry);
-    ctx.summaries.push(entry);
-    return entry;
+    return recordResult(ctx, logBaseName, entry);
   }
 
   const files = await readRequestedFiles(ctx.repo, requiredPaths);
-  const missingFiles = files.filter((f) => f.error).map((f) => f.path);
+  const missingFiles = listMissingFiles(files);
 
-  const componentKey =
-    componentMeta.id ||
-    normalized.figmaComponentId ||
-    (componentMeta.name ? componentMeta.name.toLowerCase() : orienterName ? orienterName.toLowerCase() : null);
-  const componentJson = componentKey ? ctx.figmaComponents[componentKey] || null : null;
+  const componentJson = getComponentJson(componentKey, ctx.figmaComponents);
 
   const filesLabel = requiredPaths.map((p) => codeColor(p)).join(', ');
   console.log(`Generating Code Connect mapping for ${generatedColor(logBaseName)}`);
   console.log(`    ... looking at ${filesLabel}`);
 
-  const figmaInfo = {
-    file: {
-      key: ctx.figmaIndex.fileKey || null,
-      name: ctx.figmaIndex.fileName || null
-    },
-    nodeUrl: buildFigmaNodeUrl(ctx.figmaIndex.fileKey, ctx.figmaIndex.fileName, componentMeta.id || null)
-  };
+  const figmaInfo = buildFigmaInfoBlock(ctx.figmaIndex, componentMeta);
 
   const payload = buildAgentPayload(
     ctx.promptText,
@@ -855,20 +891,7 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
     ctx.angularComponents
   );
 
-  let parsed = null;
-  let agentResult = { code: 0, stdout: '', stderr: '' };
-  if (ctx.fakeMappingOutput) {
-    parsed = await readJsonSafe(ctx.fakeMappingOutput);
-  } else {
-    agentResult = await ctx.agent.codegen({
-      payload,
-      cwd: ctx.repo,
-      logLabel: logBaseName,
-      logDir: ctx.agentLogDir
-    });
-    const rawAgentOutput = agentResult.stdout || agentResult.stderr || '';
-    parsed = extractJsonResponse(rawAgentOutput);
-  }
+  const { parsed, agentResult, rawAgentOutput } = await runMappingAgent({ ctx, payload, logBaseName });
 
   const logEntry = {
     figmaName: componentMeta.name || null,
@@ -898,35 +921,20 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
       componentJson?.data?.componentProperties || componentJson?.componentProperties || null,
       figmaToken
     );
-    const targetPath = path.join(ctx.repo, ctx.codeConnectDir, fileName);
-    const exists = fs.existsSync(targetPath);
-    if (exists && !ctx.force) {
-      logEntry.status = 'skipped';
-      logEntry.reason =
-        logEntry.reason || 'Existing Code Connect file present (rerun with --force to overwrite)';
-      logEntry.codeConnectFile = path.relative(ctx.repo, targetPath);
-    } else {
-      const written = await writeCodeConnectFile(ctx.repo, ctx.codeConnectDir, fileName, tsx);
-      logEntry.status = 'built';
-      logEntry.codeConnectFile = path.relative(ctx.repo, written);
-      logEntry.overwritten = exists && ctx.force;
+    const writeOutcome = await ensureCodeConnectWrite(ctx, fileName, tsx);
+    logEntry.status = writeOutcome.status;
+    logEntry.reason = logEntry.reason || writeOutcome.reason;
+    logEntry.codeConnectFile = writeOutcome.codeConnectFile;
+    if (writeOutcome.overwritten !== undefined) {
+      logEntry.overwritten = writeOutcome.overwritten;
     }
   }
 
-  if (!parsed && logEntry.status !== 'built') {
-    const snippet = (rawAgentOutput || '').split('\n').slice(-10).join(' ').trim();
-    const suffix = snippet ? ` (tail: ${snippet.slice(0, 200)})` : '';
-    logEntry.reason =
-      logEntry.reason || `Agent response was not valid JSON (see mapping-agent log)${suffix}`;
-  } else if (parsed && logEntry.status !== 'built' && !logEntry.reason) {
-    logEntry.reason = 'Agent returned a non-built status without a reason.';
-  }
+  ensureLogReason(parsed, logEntry, rawAgentOutput);
 
   if (logEntry.reason === undefined) delete logEntry.reason;
   if (logEntry.confidence === undefined) delete logEntry.confidence;
-  await writeLog(ctx.logDir, logBaseName, logEntry);
-  ctx.summaries.push(logEntry);
-  return logEntry;
+  return recordResult(ctx, logBaseName, logEntry);
 };
 
 async function main() {
