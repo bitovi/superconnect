@@ -43,7 +43,7 @@ To get the token:
 - In Figma, open your account menu
 - Choose **Settings** (or **Profile & Settings**)
 - Scroll to **Personal access tokens**
-- Click **Generate new token**
+- Click **Generate new token** and make sure it has read and write access
 - Give it a descriptive name and copy the token value
 - In your terminal environment (or `.env` in your component repo), set
   - `FIGMA_ACCESS_TOKEN=<your token here>`
