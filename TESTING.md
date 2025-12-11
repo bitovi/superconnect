@@ -87,7 +87,7 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 - Uses the Chakra UI git submodule at `fixtures/chakra-ui` (remote `https://github.com/chakra-ui/chakra-ui`)
 - Copies Chakra UI into a temporary directory under your OS temp folder
 - Writes a `superconnect.toml` that points to the Chakra UI Figma file
-  - `https://www.figma.com/design/mgzCV3zD3iWpctEI6UoUhB/Chakra-UI`
+  - `https://www.figma.com/design/ZB8OpbBRORzvomAMC6pZtW/Chakra-UI-Figma-Kit--Community-?m=auto&t=0XdgVxllEy8vO4w1-6`
 - Runs the full pipeline for React, limited to a small component subset via `--only`
   - `node scripts/run-pipeline.js --framework react --force --only <subset>`
 - Runs Figma Code Connect validation in the temp copy

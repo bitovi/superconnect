@@ -5,7 +5,8 @@ const { spawnSync } = require('child_process');
 
 jest.setTimeout(300000);
 
-const FIGMA_URL = 'https://www.figma.com/design/mgzCV3zD3iWpctEI6UoUhB/Chakra-UI';
+const FIGMA_URL =
+  'https://www.figma.com/design/ZB8OpbBRORzvomAMC6pZtW/Chakra-UI-Figma-Kit--Community-?m=auto&t=0XdgVxllEy8vO4w1-6';
 const DEFAULT_ONLY = [
   'Button',
   'Input',

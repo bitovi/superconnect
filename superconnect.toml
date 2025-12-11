@@ -1,6 +1,6 @@
 [inputs]
 # (Requires FIGMA_ACCESS_TOKEN environment var)
-figma_url = "https://www.figma.com/design/mgzCV3zD3iWpctEI6UoUhB/Chakra-UI"
+figma_url = "https://www.figma.com/design/ZB8OpbBRORzvomAMC6pZtW/Chakra-UI-Figma-Kit--Community-?m=auto&t=0XdgVxllEy8vO4w1-6"
 component_repo_path = "../chakra-ui/"
 
 [agent]
