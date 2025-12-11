@@ -6,51 +6,107 @@ Superconnect is an AI-enhanced tool that turns a Figma design system file and a 
 - Explores your React/Typescript or Angular component repo to understand exports, file structure, and patterns
 - Generates `.figma.tsx` (React) or `.figma.ts` (Angular) Code Connect files
 
-# Quickstart
+# Installation
 
-  1. Install dependencies (in this repo)
-     npm install
-  
-  2. Link the CLI globally (so you can run it from any React or Angular repo)
-     npm link
-  
-  3. Set up your environment variables
-      - Figma: Set FIGMA_ACCESS_TOKEN in your environment to allow the script to access your design system Figma file
-      - Agent backend: Claude (default): requires ANTHROPIC_API_KEY, OpenAI requires OPENAI_API_KEY
+- Install globally from npm
+  - `npm install -g superconnect`
+  - now you can run `superconnect` from any React or Angular repo
 
-  4. Run it from your React or Angular repo root
+- Or use npx without a global install
+  - `npx superconnect`
 
-     superconnect
-     # or if you prefer npx with the linked binary:
-     npx --no-install superconnect
+# Required environment and config
 
-      If superconnect.toml is missing in the current directory, you’ll be prompted for:
-        - Figma URL or file key
-        - Component repo path root
-        - Agent backend (default to claude with claude-haiku-4-5)
-        - Optional target framework hint (react|angular)
+- Requires Node.js >= 20.0.0
+- Environment variables
+  - `FIGMA_ACCESS_TOKEN` – Figma personal access token used by the Figma scan stage
+  - `ANTHROPIC_API_KEY` – required when `backend = "claude"` (default)
+  - `OPENAI_API_KEY` – required when `backend = "openai"`
+  - these can be set in your shell or in a `.env` file next to the repo you run `superconnect` from
 
-      This will:
-        - Scan your repo for components/exports (including Angular components, selectors, and modules)
-        - Scan your Figma file and find all the components
-        - Run orientation + code generation to produce codeConnect/*.figma.tsx or *.figma.ts
-        - Report on which components it was able to code gen, which it wasn't, and why
-        - Write figma.config.json in the repo root for Code Connect to discover generated files
+- superconnect.toml
+  - Superconnect seeks `superconnect.toml` config file in the current working directory
+  - If missing, the tool will prompt you the first time and write the config file for you
 
-  4. Wire it up in Figma and view Code Connect output
-      - Add the new codeConnect/*.figma.tsx files to git and push to your main branch
-      - Open your design system file in Figma
-      - In Figma Dev/Code view, add your code repo as a Code Connect source
-      - Navigate to a component that Superconnect successfully generated
-      - Open the Code / Code Connect panel:
-          - Select the corresponding Code Connect mapping
-          - You should see the generated JSX and props schema in the Code Connect UI, linked to the selected Figma component
+# Workflow
 
-# Configuration
+## 1. Figma access token
 
-Superconnect is configured via a superconnect.toml in the current working directory, but will create it for you if it doesn't exist
+Superconnect relies on a Figma personal access token:
 
-# Pipeline Stages
+- The token’s user must have *edit access* to the design system file
+- The file must live in an Enterprise organization where Code Connect is enabled
+- The same user must be allowed to publish that file’s asset library
+
+To get the token:
+
+- In Figma, open your account menu
+- Choose **Settings** (or **Profile & Settings**)
+- Scroll to **Personal access tokens**
+- Click **Generate new token**
+- Give it a descriptive name and copy the token value
+- In your terminal environment (or `.env` in your component repo), set
+  - `FIGMA_ACCESS_TOKEN=<your token here>`
+
+## 2. Publish Figma assets
+
+For Code Connect mappings to work, assets from the design system must first be "published" within Figma. (Reminder, your Figma design system file should be in an Enterprise org where you have edit rights.)
+
+- Switch to the **Assets** tab in the left sidebar (must not be in dev mode)
+- Click the **Library** icon to open the **Manage libraries** dialog
+- Under **This file**, you should see your design system file listed
+- Click **Publish…**
+
+## 3. Code Generation
+
+From the root of your component repo, run `superconnect`. It will prompt you for the Figma file URL and save your settings to a config file, `superconnect.toml`. You can set your preferred AI -- the default is 'claude' (claude-haiku-4-5), and ANTHROPIC_API_KEY is assumed to be in your environment. If you switch to 'openai' (gpt-5.1-codex-mini), it will look for your OPENAI_API_KEY. 
+
+`superconnect` will:
+
+- Inspect the repo and figure out if it's React or Angular (combination projects not supported!)
+- Scan the components in your Figma file
+- Find the corresponding components in your repo
+- Write out a set of Code Connect mappings to:
+  - `codeConnect/*.figma.tsx` for React
+  - `codeConnect/*.figma.ts` for Angular
+- Generate `figma.config.json` at the repo root so the Figma CLI knows what to publish
+
+At this point you have local Code Connect mappings but Figma does not see them yet.
+
+## 4. Publish mappings to Figma
+
+Next you push the generated mappings to Figma using Figma's own CLI. You must have `@figma/code-connect` installed in the component repo or globally. Run:
+
+```bash
+npx figma connect publish
+```
+
+This command reads `figma.config.json`, uploads your Code Connect files, and associates them with the Figma file.
+
+## 5. Profit
+
+Now you can inspect the mappings in Figma.
+
+- Open the design system file and switch into Dev Mode
+- Select an instance of a component you mapped (for example, a Button)
+- In the right-hand sidebar, scroll to the **Code Connect** section
+- Click **View connections** and then select the Button component
+
+You should now see:
+
+- The mapping written by Superconnect
+- The generated example snippet for your framework (React JSX or Angular template)
+- Any props that were inferred from Figma variants or component properties
+
+If the **Code Connect** section is missing
+
+- Double-check that
+  - `figma connect publish` completed successfully
+  - The Assets panel shows your design system file as published
+  - Your Figma user has access to the Enterprise org and file where mappings were published
+
+
+# Implementation
 
 Superconnect runs five logical stages:
 
@@ -96,7 +152,7 @@ Agents log to superconnect/orienter-agent.log and superconnect/mapping-agent-log
 
 # Outputs
 
-Running the full pipeline (once configured) produces (in your component repo):
+`superconnect` writes these files to your component repo:
 
 - In superconnect/:
     - figma-components-index.json: canonical list of Figma components
@@ -109,26 +165,7 @@ Running the full pipeline (once configured) produces (in your component repo):
     - *.figma.tsx or *.figma.ts files for each successfully mapped component, ready for Code Connect
 - At repo root:
     - figma.config.json pointing Code Connect to generated files (uses react parser for .tsx, html parser for .ts)
-- Printed to stdout:
-    - A colorized Superconnect run summary showing:
-        - Scanning stats (Figma file, component counts)
-        - Repo scan stats
-        - Codegen stats (orientation coverage, candidates, built vs skipped, reasons)
-        - Where logs and generated files live
 
-# ZapUI E2E validation
-
-- Initialize the ZapUI fixture submodule: `git submodule update --init fixtures/zapui`
-- Ensure FIGMA_ACCESS_TOKEN and ANTHROPIC_API_KEY are set (or stored in .env)
-- Run `npm run test:e2e:zapui` to copy the ZapUI repo to a temp dir, run Superconnect for Angular, then `figma connect parse` and `figma connect publish --dry-run`
-- To echo each child command/stdout: `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui`
-- Uses the Zap UI Kit Figma file at https://www.figma.com/design/GqZ6Bvsu8w8q2ukS1FDPX7/Zap-UI-Kit--Community-?m=auto&t=GVF9lkWuNBY6BgRq-6
-- Chakra React E2E:
-  - Initialize the Chakra submodule: `git submodule update --init fixtures/chakra-ui`
-  - Ensure FIGMA_ACCESS_TOKEN and ANTHROPIC_API_KEY are set (or stored in .env)
-  - Run `npm run test:e2e:chakra` to copy Chakra to a temp dir, run Superconnect for React with a limited `--only` subset, then `figma connect parse` and `figma connect publish --dry-run`
-  - Default subset (~10): Button, Input, Checkbox, Switch, Select, Tabs.List, Tabs.Trigger, Accordion, Tooltip, Card (override via `CHAKRA_E2E_ONLY` or `--chakra-e2e-only=`); command echo via `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra`
-  - Uses the Chakra UI Figma file at https://www.figma.com/design/mgzCV3zD3iWpctEI6UoUhB/Chakra-UI
 
 # Interrupts & Reruns
 
