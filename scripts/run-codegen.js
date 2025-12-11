@@ -915,6 +915,9 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
       schema.codeConnectFileName ||
       `${sanitizeSlug(componentMeta.name || normalized.figmaComponentName || 'component')}.figma.tsx`;
     const figmaToken = schema.figmaComponentName ? toTokenName(schema.figmaComponentName) : null;
+    if (figmaToken) {
+      logEntry.figmaToken = figmaToken;
+    }
     const tsx = renderTsxFromSchema(
       schema,
       componentJson?.data?.variantProperties || componentJson?.variantProperties || null,

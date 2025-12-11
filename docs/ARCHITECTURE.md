@@ -163,7 +163,9 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Single‑level sections
     - Comments (`#`) trailing on lines
 - **Environment variables**
-  - `FIGMA_ACCESS_TOKEN` – required for Figma scan (or `--figma-token`), read from the process environment or `.env` in the target repo
+  - `FIGMA_ACCESS_TOKEN` – required for Figma scan (or `--figma-token`), read from the process environment or `.env` in the target repo. At minimum this token must allow:
+    - Files: `file_content:read`
+    - Development: `file_code_connect:write`, `file_dev_resources:read`, `file_dev_resources:write`
   - `ANTHROPIC_API_KEY` – for Claude backend, read from the process environment or `.env` in the target repo
   - `OPENAI_API_KEY` – for OpenAI backend, read from the process environment or `.env` in the target repo
 

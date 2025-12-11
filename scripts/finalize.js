@@ -44,6 +44,22 @@ const readJsonLines = async (filePath) => {
   }
 };
 
+const extractFigmaTokensFromFile = (filePath) => {
+  try {
+    const text = fs.readFileSync(filePath, 'utf8');
+    const re = /<FIGMA_[A-Z0-9_]+>/g;
+    const tokens = new Set();
+    let match = re.exec(text);
+    while (match) {
+      tokens.add(match[0]);
+      match = re.exec(text);
+    }
+    return tokens;
+  } catch {
+    return new Set();
+  }
+};
+
 const listCodeConnectFiles = (dir) => {
   if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return [];
   const pattern = path.join(dir, '**', '*.figma.{ts,tsx}');
@@ -90,7 +106,8 @@ const readComponentLogs = async (dir) => {
       reactName: data.reactComponentName || null,
       reason: data.reason || null,
       codeConnectFile: data.codeConnectFile || null,
-      confidence: data.confidence ?? null
+      confidence: data.confidence ?? null,
+      figmaToken: data.figmaToken || null
     });
   }
   return results;
@@ -328,7 +345,7 @@ async function main() {
     sorted.forEach((log) => {
       if (!log.figmaId || !log.figmaName) return;
       const nodeUrl = `${baseUrl}?node-id=${(log.figmaId || '').replace(/:/g, '-')}`;
-      const nameToken = toTokenName(log.figmaName);
+      const nameToken = log.figmaToken || toTokenName(log.figmaName);
       substitutions[nameToken] = nodeUrl;
     });
     return substitutions;
@@ -368,6 +385,34 @@ async function main() {
   await fs.writeJson(metadataPath, metadata, { spaces: 2, flag: 'w' });
 
   console.log(summary);
+
+  if (substitutions) {
+    const substitutionTokens = new Set(Object.keys(substitutions || {}));
+    const tokenUsage = new Map();
+    context.codegenFiles.forEach((filePathRel) => {
+      const filePath = path.resolve(config.baseCwd, filePathRel);
+      const tokens = extractFigmaTokensFromFile(filePath);
+      tokens.forEach((token) => {
+        const current = tokenUsage.get(token) || 0;
+        tokenUsage.set(token, current + 1);
+      });
+    });
+    const unmatchedTokens = Array.from(tokenUsage.keys()).filter((t) => !substitutionTokens.has(t));
+    if (unmatchedTokens.length >= 5) {
+      const sample = unmatchedTokens.slice(0, 5).join(', ');
+      console.warn(
+        chalk.yellow(
+          `⚠️  Found ${unmatchedTokens.length} Code Connect placeholder token(s) used in codeConnect files that do not correspond to components in this Figma file.`
+        )
+      );
+      console.warn(
+        chalk.yellow(
+          `   Examples: ${sample}. You may be using a different Figma kit version than the one these mappings were originally created for.`
+        )
+      );
+    }
+  }
+
   console.log(`${chalk.green('✓')} Wrote ${metadataPath}`);
 }
 

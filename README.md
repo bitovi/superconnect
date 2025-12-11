@@ -43,10 +43,18 @@ To get the token:
 - In Figma, open your account menu
 - Choose **Settings** (or **Profile & Settings**)
 - Scroll to **Personal access tokens**
-- Click **Generate new token** and make sure it has read and write access
+- Click **Generate new token** and make sure it has the scopes listed below
 - Give it a descriptive name and copy the token value
 - In your terminal environment (or `.env` in your component repo), set
   - `FIGMA_ACCESS_TOKEN=<your token here>`
+
+Minimum scopes for the token:
+
+- Files
+  - `file_content:read`  (to download the Figma file and component nodes during the scan stage)
+- Development
+  - `file_code_connect:write`  (to write Code Connect content)
+  - `file_dev_resources:read` + `write`  (to read and write Code Connect content)
 
 ## 2. Publish Figma assets
 

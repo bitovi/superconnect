@@ -52,6 +52,9 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 - Ensure Figma and agent tokens are available
   - Either export `FIGMA_ACCESS_TOKEN` and `ANTHROPIC_API_KEY`
   - Or put them in `.env` in this repo root
+- When creating your Figma access token, enable at least
+  - Files: `file_content:read`
+  - Development: `file_code_connect:write`, `file_dev_resources:read`, `file_dev_resources:write`
 
 ### Running the E2E test
 
@@ -87,7 +90,7 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 - Uses the Chakra UI git submodule at `fixtures/chakra-ui` (remote `https://github.com/chakra-ui/chakra-ui`)
 - Copies Chakra UI into a temporary directory under your OS temp folder
 - Writes a `superconnect.toml` that points to the Chakra UI Figma file
-  - `https://www.figma.com/design/ZB8OpbBRORzvomAMC6pZtW/Chakra-UI-Figma-Kit--Community-?m=auto&t=0XdgVxllEy8vO4w1-6`
+  - `https://www.figma.com/design/7jkNETbphjIb9ap1M7H1o4/Chakra-UI----Figma-Kit--v3---Community-?m=auto&t=0XdgVxllEy8vO4w1-6`
 - Runs the full pipeline for React, limited to a small component subset via `--only`
   - `node scripts/run-pipeline.js --framework react --force --only <subset>`
 - Runs Figma Code Connect validation in the temp copy
@@ -102,6 +105,9 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 - Ensure Figma and agent tokens are available
   - Either export `FIGMA_ACCESS_TOKEN` and `ANTHROPIC_API_KEY`
   - Or put them in `.env` in this repo root
+- When creating your Figma access token, enable at least
+  - Files: `file_content:read`
+  - Development: `file_code_connect:write`, `file_dev_resources:read`, `file_dev_resources:write`
 
 ### Component subset
 
