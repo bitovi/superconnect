@@ -37,7 +37,7 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 - Uses the ZapUI git submodule at `fixtures/zapui` (remote `git@github.com:zapuilib/zapui.git`)
 - Copies ZapUI into a temporary directory under your OS temp folder
 - Writes a `superconnect.toml` that points to the Zap UI Kit Figma file
-  - `https://www.figma.com/design/GqZ6Bvsu8w8q2ukS1FDPX7/Zap-UI-Kit--Community-?m=auto&t=GVF9lkWuNBY6BgRq-6`
+  - `https://www.figma.com/design/ChohwrZwvllBgHWzBslmUg/Zap-UI-Kit--Bitovi---Copy-?m=auto&t=0XdgVxllEy8vO4w1-6`
 - Runs the full pipeline for Angular
   - `node scripts/run-pipeline.js --framework angular --force`
 - Runs Figma Code Connect validation in the temp ZapUI copy

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Superconnect is a Node.js CLI that runs a five‑stage pipeline:
+Superconnect is a Node.js CLI (distributed as the `superconnect` npm package) that runs a five‑stage pipeline:
 
 1. **Repo summarizer** – scan a React/TypeScript or Angular repo for components and exports
 2. **Figma scan** – download component metadata from a Figma file
@@ -18,6 +18,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Parses CLI flags (`--figma-url`, `--figma-token`, `--target`, `--framework`, `--only`, `--exclude`, `--force`, `--dry-run`)
   - Loads configuration from `superconnect.toml`, prompting the user to create it if missing
   - Resolves a target repo, validates access, and computes paths under `superconnect/` and `codeConnect/`
+  - Reads `FIGMA_ACCESS_TOKEN` and agent API keys from the environment or a `.env` file in the target repo
   - Decides which stages to run based on existing artifacts and `--force`, and blocks agent stages when API keys are missing unless `--dry-run` is set
 
 - **Agent adapters** (`src/agent/agent-adapter.js`)
@@ -162,9 +163,9 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Single‑level sections
     - Comments (`#`) trailing on lines
 - **Environment variables**
-  - `FIGMA_ACCESS_TOKEN` – required for Figma scan (or `--figma-token`)
-  - `ANTHROPIC_API_KEY` – for Claude backend
-  - `OPENAI_API_KEY` – for OpenAI backend
+  - `FIGMA_ACCESS_TOKEN` – required for Figma scan (or `--figma-token`), read from the process environment or `.env` in the target repo
+  - `ANTHROPIC_API_KEY` – for Claude backend, read from the process environment or `.env` in the target repo
+  - `OPENAI_API_KEY` – for OpenAI backend, read from the process environment or `.env` in the target repo
 
 Assumptions:
 - Target repos are React/TypeScript or Angular projects with components under conventional roots (`src/components`, `packages/*/src/components`, `src/app/**/*.component.ts`, etc.)
@@ -189,4 +190,3 @@ Assumptions:
     - Mapping schemas (Stage 4)
 
 Secret symbol: ✠
-
