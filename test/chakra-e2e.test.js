@@ -79,6 +79,14 @@ const getOnlyList = () => {
     .filter(Boolean);
 };
 
+const getOnlyRaw = () => process.env.CHAKRA_E2E_ONLY || process.env.npm_config_chakra_e2e_only || null;
+
+const shouldApplyRatchet = () => {
+  const raw = getOnlyRaw();
+  if (!raw) return true; // full run
+  return String(raw).trim().toLowerCase() === 'default'; // old default subset still ratcheted
+};
+
 const ensurePrerequisites = () => {
   if (!fs.existsSync(fixtureRoot) || !fs.existsSync(path.join(fixtureRoot, 'package.json'))) {
     throw new Error('Chakra UI submodule missing. Run: git submodule update --init fixtures/chakra-ui');
@@ -188,17 +196,21 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
       writeBaselineMetrics(metrics);
       console.log(`Recorded Chakra benchmark baseline at ${baselinePath}`);
     } else {
-      const baseline = readBaselineMetrics();
-      if (!baseline) {
-        console.log(
-          `No Chakra benchmark baseline found at ${baselinePath}. Run with CHAKRA_E2E_RECORD=1 to record`
-        );
+      if (!shouldApplyRatchet()) {
+        console.log('Subset run detected; skipping Chakra benchmark ratchet');
       } else {
-        const { failures } = compareChakraBenchMetrics(baseline, metrics);
-        if (failures.length > 0) {
-          console.log(`Chakra benchmark regressions:\n${failures.join('\n')}`);
+        const baseline = readBaselineMetrics();
+        if (!baseline) {
+          console.log(
+            `No Chakra benchmark baseline found at ${baselinePath}. Run with CHAKRA_E2E_RECORD=1 to record`
+          );
+        } else {
+          const { failures } = compareChakraBenchMetrics(baseline, metrics);
+          if (failures.length > 0) {
+            console.log(`Chakra benchmark regressions:\n${failures.join('\n')}`);
+          }
+          expect(failures).toEqual([]);
         }
-        expect(failures).toEqual([]);
       }
     }
   } finally {

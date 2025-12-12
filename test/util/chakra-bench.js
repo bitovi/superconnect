@@ -98,7 +98,10 @@ const computeChakraBenchMetrics = (repoRoot) => {
   const tokensUsed = connectorContents.flatMap(extractFigmaTokens);
   const uniqueTokensUsed = Array.from(new Set(tokensUsed));
   const figmaConfig = readJsonSafeSync(figmaConfigPath);
-  const substitutions = figmaConfig?.documentUrlSubstitutions || {};
+  const substitutions =
+    figmaConfig?.codeConnect?.documentUrlSubstitutions ||
+    figmaConfig?.documentUrlSubstitutions ||
+    {};
   const missingTokens = uniqueTokensUsed.filter((token) => !substitutions[token]);
 
   return {
