@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "figma-component@1",
+  "componentSetId": "button_1",
+  "componentName": "Button",
+  "variantProperties": {
+    "variant": ["solid", "ghost"]
+  },
+  "componentProperties": [
+    { "name": "label", "type": "STRING" }
+  ]
+}
+

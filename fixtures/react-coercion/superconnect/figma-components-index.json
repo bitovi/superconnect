@@ -1,0 +1,8 @@
+{
+  "fileKey": "react-coercion",
+  "fileName": "React Coercion Fixture",
+  "components": [
+    { "id": "button_1", "name": "Button" }
+  ]
+}
+

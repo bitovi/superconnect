@@ -1,0 +1,51 @@
+{
+  "status": "built",
+  "figmaComponentName": "Button",
+  "reactComponentName": "Button",
+  "reactImport": {
+    "path": "./src/Button",
+    "named": ["Button"]
+  },
+  "props": [
+    {
+      "name": "colorPalette",
+      "kind": "enum",
+      "figmaKey": "colorPalette",
+      "valueMapping": { "blue": "blue", "gray": "gray" }
+    },
+    {
+      "name": "size",
+      "kind": "enum",
+      "figmaKey": "size",
+      "valueMapping": { "sm": "sm", "md": "md" }
+    },
+    {
+      "name": "variant",
+      "kind": "enum",
+      "figmaKey": "variant",
+      "valueMapping": { "solid": "solid", "ghost": "ghost" }
+    },
+    {
+      "name": "iconStart",
+      "kind": "instance",
+      "figmaKey": "iconStart"
+    },
+    {
+      "name": "iconEnd",
+      "kind": "instance",
+      "figmaKey": "iconEnd"
+    },
+    {
+      "name": "ghostProp",
+      "kind": "string",
+      "figmaKey": "ghostProp"
+    }
+  ],
+  "exampleProps": {
+    "colorPalette": "blue",
+    "size": "md",
+    "variant": "solid",
+    "ghostProp": "nope"
+  }
+}
+

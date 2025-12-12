@@ -1,0 +1,8 @@
+{
+  "fileKey": "react-icon-single",
+  "fileName": "React Icon Single Fixture",
+  "components": [
+    { "id": "button_1", "name": "Button" }
+  ]
+}
+

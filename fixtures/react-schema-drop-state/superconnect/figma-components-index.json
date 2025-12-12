@@ -1,0 +1,8 @@
+{
+  "fileKey": "react-schema-drop-state",
+  "fileName": "React Schema Drop State Fixture",
+  "components": [
+    { "id": "button_1", "name": "Button" }
+  ]
+}
+

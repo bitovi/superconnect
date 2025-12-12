@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "figma-component@1",
+  "componentSetId": "button_1",
+  "componentName": "Button",
+  "variantProperties": {
+    "Size": ["sm", "md"],
+    "colorPallete": ["blue", "red"]
+  }
+}
+

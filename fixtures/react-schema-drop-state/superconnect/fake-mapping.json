@@ -1,0 +1,34 @@
+{
+  "status": "built",
+  "figmaComponentName": "Button",
+  "reactComponentName": "Button",
+  "reactImport": {
+    "path": "./src/Button",
+    "named": ["Button"]
+  },
+  "props": [
+    {
+      "name": "size",
+      "kind": "enum",
+      "figmaKey": "size",
+      "valueMapping": {
+        "sm": "sm",
+        "md": "md"
+      }
+    },
+    {
+      "name": "state",
+      "kind": "enum",
+      "figmaKey": "state",
+      "valueMapping": {
+        "default": "default",
+        "hover": "hover"
+      }
+    }
+  ],
+  "exampleProps": {
+    "size": "md",
+    "state": "hover"
+  }
+}
+
