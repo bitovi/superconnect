@@ -22,6 +22,8 @@ const { Command } = require('commander');
 const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 const { renderAngularFromSchema } = require('../src/angular/render-angular');
+const { detectRecipeStyleComponent } = require('../src/react/recipe-style');
+const { mergePropHintsForRecipeStyle } = require('../src/react/figma-style-variants');
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
 const EXISTING_FILE_REASON = 'Existing Code Connect file present (rerun with --force to overwrite)';
@@ -55,15 +57,299 @@ const importExists = (repoRoot, importPath) => {
   return exts.some((ext) => fs.existsSync(`${base}${ext}`));
 };
 
+const packageJsonCache = new Map();
+const resolveExistingPath = (repoRoot, relPath) => {
+  if (!relPath) return null;
+  const base = path.resolve(repoRoot, stripExtension(relPath));
+  const exts = ['', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
+  for (const ext of exts) {
+    const candidate = `${base}${ext}`;
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+};
+
+const findNearestPackageJson = (absPath, repoRoot) => {
+  const root = path.resolve(repoRoot);
+  let dir = path.resolve(absPath);
+  while (dir && dir.startsWith(root)) {
+    const candidate = path.join(dir, 'package.json');
+    if (packageJsonCache.has(candidate)) return packageJsonCache.get(candidate);
+    if (fs.existsSync(candidate)) {
+      try {
+        const pkg = fs.readJsonSync(candidate);
+        const info = { pkg, dir };
+        packageJsonCache.set(candidate, info);
+        return info;
+      } catch {
+        packageJsonCache.set(candidate, null);
+        return null;
+      }
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+};
+
+const maybeRewriteToPackageImport = (absPath, repoRoot) => {
+  if (!absPath) return null;
+  const pkgInfo = findNearestPackageJson(absPath, repoRoot);
+  if (!pkgInfo?.pkg?.name) return null;
+  const relToPkg = path.relative(pkgInfo.dir, absPath);
+  if (relToPkg.startsWith('..') || relToPkg === '') return null;
+  const segments = relToPkg.split(path.sep);
+  if (segments[0] !== 'src') return null;
+
+  const exportsField = pkgInfo.pkg.exports;
+  const hasExports = exportsField && typeof exportsField === 'object';
+  const hasRootOrWildcard =
+    hasExports && (Object.prototype.hasOwnProperty.call(exportsField, '.') || Object.prototype.hasOwnProperty.call(exportsField, './*'));
+  if (!hasRootOrWildcard) return null;
+
+  return pkgInfo.pkg.name;
+};
+
 const normalizeImportPath = (schemaPath, fallbackPaths, repoRoot) => {
   if (!schemaPath) return schemaPath;
   const cleaned = schemaPath.replace(/^\.\/+/, '');
-  if (importExists(repoRoot, cleaned)) return cleaned;
-  for (const candidate of fallbackPaths || []) {
-    const cleanCandidate = stripExtension(candidate);
-    if (importExists(repoRoot, cleanCandidate)) return cleanCandidate;
+  const resolved = resolveExistingPath(repoRoot, cleaned);
+
+  let chosenRel = stripExtension(cleaned);
+  let chosenAbs = resolved;
+
+  if (!chosenAbs) {
+    for (const candidate of fallbackPaths || []) {
+      const cleanCandidate = stripExtension(candidate);
+      const abs = resolveExistingPath(repoRoot, cleanCandidate);
+      if (abs) {
+        chosenRel = cleanCandidate;
+        chosenAbs = abs;
+        break;
+      }
+    }
   }
-  return cleaned;
+
+  if (!chosenAbs) return cleaned;
+
+  const pkgImport = maybeRewriteToPackageImport(chosenAbs, repoRoot);
+  if (pkgImport) return pkgImport;
+  return chosenRel;
+};
+
+const cleanPropName = (raw) => (raw || '').replace(/^['"`]/, '').replace(/['"`]$/, '').trim();
+const extractPropNamesFromContent = (content = '') => {
+  const names = new Set();
+  const add = (n) => {
+    const cleaned = cleanPropName(n);
+    if (!cleaned) return;
+    if (cleaned.startsWith('...')) return;
+    names.add(cleaned);
+  };
+
+  const typeBlockRegex = /(interface|type)\s+[A-Za-z0-9_$]+Props?\s*=?\s*{([\s\S]*?)}\s*/g;
+  for (const match of content.matchAll(typeBlockRegex)) {
+    const body = match[2] || '';
+    body
+      .split('\n')
+      .map((line) => line.trim())
+      .forEach((line) => {
+        const propMatch = line.match(/^(?:readonly\s+)?(['"`]?[A-Za-z0-9_$.-]+['"`]?)\s*[\?:]/);
+        if (propMatch) add(propMatch[1]);
+      });
+  }
+
+  const destructureRegexes = [
+    /{([^}]+)}\s*=\s*[^;\n]*\bprops\b/g,
+    /function\s+[A-Za-z0-9_$]+\s*\(\s*{([^}]+)}\s*[:)]/g
+  ];
+  destructureRegexes.forEach((re) => {
+    for (const match of content.matchAll(re)) {
+      const body = match[1] || '';
+      body
+        .split(',')
+        .map((segment) => segment.trim())
+        .forEach((segment) => {
+          const [lhs] = segment.split(/[:=]/);
+          if (lhs) add(lhs.trim());
+        });
+    }
+  });
+
+  if (names.size === 0) names.add('children');
+  return names;
+};
+
+const coerceSchemaToApiSurface = (schema, propNames) => {
+  if (!schema || schema.status !== 'built') return schema;
+  if (!propNames || propNames.size === 0) return schema;
+
+  const hasProp = (name) => propNames.has(name);
+  const fromProps = Array.isArray(schema.props) ? schema.props : [];
+  const exampleProps = schema.exampleProps && typeof schema.exampleProps === 'object' ? schema.exampleProps : {};
+
+  const chooseTarget = (candidates = []) => candidates.find((c) => hasProp(c)) || null;
+  const iconSurface = {
+    left: chooseTarget(['leftIcon', 'startIcon', 'leadingIcon']),
+    right: chooseTarget(['rightIcon', 'endIcon', 'trailingIcon']),
+    single: chooseTarget(['icon'])
+  };
+
+  const booleanTargets = {
+    state: chooseTarget(['isDisabled', 'disabled']),
+    disabled: chooseTarget(['isDisabled']),
+    isDisabled: chooseTarget(['disabled']),
+    loading: chooseTarget(['isLoading']),
+    isLoading: chooseTarget(['loading'])
+  };
+
+  const usedNames = new Set(fromProps.map((p) => p?.name).filter(Boolean));
+  const coercedProps = [];
+  const appliedRenames = new Map();
+
+  const inferIconTarget = (prop) => {
+    if (!prop || prop.kind !== 'instance') return null;
+    if (hasProp(prop.name)) return null;
+    const key = (prop.figmaKey || prop.name || '').toLowerCase();
+    const isStart =
+      key.includes('start') || key.includes('left') || key.includes('leading') || key.includes('prefix');
+    const isEnd =
+      key.includes('end') || key.includes('right') || key.includes('trailing') || key.includes('suffix');
+    if (isStart && iconSurface.left) return iconSurface.left;
+    if (isEnd && iconSurface.right) return iconSurface.right;
+    if (!isStart && !isEnd && iconSurface.single) return iconSurface.single;
+    return null;
+  };
+
+  fromProps.forEach((prop) => {
+    if (!prop || !prop.name) return;
+    const iconTarget = inferIconTarget(prop);
+    const booleanTarget = prop.kind === 'boolean' && !hasProp(prop.name) ? booleanTargets[prop.name] : null;
+    const target = iconTarget || booleanTarget || null;
+    if (!target) {
+      coercedProps.push(prop);
+      return;
+    }
+    if (usedNames.has(target)) return;
+    usedNames.add(target);
+    coercedProps.push({ ...prop, name: target });
+    appliedRenames.set(prop.name, target);
+  });
+
+  if (appliedRenames.size === 0) return schema;
+
+  const finalNames = new Set(coercedProps.map((p) => p?.name).filter(Boolean));
+  const coercedExampleProps = Object.entries(exampleProps).reduce((acc, [key, value]) => {
+    const target = appliedRenames.get(key);
+    const finalKey = target && finalNames.has(target) ? target : key;
+    acc[finalKey] = value;
+    return acc;
+  }, {});
+
+  return { ...schema, props: coercedProps, exampleProps: coercedExampleProps };
+};
+
+const extractPropNamesFromFiles = (files = []) => {
+  const names = new Set();
+  files
+    .filter((f) => f && !f.error && typeof f.content === 'string')
+    .forEach((file) => {
+      const props = extractPropNamesFromContent(file.content);
+      props.forEach((name) => names.add(name));
+    });
+  return names;
+};
+
+const sanitizePropKeyForMatch = (key) =>
+  (key || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^[.]/, '')
+    .replace(/[?]/g, '')
+    .replace(/[^a-z0-9_]/g, '');
+
+const TEXT_SURFACE_KEYS = new Set(['children', 'label', 'text', 'content', 'title']);
+const hasTextualSurface = (propHints) => {
+  if (!propHints || propHints.size === 0) return false;
+  return Array.from(propHints).some((name) => TEXT_SURFACE_KEYS.has(sanitizePropKeyForMatch(name)));
+};
+
+const PSEUDO_STATE_AXIS_KEYS = new Set(['state', 'interaction']);
+const isPseudoStateAxisKey = (rawKey) => PSEUDO_STATE_AXIS_KEYS.has(sanitizePropKeyForMatch(rawKey));
+const PSEUDO_STATE_BOOLEAN_TOKENS = ['hover', 'focus', 'active', 'pressed', 'selected', 'current'];
+const isPseudoStateBooleanKey = (rawKey) => {
+  const sanitized = sanitizePropKeyForMatch(rawKey);
+  return PSEUDO_STATE_BOOLEAN_TOKENS.some((token) => sanitized.includes(token));
+};
+
+const dropPseudoStateProps = (schema, propHints, hasConfidentSurface) => {
+  if (!hasConfidentSurface) return schema;
+  if (!schema || schema.status !== 'built') return schema;
+  const props = Array.isArray(schema.props) ? schema.props : [];
+  if (props.length === 0) return schema;
+
+  const allow = (prop) => propHints && propHints.has(prop?.name);
+  const filtered = props.filter((prop) => {
+    if (!prop) return false;
+    if (allow(prop)) return true;
+    const figmaKey = prop.figmaKey || prop.name || '';
+    if (prop.kind === 'enum' && isPseudoStateAxisKey(figmaKey)) return false;
+    if (prop.kind === 'boolean' && String(figmaKey).trim().startsWith('.') && isPseudoStateBooleanKey(figmaKey)) {
+      return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) return schema;
+
+  const filteredNames = new Set(filtered.map((p) => p.name).filter(Boolean));
+  const exampleProps = schema.exampleProps && typeof schema.exampleProps === 'object' ? schema.exampleProps : {};
+  const filteredExampleProps = Object.entries(exampleProps).reduce((acc, [key, value]) => {
+    if (filteredNames.has(key)) acc[key] = value;
+    return acc;
+  }, {});
+
+  return { ...schema, props: filtered, exampleProps: filteredExampleProps };
+};
+
+const buildPropSurfaceForAgent = (propHints, componentJson) => {
+  if (!propHints || propHints.size === 0) return null;
+  const rawHints = Array.from(propHints).filter(Boolean);
+  const hasNonChildren = rawHints.some((p) => p !== 'children');
+  if (!hasNonChildren) return null;
+
+  const sanitizedHints = rawHints.map(sanitizePropKeyForMatch).filter(Boolean);
+  if (sanitizedHints.length >= 5) {
+    return { validProps: rawHints.sort() };
+  }
+
+  const variantProps =
+    componentJson?.data?.variantProperties ||
+    componentJson?.variantProperties ||
+    {};
+  const variantKeys = Object.keys(variantProps).map(sanitizePropKeyForMatch).filter(Boolean);
+  const hasOverlap = sanitizedHints.some((h) => variantKeys.includes(h));
+  if (!hasOverlap) return null;
+
+  return { validProps: rawHints.sort() };
+};
+
+const applyPropHintsToSchema = (schema, propNames) => {
+  if (!schema || schema.status !== 'built') return schema;
+  if (!propNames || propNames.size === 0) return schema;
+
+  const allow = (name) => propNames.has(name) || name === 'children';
+  const filteredProps = Array.isArray(schema.props) ? schema.props.filter((p) => allow(p?.name)) : [];
+  if (filteredProps.length === 0) return schema;
+
+  const exampleProps = schema.exampleProps && typeof schema.exampleProps === 'object' ? schema.exampleProps : {};
+  const filteredExampleProps = Object.entries(exampleProps).reduce((acc, [key, value]) => {
+    if (allow(key)) acc[key] = value;
+    return acc;
+  }, {});
+
+  return { ...schema, props: filteredProps, exampleProps: filteredExampleProps };
 };
 
 const buildFigmaNodeUrl = (fileKey, fileName, nodeId) => {
@@ -153,7 +439,8 @@ const buildAgentPayload = (
   files,
   figmaInfo,
   targetFramework,
-  angularComponents = []
+  angularComponents = [],
+  propSurface = null
 ) => {
   const componentData = componentJson?.data || null;
   const figmaCompact = componentData
@@ -186,7 +473,7 @@ const buildAgentPayload = (
     nodeUrl: figmaInfo?.nodeUrl || null
   };
 
-  return [
+  const lines = [
     promptText.trim(),
     '',
     `# Target framework: ${targetFramework || 'react'}`,
@@ -198,14 +485,26 @@ const buildAgentPayload = (
     '',
     '## Orientation',
     JSON.stringify(orienterEntry, null, 2),
-    '',
-    '## Angular components (from repo summary)',
-    JSON.stringify(angularComponents, null, 2),
-    '',
-    '## Contents of selected files',
-    serializedFiles,
     ''
-  ].join('\n');
+  ];
+
+  if (propSurface && Array.isArray(propSurface.validProps) && propSurface.validProps.length > 0) {
+    lines.push('## Component API surface (authoritative)');
+    lines.push(JSON.stringify(propSurface, null, 2));
+    lines.push('');
+  }
+
+  if ((targetFramework || 'react') === 'angular') {
+    lines.push('## Angular components (from repo summary)');
+    lines.push(JSON.stringify(angularComponents, null, 2));
+    lines.push('');
+  }
+
+  lines.push('## Contents of selected files');
+  lines.push(serializedFiles);
+  lines.push('');
+
+  return lines.join('\n');
 };
 
 const extractJsonResponse = (text) => {
@@ -242,9 +541,23 @@ const extractJsonResponse = (text) => {
   }
 };
 
-const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaComponentProperties = null, tokenName = null) => {
+const renderTsxFromSchema = (
+  schema,
+  figmaVariantProperties = null,
+  figmaComponentProperties = null,
+  tokenName = null,
+  options = {}
+) => {
   const lines = [];
   lines.push("import figma from '@figma/code-connect';");
+  const allowImplicitText = options.allowImplicitText !== undefined ? options.allowImplicitText : true;
+  const canonicalizeAxisName = (rawAxis) => {
+    const normalized = sanitizeJsName(normalizeFigmaKey(rawAxis)) || 'prop';
+    const lowerFirst = normalized ? normalized[0].toLowerCase() + normalized.slice(1) : normalized;
+    const sanitized = sanitizePropKeyForMatch(lowerFirst);
+    if (sanitized === 'colorpallete' || sanitized === 'color_pallete') return 'colorPalette';
+    return lowerFirst;
+  };
 
   const named = Array.isArray(schema.reactImport?.named) ? schema.reactImport.named : [];
   const hasDefault = schema.reactImport?.default;
@@ -267,12 +580,27 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaCompone
   const normalizedVariantProps =
     figmaVariantProperties && typeof figmaVariantProperties === 'object' ? figmaVariantProperties : {};
 
+  const normalizeKeyForMatch = (key) => normalizeFigmaKey(key).replace(/^[.]/, '').replace(/[?]$/, '');
+  const basePropsByKey = new Map(
+    baseProps
+      .filter((p) => p && typeof p === 'object' && p.figmaKey)
+      .map((p) => [normalizeKeyForMatch(p.figmaKey), p])
+      .filter(([key]) => key)
+  );
+
   const deriveVariantProps = () =>
     Object.entries(normalizedVariantProps)
       .map(([name, values]) => {
         if ((name || '').trim().startsWith('.')) return null;
+        if (isPseudoStateAxisKey(name)) {
+          const axisKey = normalizeKeyForMatch(name);
+          const hasEvidence =
+            basePropsByKey.has(axisKey) ||
+            baseProps.some((prop) => sanitizePropKeyForMatch(prop?.name) === sanitizePropKeyForMatch(name));
+          if (!hasEvidence) return null;
+        }
         const figmaKey = name || '';
-        const normalizedName = sanitizeJsName(normalizeFigmaKey(name)) || 'prop';
+        const normalizedName = canonicalizeAxisName(name);
         const enumValues = Array.isArray(values) ? values : Object.keys(values || {});
         const valueMapping = enumValues.reduce((acc, v) => {
           acc[v] = v;
@@ -282,18 +610,42 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaCompone
       })
       .filter(Boolean);
 
+  const schemaStringPropsByKey = new Map(
+    baseProps
+      .filter((p) => p && typeof p === 'object' && p.kind === 'string')
+      .map((p) => [normalizeFigmaKey(p.figmaKey || p.name || ''), p])
+      .filter(([key]) => key)
+  );
+
+  const textKeys = new Set(['label', 'text', 'children', 'content', 'title']);
+
   const deriveComponentProps = () =>
     normalizedComponentProps
       .map((cp) => {
         const rawName = cp?.name || '';
         if (!rawName) return null;
         if (rawName.trim().startsWith('.')) return null;
-        if (cp?.type === 'STRING') return null;
         const normalizedKey = normalizeFigmaKey(rawName);
         const jsBase = sanitizeJsName(normalizedKey) || 'prop';
+        const lowerBase = jsBase.toLowerCase();
+
+        if (cp?.type === 'STRING') {
+          const schemaMatch = schemaStringPropsByKey.get(normalizedKey) || null;
+          const allowAsText = allowImplicitText && textKeys.has(lowerBase);
+          if (!schemaMatch && !allowAsText) return null;
+          const name = schemaMatch?.name || (allowAsText ? 'children' : jsBase);
+          const schemaExample = schema.exampleProps && typeof schema.exampleProps === 'object' ? schema.exampleProps[name] : undefined;
+          const defaultValue =
+            schemaExample !== undefined
+              ? schemaExample
+              : schemaMatch?.defaultValue !== undefined
+                ? schemaMatch.defaultValue
+                : schema.figmaComponentName || schema.reactComponentName || 'Label';
+          return { name, figmaKey: rawName, kind: 'string', defaultValue };
+        }
+
         const isOptionalFlag = rawName.trim().endsWith('?');
-        const wantsChildren = jsBase.toLowerCase() === 'label';
-        const name = wantsChildren ? 'children' : isOptionalFlag ? `${jsBase}Enabled` : jsBase;
+        const name = isOptionalFlag ? `${jsBase}Enabled` : jsBase;
         const kind =
           cp?.type === 'BOOLEAN'
             ? 'boolean'
@@ -311,15 +663,39 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaCompone
   const shouldUseFigmaProps = derivedVariantProps.length > 0 || derivedComponentProps.length > 0;
 
   const seenPropNames = new Set();
-  const sourceProps = (shouldUseFigmaProps ? [...derivedVariantProps, ...derivedComponentProps] : baseProps).filter(
-    (p) => {
-      const name = p?.name || '';
-      if (!name) return false;
-      if (seenPropNames.has(name)) return false;
-      seenPropNames.add(name);
-      return true;
-    }
-  );
+
+  const allowTextProp = (prop) => {
+    if (!prop || prop.kind !== 'string') return false;
+    const key = normalizeKeyForMatch(prop.figmaKey || prop.name);
+    return prop.name === 'children' || textKeys.has(key.toLowerCase());
+  };
+
+  const applySchemaHintsToDerived = (derived) => {
+    if (basePropsByKey.size === 0) return derived;
+    const filtered = derived.filter((p) => {
+      const key = normalizeKeyForMatch(p?.figmaKey || p?.name);
+      return basePropsByKey.has(key) || allowTextProp(p);
+    });
+    const useFiltered = filtered.length > 0 ? filtered : derived;
+    return useFiltered.map((prop) => {
+      if (!prop) return prop;
+      const key = normalizeKeyForMatch(prop.figmaKey || prop.name);
+      const base = basePropsByKey.get(key);
+      if (!base) return prop;
+      if (base.kind && base.kind !== prop.kind) return prop;
+      if (base.name && base.name !== prop.name) return { ...prop, name: base.name };
+      return prop;
+    });
+  };
+
+  const hintedDerived = shouldUseFigmaProps ? applySchemaHintsToDerived([...derivedVariantProps, ...derivedComponentProps]) : baseProps;
+  const sourceProps = hintedDerived.filter((p) => {
+    const name = p?.name || '';
+    if (!name) return false;
+    if (seenPropNames.has(name)) return false;
+    seenPropNames.add(name);
+    return true;
+  });
 
   const propEntries = sourceProps.map((p) => {
     const figmaKeyRaw = p && typeof p === 'object' ? p.figmaKey || p.name || null : null;
@@ -386,7 +762,20 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaCompone
 
   const buildDestructured = (prop) => {
     const hasLiteral = Object.prototype.hasOwnProperty.call(exampleProps, prop.name);
-    const literal = hasLiteral ? exampleProps[prop.name] : prop.defaultValue;
+    const rawLiteral = hasLiteral ? exampleProps[prop.name] : prop.defaultValue;
+    const literal =
+      prop.kind === 'enum' && rawLiteral !== undefined
+        ? (() => {
+            const values = Array.isArray(prop.values) ? prop.values : [];
+            if (values.length === 0) return rawLiteral;
+            if (values.includes(rawLiteral)) return rawLiteral;
+            if (typeof rawLiteral === 'string') {
+              const match = values.find((v) => String(v).toLowerCase() === rawLiteral.toLowerCase());
+              if (match !== undefined) return match;
+            }
+            return values[0];
+          })()
+        : rawLiteral;
     const jsLit = toJsLiteral(literal);
     if (isValidIdentifier(prop.name)) {
       return jsLit !== undefined ? `${prop.varName} = ${jsLit}` : prop.varName;
@@ -477,17 +866,20 @@ const renderTsxFromSchema = (schema, figmaVariantProperties = null, figmaCompone
   lines.push('  },');
 
   const exampleParam = 'props';
+  const exampleHeader = `  example: function Example(${exampleParam}) {`;
   if (destructuredParams.trim()) {
-    lines.push(`  example: (${exampleParam}) => {`);
+    lines.push(exampleHeader);
     lines.push(`    const { ${destructuredParams} } = ${exampleParam} || {};`);
     lines.push(`    return (`);
     lines.push(`      <${schema.reactComponentName}${exampleAttrs}>${childExpr}</${schema.reactComponentName}>`);
     lines.push('    );');
     lines.push('  },');
   } else {
-    lines.push(`  example: (${exampleParam}) => (`);
-    lines.push(`    <${schema.reactComponentName}${exampleAttrs}>${childExpr}</${schema.reactComponentName}>`);
-    lines.push('  ),');
+    lines.push(exampleHeader);
+    lines.push(`    return (`);
+    lines.push(`      <${schema.reactComponentName}${exampleAttrs}>${childExpr}</${schema.reactComponentName}>`);
+    lines.push('    );');
+    lines.push('  },');
   }
   lines.push('});');
 
@@ -801,7 +1193,8 @@ const processAngularEntry = async (orienterEntry, ctx) => {
     files,
     figmaInfo,
     ctx.targetFramework,
-    ctx.angularComponents
+    ctx.angularComponents,
+    null
   );
   const { parsed } = await runMappingAgent({ ctx, payload, logBaseName });
 
@@ -873,6 +1266,12 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
   const missingFiles = listMissingFiles(files);
 
   const componentJson = getComponentJson(componentKey, ctx.figmaComponents);
+  const recipeStyle = detectRecipeStyleComponent(files);
+  const basePropHints = extractPropNamesFromFiles(files);
+  const propHints = mergePropHintsForRecipeStyle(basePropHints, componentJson, recipeStyle);
+  const propSurface = buildPropSurfaceForAgent(propHints, componentJson);
+  const allowImplicitText = hasTextualSurface(basePropHints);
+  const hasConfidentSurface = !!propSurface;
 
   const filesLabel = requiredPaths.map((p) => codeColor(p)).join(', ');
   console.log(`Generating Code Connect mapping for ${generatedColor(logBaseName)}`);
@@ -888,7 +1287,8 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
     files,
     figmaInfo,
     ctx.targetFramework,
-    ctx.angularComponents
+    ctx.angularComponents,
+    propSurface
   );
 
   const { parsed, agentResult, rawAgentOutput } = await runMappingAgent({ ctx, payload, logBaseName });
@@ -900,12 +1300,15 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
     reason: parsed?.reason || undefined,
     confidence: parsed?.confidence ?? undefined,
     reactComponentName: parsed?.reactComponentName || parsed?.reactName || null,
+    isRecipeStyle: recipeStyle.isRecipeStyle,
     missingFiles,
     agentExitCode: agentResult.code
   };
 
   if (parsed?.status === 'built') {
-    const schema = parsed;
+    const coercedSchema = coerceSchemaToApiSurface(parsed, propHints);
+    const schemaWithHints = applyPropHintsToSchema(coercedSchema, propHints);
+    const schema = dropPseudoStateProps(schemaWithHints, propHints, hasConfidentSurface);
     const resolvedImportPath = normalizeImportPath(schema.reactImport?.path, requiredPaths, ctx.repo);
     if (schema.reactImport && resolvedImportPath) {
       schema.reactImport.path = resolvedImportPath;
@@ -922,7 +1325,8 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
       schema,
       componentJson?.data?.variantProperties || componentJson?.variantProperties || null,
       componentJson?.data?.componentProperties || componentJson?.componentProperties || null,
-      figmaToken
+      figmaToken,
+      { allowImplicitText }
     );
     const writeOutcome = await ensureCodeConnectWrite(ctx, fileName, tsx);
     logEntry.status = writeOutcome.status;

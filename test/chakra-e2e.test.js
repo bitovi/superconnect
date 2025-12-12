@@ -2,8 +2,9 @@ const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
 const { spawnSync } = require('child_process');
+const { computeChakraBenchMetrics, compareChakraBenchMetrics } = require('./util/chakra-bench');
 
-jest.setTimeout(300000);
+jest.setTimeout(1200000);
 
 const FIGMA_URL =
   'https://www.figma.com/design/7jkNETbphjIb9ap1M7H1o4/Chakra-UI----Figma-Kit--v3---Community-?m=auto&t=0XdgVxllEy8vO4w1-6';
@@ -23,6 +24,30 @@ const RUN_E2E = process.env.RUN_CHAKRA_E2E === '1';
 const fixtureRoot = path.join(__dirname, '..', 'fixtures', 'chakra-ui');
 const superconnectScript = path.join(__dirname, '..', 'scripts', 'run-pipeline.js');
 const figmaCli = path.join(__dirname, '..', 'node_modules', '.bin', 'figma');
+const baselinePath = path.join(__dirname, 'baselines', 'chakra-metrics.json');
+
+const normalizeBoolEnv = (val) => {
+  if (!val) return false;
+  const normalized = String(val).toLowerCase().trim();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+};
+
+const shouldRecordBaseline = () =>
+  normalizeBoolEnv(process.env.CHAKRA_E2E_RECORD || process.env.npm_config_chakra_e2e_record);
+
+const readBaselineMetrics = () => {
+  if (!fs.existsSync(baselinePath)) return null;
+  try {
+    return fs.readJsonSync(baselinePath);
+  } catch {
+    return null;
+  }
+};
+
+const writeBaselineMetrics = (metrics) => {
+  fs.ensureDirSync(path.dirname(baselinePath));
+  fs.writeJsonSync(baselinePath, metrics, { spaces: 2 });
+};
 
 const isVerbose = () => {
   const val = process.env.SUPERCONNECT_E2E_VERBOSE;
@@ -46,7 +71,8 @@ const readEnvValue = (key) => {
 
 const getOnlyList = () => {
   const raw = process.env.CHAKRA_E2E_ONLY || process.env.npm_config_chakra_e2e_only;
-  if (!raw) return DEFAULT_ONLY;
+  if (!raw) return null;
+  if (String(raw).trim().toLowerCase() === 'default') return DEFAULT_ONLY;
   return raw
     .split(/[, ]+/)
     .map((s) => s.trim())
@@ -127,7 +153,6 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
   };
 
   const subset = getOnlyList();
-  const onlyArg = subset.join(',');
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chakra-e2e-'));
   try {
@@ -136,10 +161,11 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
     fs.removeSync(path.join(tmpDir, 'superconnect'));
     fs.removeSync(path.join(tmpDir, 'codeConnect'));
 
-    run('node', [superconnectScript, '--framework', 'react', '--force', '--only', onlyArg], {
-      cwd: tmpDir,
-      env
-    });
+    const superconnectArgs = [superconnectScript, '--framework', 'react', '--force'];
+    if (Array.isArray(subset) && subset.length > 0) {
+      superconnectArgs.push('--only', subset.join(','));
+    }
+    run('node', superconnectArgs, { cwd: tmpDir, env });
 
     const outputDir = path.join(tmpDir, 'codeConnect');
     const connectors = fs.existsSync(outputDir)
@@ -153,6 +179,28 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
       env
     });
     expect(publishOutput).toEqual(expect.stringContaining('All Code Connect files are valid'));
+
+    const metrics = computeChakraBenchMetrics(tmpDir);
+    expect(metrics.connectors).toBe(connectors.length);
+    console.log(`CHAKRA_BENCH_METRICS: ${JSON.stringify(metrics)}`);
+
+    if (shouldRecordBaseline()) {
+      writeBaselineMetrics(metrics);
+      console.log(`Recorded Chakra benchmark baseline at ${baselinePath}`);
+    } else {
+      const baseline = readBaselineMetrics();
+      if (!baseline) {
+        console.log(
+          `No Chakra benchmark baseline found at ${baselinePath}. Run with CHAKRA_E2E_RECORD=1 to record`
+        );
+      } else {
+        const { failures } = compareChakraBenchMetrics(baseline, metrics);
+        if (failures.length > 0) {
+          console.log(`Chakra benchmark regressions:\n${failures.join('\n')}`);
+        }
+        expect(failures).toEqual([]);
+      }
+    }
   } finally {
     if (shouldKeep()) {
       console.log(`CHAKRA_E2E_KEEP set; leaving temp dir at ${tmpDir}`);

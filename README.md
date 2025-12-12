@@ -1,10 +1,10 @@
 # Superconnect: Code Generator for Figma Code Connect
 
-Superconnect is an AI-enhanced tool that turns a Figma design system file and a React or Angular component repo into Figma Code Connect mappings. It:
+Superconnect is an AI-powered code generation tool that turns a Figma design system file and a React or Angular component repo into Figma Code Connect mappings. It:
 
-- Scans your design system in Figma and extracts component metadata
-- Explores your React/Typescript or Angular component repo to understand exports, file structure, and patterns
-- Generates `.figma.tsx` (React) or `.figma.ts` (Angular) Code Connect files
+- Scans your Figma file
+- Explores your React or Angular component repo
+- Generates a set of Code Connect files for you (`.figma.tsx` or `.figma.ts`), ready to be published to your Figma file
 
 # Installation
 
@@ -22,23 +22,27 @@ Superconnect is an AI-enhanced tool that turns a Figma design system file and a 
   - `FIGMA_ACCESS_TOKEN` – Figma personal access token used by the Figma scan stage
   - `ANTHROPIC_API_KEY` – required when `backend = "claude"` (default)
   - `OPENAI_API_KEY` – required when `backend = "openai"`
-  - these can be set in your shell or in a `.env` file next to the repo you run `superconnect` from
+  - these can be set in your shell or in an `.env` file in your React or Angular repo
 
 - superconnect.toml
   - Superconnect seeks `superconnect.toml` config file in the current working directory
-  - If missing, the tool will prompt you the first time and write the config file for you
+  - If missing, the tool will prompt you the first time and then write the config file for you
 
 # Workflow
 
+## 0. Pre-requisites
+
+You have:
+
+- a Figma file containing some components
+  - assumes an Enterprise Figma account, and that you have full write permissions
+- a repo implementing those same components (React or Angular)
+
 ## 1. Figma access token
 
-Superconnect relies on a Figma personal access token:
+Superconnect relies on a Figma personal access token, which you generate. You must have full write permissions to the Figma file and Code Connect must be enabled in your "Enterprise"-level Figma org.
 
-- The token’s user must have *edit access* to the design system file
-- The file must live in an Enterprise organization where Code Connect is enabled
-- The same user must be allowed to publish that file’s asset library
-
-To get the token:
+### Getting a Figma access token
 
 - In Figma, open your account menu
 - Choose **Settings** (or **Profile & Settings**)
@@ -67,7 +71,7 @@ For Code Connect mappings to work, assets from the design system must first be "
 
 ## 3. Code Generation
 
-From the root of your component repo, run `superconnect`. It will prompt you for the Figma file URL and save your settings to a config file, `superconnect.toml`. You can set your preferred AI -- the default is 'claude' (claude-haiku-4-5), and ANTHROPIC_API_KEY is assumed to be in your environment. If you switch to 'openai' (gpt-5.1-codex-mini), it will look for your OPENAI_API_KEY. 
+From the root of your React or Angular component repo, run `superconnect`. It will prompt you for the Figma file URL and save your settings to a config file, `superconnect.toml`. You can set your preferred AI -- the default is 'claude' (claude-haiku-4-5), and ANTHROPIC_API_KEY is assumed to be in your environment. If you switch to 'openai' (gpt-5.1-codex-mini), it will look for your OPENAI_API_KEY. 
 
 `superconnect` will:
 
@@ -98,11 +102,11 @@ Now you can inspect the mappings in Figma.
 - Open the design system file and switch into Dev Mode
 - Select an instance of a component you mapped (for example, a Button)
 - In the right-hand sidebar, scroll to the **Code Connect** section
-- Click **View connections** and then select the Button component
+- Click the **Connect Components** button or the **View connections** button and then select the Button component
 
 You should now see:
 
-- The mapping written by Superconnect
+- The Code Connect mapping written by Superconnect
 - The generated example snippet for your framework (React JSX or Angular template)
 - Any props that were inferred from Figma variants or component properties
 

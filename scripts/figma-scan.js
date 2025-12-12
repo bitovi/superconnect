@@ -223,6 +223,29 @@ const normalizeComponentPropertyDefinitions = (defs) => {
     .filter(Boolean);
 };
 
+const filterChildDefinitionsByCoverage = (defsByChild) => {
+  const totalChildren = defsByChild.length;
+  if (totalChildren === 0) return [];
+
+  const counts = new Map();
+  defsByChild.forEach((defs) => {
+    defs.forEach((def) => {
+      if (!def?.name) return;
+      const entry = counts.get(def.name) || { def, count: 0 };
+      entry.count += 1;
+      counts.set(def.name, entry);
+    });
+  });
+
+  return Array.from(counts.values())
+    .map((entry) => {
+      const { def, count } = entry;
+      if (def.type === 'STRING' && count < totalChildren) return null;
+      return def;
+    })
+    .filter(Boolean);
+};
+
 const extractComponentProperties = (componentSet) => {
   if (!componentSet || typeof componentSet !== 'object') return null;
 
@@ -230,21 +253,12 @@ const extractComponentProperties = (componentSet) => {
   if (fromSet.length > 0) return fromSet;
 
   const children = Array.isArray(componentSet.children) ? componentSet.children : [];
-  const merged = new Map();
+  const defsByChild = children
+    .filter((child) => child && typeof child === 'object' && child.type === 'COMPONENT')
+    .map((child) => normalizeComponentPropertyDefinitions(child.componentPropertyDefinitions));
 
-  children.forEach((child) => {
-    if (!child || typeof child !== 'object') return;
-    if (child.type !== 'COMPONENT') return;
-    const defs = normalizeComponentPropertyDefinitions(child.componentPropertyDefinitions);
-    defs.forEach((def) => {
-      if (!merged.has(def.name)) {
-        merged.set(def.name, def);
-      }
-    });
-  });
-
-  const values = Array.from(merged.values());
-  return values.length > 0 ? values : null;
+  const filtered = filterChildDefinitionsByCoverage(defsByChild);
+  return filtered.length > 0 ? filtered : null;
 };
 
 function extractVariants(componentSet, breadcrumbs) {
@@ -295,15 +309,23 @@ function extractVariants(componentSet, breadcrumbs) {
 
   const componentProperties = extractComponentProperties(componentSet);
   const referencedProps = Array.from(propertyRefs.values());
+  const componentPropNames = new Set(
+    Array.isArray(componentProperties) ? componentProperties.map((p) => p?.name).filter(Boolean) : []
+  );
+  const safeReferencedProps = referencedProps.filter((prop) => {
+    if (!prop?.name) return false;
+    if (prop.type !== 'STRING') return true;
+    return componentPropNames.has(prop.name);
+  });
   const mergedComponentProperties =
     componentProperties && Array.isArray(componentProperties)
       ? Array.from(
           new Map(
-            [...componentProperties, ...referencedProps].map((p) => [p.name || '', p])
+            [...componentProperties, ...safeReferencedProps].map((p) => [p.name || '', p])
           ).values()
         )
-      : referencedProps.length > 0
-        ? referencedProps
+      : safeReferencedProps.length > 0
+        ? safeReferencedProps
         : null;
 
   const basePayload = {
