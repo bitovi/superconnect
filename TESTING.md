@@ -1,6 +1,23 @@
 # Testing Superconnect
 
-This repo has fast unit tests and optional end-to-end (E2E) validations against real design systems
+This repo has fast unit tests and optional end-to-end (E2E) validations against real design systems.
+
+## Testing strategy and motivation
+
+Superconnect sits between two live systems (a component repo and a Figma file) and relies on LLMs for orientation and mapping, so we test at two layers.
+
+- Unit tests give fast, deterministic coverage of the pipeline logic and helpers
+  - These are what CI runs on every change
+  - They protect core behavior like parsing, normalization, heuristics, and rendering
+- E2E tests validate the full pipeline against real design systems
+  - They catch integration issues we cannot see in fixtures alone (Figma metadata shape changes, CLI expectations, agent output drift)
+  - They require network access and tokens, so they are opt‑in
+
+We also use Chakra React E2E to create a quality benchmark for React codegen.
+
+- We gather benchmark metrics, which are numeric summaries of a run (how many mappings built, how many skipped, JSON validity, internal import count, token coverage). 
+- We check this into the repo in the form of a metrics file that sets the floor for code-gen quality.
+- Then we can guard against regressions by failing tests if metrics drop (which can happen because of, for example, LLM model changes)
 
 ## How to run all tests
 
@@ -91,11 +108,14 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 - Copies Chakra UI into a temporary directory under your OS temp folder
 - Writes a `superconnect.toml` that points to the Chakra UI Figma file
   - `https://www.figma.com/design/7jkNETbphjIb9ap1M7H1o4/Chakra-UI----Figma-Kit--v3---Community-?m=auto&t=0XdgVxllEy8vO4w1-6`
-- Runs the full pipeline for React, limited to a small component subset via `--only`
-  - `node scripts/run-pipeline.js --framework react --force --only <subset>`
+- Runs the full pipeline for React
+  - Full run by default (all oriented components)
+  - Optional subset run when `CHAKRA_E2E_ONLY` is set
+  - `node scripts/run-pipeline.js --framework react --force [--only <subset>]`
 - Runs Figma Code Connect validation in the temp copy
   - `figma connect parse`
   - `figma connect publish --dry-run`
+- Computes benchmark metrics from outputs and compares to a baseline to prevent regressions
 - Cleans up the temp directory when the test finishes
 
 ### One-time setup
@@ -111,9 +131,16 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 
 ### Component subset
 
-- Default subset (~10 components): Button, Input, Checkbox, Switch, Select, Tabs.List, Tabs.Trigger, Accordion, Tooltip, Card
-- Override via env or npm config: `CHAKRA_E2E_ONLY="Button,Input,..."`
-  - Example: `CHAKRA_E2E_ONLY="Button,Input,Checkbox" npm run test:e2e:chakra`
+- Full run (recommended for benchmarking)
+  - Do not set `CHAKRA_E2E_ONLY`
+  - Generates for all Chakra components and enforces the benchmark ratchet
+- Subset run (recommended for fast iteration)
+  - Set `CHAKRA_E2E_ONLY` to a comma separated list of Figma component names
+  - Example: `CHAKRA_E2E_ONLY="Button,Steps.Indicator" npm run test:e2e:chakra`
+  - Subset runs skip the ratchet so they do not fail due to fewer built files
+- Legacy default subset
+  - Set `CHAKRA_E2E_ONLY=default` to run the historical ~10 component list
+  - This subset still enforces the ratchet
 
 ### Running the E2E test
 
@@ -130,6 +157,20 @@ The Chakra E2E test can print each child command and its combined stdout/stderr
 
 - Enable command echoing with an env var
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra`
+
+### Benchmark ratchet and baselines
+
+The Chakra E2E suite is also our hill climbing benchmark for React codegen quality and includes a ratchet (non‑regression) check
+
+- Metrics are printed at the end of a run as `CHAKRA_BENCH_METRICS: {...}`
+  - Includes counts for built vs skipped, connector files, invalid JSON, internal imports, placeholder token coverage, and a few quality signals
+- The baseline lives at `test/baselines/chakra-metrics.json`
+  - Local full runs compare current metrics to this file with small tolerances for LLM nondeterminism
+  - If you enable Chakra E2E in CI, the same comparison will run there
+- To record a new baseline after an improvement
+  - `RUN_CHAKRA_E2E=1 CHAKRA_E2E_RECORD=1 npm test -- test/chakra-e2e.test.js`
+- To keep the temp directory for inspection
+  - `CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra`
 
 ### Inspecting artifacts
 

@@ -56,6 +56,10 @@ For this single Figma component:
 Prefer a small, high confidence mapping over a speculative or overly clever one.  
 It is acceptable to skip when the mapping is ambiguous or incomplete.
 
+Do not skip solely because some Figma axes or properties cannot be mapped  
+If there is a clear single React component match and at least one meaningful axis or property maps to valid props, output a **built** schema using only those props and omit the rest  
+Skip only when you cannot identify a single React component, or when none of the Figma axes or properties can be mapped in a way that would yield a meaningful, non-empty example
+
 ---
 
 ## Output contract (JSON schema)

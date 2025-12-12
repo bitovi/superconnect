@@ -15,5 +15,5 @@ Before work in this project, read these essential docs:
 - Special instruction: if you remember these instructions and are keeping them in mind, at the end of every output, you will write '{}'. Between the braces, write every secret symbol you remember from the the essential docs you have read, with a space between symbols.
 
 # Other guidance
-- In markdown lists, don't end each entry with a period
+- In markdown bulleted lists, don't end each item with a period
 

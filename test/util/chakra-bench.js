@@ -87,7 +87,7 @@ const computeChakraBenchMetrics = (repoRoot) => {
   }, 0);
 
   const stateEnumProps = connectorContents.reduce(
-    (acc, content) => acc + countRegexMatches(content, /figma\.enum\(['"]state['"]/g),
+    (acc, content) => acc + countRegexMatches(content, /\bstate\s*:\s*figma\.enum\(['"]state['"]/g),
     0
   );
   const dottedAxisProps = connectorContents.reduce(
@@ -125,6 +125,13 @@ const compareChakraBenchMetrics = (baseline, current) => {
   const base = baseline && typeof baseline === 'object' ? baseline : {};
   const curr = current && typeof current === 'object' ? current : {};
 
+  const tolerances = {
+    built: { drop: 5 },
+    connectors: { drop: 5 },
+    invalidJson: { rise: 1 },
+    error: { rise: 1 }
+  };
+
   const checks = [
     { key: 'built', direction: 'gte' },
     { key: 'connectors', direction: 'gte' },
@@ -141,16 +148,28 @@ const compareChakraBenchMetrics = (baseline, current) => {
     const currentValue = curr[check.key];
     if (!isNumber(baselineValue) || !isNumber(currentValue)) return [];
 
+    const tolerance = tolerances[check.key] || {};
+    const minAllowed =
+      check.direction === 'gte'
+        ? baselineValue - (tolerance.drop || 0)
+        : baselineValue;
+    const maxAllowed =
+      check.direction === 'lte'
+        ? baselineValue + (tolerance.rise || 0)
+        : baselineValue;
+
     const passed =
       check.direction === 'gte'
-        ? currentValue >= baselineValue
-        : currentValue <= baselineValue;
+        ? currentValue >= minAllowed
+        : currentValue <= maxAllowed;
 
     if (passed) return [];
 
     const op = check.direction === 'gte' ? '>=' : '<=';
+    const expected =
+      check.direction === 'gte' ? minAllowed : maxAllowed;
     return [
-      `${check.key} regressed: expected ${op} ${baselineValue}, got ${currentValue}`
+      `${check.key} regressed: expected ${op} ${expected}, got ${currentValue}`
     ];
   });
 

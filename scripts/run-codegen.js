@@ -24,6 +24,7 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 const { renderAngularFromSchema } = require('../src/angular/render-angular');
 const { detectRecipeStyleComponent } = require('../src/react/recipe-style');
 const { mergePropHintsForRecipeStyle } = require('../src/react/figma-style-variants');
+const { extractJsonResponse } = require('../src/util/extract-json-response');
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
 const EXISTING_FILE_REASON = 'Existing Code Connect file present (rerun with --force to overwrite)';
@@ -507,40 +508,6 @@ const buildAgentPayload = (
   return lines.join('\n');
 };
 
-const extractJsonResponse = (text) => {
-  if (!text) return null;
-  const trimmed = text.trim();
-
-  // Prefer the first fenced code block
-  const fencedMatch = trimmed.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);
-  if (fencedMatch && fencedMatch[1]) {
-    const candidate = fencedMatch[1].trim();
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      // fall through
-    }
-  }
-
-  // Try the whole output
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    // Try from the first { to the last } as a last resort
-    const first = trimmed.indexOf('{');
-    const last = trimmed.lastIndexOf('}');
-    if (first !== -1 && last !== -1 && last > first) {
-      const slice = trimmed.slice(first, last + 1);
-      try {
-        return JSON.parse(slice);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-};
-
 const renderTsxFromSchema = (
   schema,
   figmaVariantProperties = null,
@@ -594,9 +561,14 @@ const renderTsxFromSchema = (
         if ((name || '').trim().startsWith('.')) return null;
         if (isPseudoStateAxisKey(name)) {
           const axisKey = normalizeKeyForMatch(name);
+          const base = basePropsByKey.get(axisKey) || null;
           const hasEvidence =
-            basePropsByKey.has(axisKey) ||
-            baseProps.some((prop) => sanitizePropKeyForMatch(prop?.name) === sanitizePropKeyForMatch(name));
+            (base && base.kind === 'enum') ||
+            baseProps.some(
+              (prop) =>
+                prop?.kind === 'enum' &&
+                sanitizePropKeyForMatch(prop?.name) === sanitizePropKeyForMatch(name)
+            );
           if (!hasEvidence) return null;
         }
         const figmaKey = name || '';
