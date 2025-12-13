@@ -1,0 +1,7 @@
+[inputs]
+figma_url = "https://example.com/figma/react-sample"
+component_repo_path = "."
+
+[agent]
+backend = "claude"
+max_tokens = 4000

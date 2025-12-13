@@ -40,7 +40,6 @@ describe('codegen canonicalizes figma enum axes and clamps enum defaults (react)
     expect(files).toEqual(['button.figma.tsx']);
     expect(contents).toContain("size: figma.enum('Size'");
     expect(contents).toContain("colorPalette: figma.enum('colorPallete'");
-    expect(contents).toContain('const { size = "md", colorPalette = "blue" } = props || {};');
+    expect(contents).toContain("example: ({ size = \"md\", colorPalette = \"blue\" } = {}) => (");
   });
 });
-

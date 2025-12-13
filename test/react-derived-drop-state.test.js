@@ -35,11 +35,10 @@ describe('codegen drops pseudo-state variant axes from derived props (react)', (
     return { files, contents };
   };
 
-  test('omits state enum axis', () => {
+  test('keeps state enum axis when provided by Figma', () => {
     const { contents } = runCodegen();
     expect(contents).toContain("size: figma.enum('size'");
-    expect(contents).not.toContain("figma.enum('state'");
-    expect(contents).not.toContain('state=');
+    expect(contents).toContain("figma.enum('state'");
+    expect(contents).toContain('state=');
   });
 });
-

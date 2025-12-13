@@ -15,8 +15,8 @@ Superconnect sits between two live systems (a component repo and a Figma file) a
 
 We also use Chakra React E2E to create a quality benchmark for React codegen.
 
-- We gather benchmark metrics, which are numeric summaries of a run (how many mappings built, how many skipped, JSON validity, internal import count, token coverage). 
-- We check this into the repo in the form of a metrics file that sets the floor for code-gen quality.
+- We gather benchmark metrics, which are numeric summaries of a run (how many mappings built, how many skipped, JSON validity, internal import count, token coverage)
+- We check this into the repo in the form of a metrics file that sets the floor for code-gen quality
 - Then we can guard against regressions by failing tests if metrics drop (which can happen because of, for example, LLM model changes)
 
 ## How to run all tests
@@ -24,12 +24,32 @@ We also use Chakra React E2E to create a quality benchmark for React codegen.
 - Core unit suite (what CI should run)
   - `npm test`
 - Optional live E2E suites (run manually when you want full coverage)
-  - `npm run test:e2e:zapui` for Angular (ZapUI)
-  - `npm run test:e2e:chakra` for React (Chakra UI)
+  - Chakra React
+    - Small subset: `npm run test:e2e:chakra:small`
+    - Full suite: `npm run test:e2e:chakra`
+    - Record benchmark baseline: `npm run test:e2e:chakra:record`
+    - Keep artifacts (full): `npm run test:e2e:chakra:keep`
+    - Keep artifacts (small): `npm run test:e2e:chakra:small:keep`
+  - ZapUI Angular
+    - Small subset: `npm run test:e2e:zapui:small`
+    - Full suite: `npm run test:e2e:zapui`
+    - Keep artifacts (full): `npm run test:e2e:zapui:keep`
+    - Keep artifacts (small): `npm run test:e2e:zapui:small:keep`
   - These require Figma + agent tokens and network access
     - `FIGMA_ACCESS_TOKEN=...`
     - `ANTHROPIC_API_KEY=...`
   - E2E tests first look in `process.env`, then fall back to `.env` in this repo root for those values
+  - Advanced knobs (prefer npm scripts first)
+    - `CHAKRA_E2E_ONLY` (example: `Button`)
+    - `CHAKRA_E2E_RECORD=1` to record a new benchmark baseline
+    - `CHAKRA_E2E_KEEP=1` to keep the temp directory
+    - `ZAPUI_E2E_ONLY` (example: `Button`)
+    - `ZAPUI_E2E_KEEP=1` to keep the temp directory
+    - `SUPERCONNECT_E2E_VERBOSE=1` to echo child commands and output
+  - CI policy
+    - CI runs unit tests on every push
+    - When secrets are available on `main`, CI runs only the small E2E suites to reduce runtime and flake
+    - Full live E2E runs are intended for developers to run locally
 
 ## Unit tests
 
@@ -56,7 +76,8 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 - Writes a `superconnect.toml` that points to the Zap UI Kit Figma file
   - `https://www.figma.com/design/ChohwrZwvllBgHWzBslmUg/Zap-UI-Kit--Bitovi---Copy-?m=auto&t=0XdgVxllEy8vO4w1-6`
 - Runs the full pipeline for Angular
-  - `node scripts/run-pipeline.js --framework angular --force`
+  - Full run: `node scripts/run-pipeline.js --framework angular --force`
+  - Optional subset: `node scripts/run-pipeline.js --framework angular --force --only <subset>`
 - Runs Figma Code Connect validation in the temp ZapUI copy
   - `figma connect parse`
   - `figma connect publish --dry-run`
@@ -77,6 +98,8 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 
 - Standard run
   - `npm run test:e2e:zapui`
+- Small run (fast subset)
+  - `npm run test:e2e:zapui:small`
 - This will
   - Gate on `RUN_ZAPUI_E2E=1` via the npm script
   - Use your FIGMA_ACCESS_TOKEN and ANTHROPIC_API_KEY from env or `.env`
@@ -86,7 +109,9 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 
 The ZapUI E2E test can print each child command and its combined stdout/stderr
 
-- Enable command echoing with an env var
+- Verbose small run
+  - `npm run test:e2e:zapui:small:verbose`
+- Verbose full run (advanced)
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui`
 
 ### Inspecting artifacts
@@ -94,9 +119,9 @@ The ZapUI E2E test can print each child command and its combined stdout/stderr
 By default the E2E test deletes its temp directory in a `finally` block
 
 - To inspect outputs (generated `codeConnect/*.figma.ts`, `superconnect/*`, logs)
-  - Temporarily comment out the `fs.removeSync(tmpDir)` call at the end of `test/zapui-e2e.test.js`
-  - Add a `console.log(tmpDir)` near where `tmpDir` is created
-  - Re-run the test, then manually inspect that directory
+  - Full run: `npm run test:e2e:zapui:keep`
+  - Small run: `npm run test:e2e:zapui:small:keep`
+  - The test prints the temp directory path when keep is enabled
 
 ## Chakra UI React E2E validation
 
@@ -131,16 +156,13 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 
 ### Component subset
 
-- Full run (recommended for benchmarking)
+- Full run (recommended for benchmarking, local only)
   - Do not set `CHAKRA_E2E_ONLY`
   - Generates for all Chakra components and enforces the benchmark ratchet
 - Subset run (recommended for fast iteration)
-  - Set `CHAKRA_E2E_ONLY` to a comma separated list of Figma component names
+  - Run `npm run test:e2e:chakra:small` or set `CHAKRA_E2E_ONLY` to a comma separated list of Figma component names
   - Example: `CHAKRA_E2E_ONLY="Button,Steps.Indicator" npm run test:e2e:chakra`
   - Subset runs skip the ratchet so they do not fail due to fewer built files
-- Legacy default subset
-  - Set `CHAKRA_E2E_ONLY=default` to run the historical ~10 component list
-  - This subset still enforces the ratchet
 
 ### Running the E2E test
 
@@ -155,7 +177,9 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 
 The Chakra E2E test can print each child command and its combined stdout/stderr
 
-- Enable command echoing with an env var
+- Verbose small run
+  - `npm run test:e2e:chakra:small:verbose`
+- Verbose full run (advanced)
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra`
 
 ### Benchmark ratchet and baselines
@@ -166,17 +190,18 @@ The Chakra E2E suite is also our hill climbing benchmark for React codegen quali
   - Includes counts for built vs skipped, connector files, invalid JSON, internal imports, placeholder token coverage, and a few quality signals
 - The baseline lives at `test/baselines/chakra-metrics.json`
   - Local full runs compare current metrics to this file with small tolerances for LLM nondeterminism
-  - If you enable Chakra E2E in CI, the same comparison will run there
+- CI runs subset E2E, which skips the ratchet
 - To record a new baseline after an improvement
-  - `RUN_CHAKRA_E2E=1 CHAKRA_E2E_RECORD=1 npm test -- test/chakra-e2e.test.js`
+  - `npm run test:e2e:chakra:record`
 - To keep the temp directory for inspection
-  - `CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra`
+  - Full run: `npm run test:e2e:chakra:keep`
+  - Small run: `npm run test:e2e:chakra:small:keep`
 
 ### Inspecting artifacts
 
 By default the E2E test deletes its temp directory in a `finally` block
 
 - To inspect outputs (generated `codeConnect/*.figma.tsx`, `superconnect/*`, logs)
-  - Temporarily comment out the `fs.removeSync(tmpDir)` call at the end of `test/chakra-e2e.test.js`
-  - Add a `console.log(tmpDir)` near where `tmpDir` is created
-  - Re-run the test, then manually inspect that directory
+  - Full run: `npm run test:e2e:chakra:keep`
+  - Small run: `npm run test:e2e:chakra:small:keep`
+  - The test prints the temp directory path when keep is enabled

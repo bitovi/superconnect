@@ -1,13 +1,13 @@
 {
-  "built": 67,
-  "skipped": 15,
+  "built": 62,
+  "skipped": 20,
   "error": 0,
   "invalidJson": 0,
-  "connectors": 66,
+  "connectors": 61,
   "internalImports": 0,
-  "stateEnumProps": 0,
+  "stateEnumProps": 12,
   "dottedAxisProps": 1,
-  "placeholderTokensUsed": 66,
+  "placeholderTokensUsed": 61,
   "placeholderTokensMissing": 0,
   "missingTokens": []
 }

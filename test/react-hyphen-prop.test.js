@@ -39,7 +39,7 @@ describe('codegen handles hyphenated prop names (react)', () => {
     const { files, contents } = runCodegen();
     expect(files).toEqual(['tabs_trigger.figma.tsx']);
     expect(contents).toContain("'data-selected': figma.boolean('.isSelected?')");
-    expect(contents).toContain("const { size = \"md\", 'data-selected': dataselected = false } = props || {};");
+    expect(contents).toContain("example: ({ size = \"md\", 'data-selected': dataselected = false } = {}) => (");
     expect(contents).toContain('data-selected={dataselected}');
   });
 });

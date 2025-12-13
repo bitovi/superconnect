@@ -12,6 +12,20 @@ const fixtureRoot = path.join(__dirname, '..', 'fixtures', 'zapui');
 const superconnectScript = path.join(__dirname, '..', 'scripts', 'run-pipeline.js');
 const figmaCli = path.join(__dirname, '..', 'node_modules', '.bin', 'figma');
 
+const getOnlyList = () => {
+  const raw = process.env.ZAPUI_E2E_ONLY || process.env.npm_config_zapui_e2e_only;
+  if (!raw) return null;
+  return String(raw)
+    .split(/[, ]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+};
+
+const printRunModeBanner = (subset) => {
+  if (!Array.isArray(subset) || subset.length === 0) return;
+  console.log(`ZapUI small E2E run (subset): ${subset.join(', ')}`);
+};
+
 const isVerbose = () => {
   const val = process.env.SUPERCONNECT_E2E_VERBOSE;
   if (val === undefined || val === null) return false;
@@ -106,6 +120,9 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
     ANTHROPIC_API_KEY: anthropicKey
   };
 
+  const subset = getOnlyList();
+  printRunModeBanner(subset);
+
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zapui-e2e-'));
   try {
     copyZapuiFixture(tmpDir);
@@ -113,10 +130,11 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
     fs.removeSync(path.join(tmpDir, 'superconnect'));
     fs.removeSync(path.join(tmpDir, 'codeConnect'));
 
-    run('node', [superconnectScript, '--framework', 'angular', '--force'], {
-      cwd: tmpDir,
-      env
-    });
+    const superconnectArgs = [superconnectScript, '--framework', 'angular', '--force'];
+    if (Array.isArray(subset) && subset.length > 0) {
+      superconnectArgs.push('--only', subset.join(','));
+    }
+    run('node', superconnectArgs, { cwd: tmpDir, env });
 
     const outputDir = path.join(tmpDir, 'codeConnect');
     const connectors = fs.existsSync(outputDir)

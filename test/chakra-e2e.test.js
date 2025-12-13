@@ -8,18 +8,6 @@ jest.setTimeout(1200000);
 
 const FIGMA_URL =
   'https://www.figma.com/design/7jkNETbphjIb9ap1M7H1o4/Chakra-UI----Figma-Kit--v3---Community-?m=auto&t=0XdgVxllEy8vO4w1-6';
-const DEFAULT_ONLY = [
-  'Button',
-  'Input',
-  'Checkbox',
-  'Switch',
-  'Select',
-  'Tabs.List',
-  'Tabs.Trigger',
-  'Accordion',
-  'Tooltip',
-  'Card'
-];
 const RUN_E2E = process.env.RUN_CHAKRA_E2E === '1';
 const fixtureRoot = path.join(__dirname, '..', 'fixtures', 'chakra-ui');
 const superconnectScript = path.join(__dirname, '..', 'scripts', 'run-pipeline.js');
@@ -72,7 +60,6 @@ const readEnvValue = (key) => {
 const getOnlyList = () => {
   const raw = process.env.CHAKRA_E2E_ONLY || process.env.npm_config_chakra_e2e_only;
   if (!raw) return null;
-  if (String(raw).trim().toLowerCase() === 'default') return DEFAULT_ONLY;
   return raw
     .split(/[, ]+/)
     .map((s) => s.trim())
@@ -83,8 +70,12 @@ const getOnlyRaw = () => process.env.CHAKRA_E2E_ONLY || process.env.npm_config_c
 
 const shouldApplyRatchet = () => {
   const raw = getOnlyRaw();
-  if (!raw) return true; // full run
-  return String(raw).trim().toLowerCase() === 'default'; // old default subset still ratcheted
+  return !raw; // only full runs are ratcheted
+};
+
+const printRunModeBanner = (subset) => {
+  if (!Array.isArray(subset) || subset.length === 0) return;
+  console.log(`Chakra small E2E run (subset): ${subset.join(', ')}`);
 };
 
 const ensurePrerequisites = () => {
@@ -161,6 +152,7 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
   };
 
   const subset = getOnlyList();
+  printRunModeBanner(subset);
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chakra-e2e-'));
   try {

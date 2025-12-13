@@ -45,6 +45,6 @@ describe('codegen produces consumer-like Chakra Button output (react)', () => {
     expect(contents).toContain('rightIcon={rightIcon}');
     expect(contents).toContain('>{children}</Button>');
     expect(contents).not.toContain('ghostProp');
-    expect(contents).not.toContain("state: figma.enum('state'");
+    expect(contents).toContain("state: figma.enum('state'");
   });
 });

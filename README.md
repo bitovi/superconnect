@@ -8,12 +8,18 @@ Superconnect is an AI-powered code generation tool that turns a Figma design sys
 
 # Installation
 
-- Install globally from npm
+- Install from npm (if published for your org)
   - `npm install -g superconnect`
-  - now you can run `superconnect` from any React or Angular repo
+  - if you see `npm error code E404`, the package isn’t available on the public npm registry
 
-- Or use npx without a global install
-  - `npx superconnect`
+- Install from a git checkout (recommended for now)
+  - clone this repo
+  - in the `superconnect` repo: `npm install && npm link`
+  - in your component repo: `npm link superconnect`
+
+- Or run from a local checkout without linking
+  - in the `superconnect` repo: `npm install`
+  - then run `node scripts/run-pipeline.js --help`
 
 # Required environment and config
 

@@ -19,12 +19,17 @@ const copyFixture = (fixtureDir) => {
 const runOrienterFake = (fixtureDir) => {
   const output = path.join(fixtureDir, 'superconnect', 'orientation.jsonl');
   fs.removeSync(output);
+  const repoSummaryPath = path.join(fixtureDir, 'superconnect', 'repo-summary.json');
+  if (!fs.existsSync(repoSummaryPath)) {
+    fs.ensureDirSync(path.dirname(repoSummaryPath));
+    fs.writeJsonSync(repoSummaryPath, {});
+  }
   const args = [
     orienterScript,
     '--figma-index',
     path.join(fixtureDir, 'superconnect', 'figma-components-index.json'),
     '--repo-summary',
-    path.join(fixtureDir, 'superconnect', 'repo-summary.json'),
+    repoSummaryPath,
     '--output',
     output,
     '--target-framework',

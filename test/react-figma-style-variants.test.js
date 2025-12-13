@@ -34,6 +34,15 @@ describe('extractFigmaStyleVariantKeys', () => {
 });
 
 describe('mergePropHintsForRecipeStyle', () => {
+  test('drops pseudo-state enum axes lacking enum evidence', () => {
+    const base = new Set(['size']);
+    const componentJson = {
+      data: { variantProperties: { state: ['default', 'hover'], size: ['sm', 'md'] } }
+    };
+    const merged = mergePropHintsForRecipeStyle(base, componentJson, { isRecipeStyle: true });
+    expect(Array.from(merged).sort()).toEqual(['size']);
+  });
+
   test('unions figma style keys only when recipe-style', () => {
     const base = new Set(['children', 'onClick']);
     const componentJson = {
@@ -47,4 +56,3 @@ describe('mergePropHintsForRecipeStyle', () => {
     expect(Array.from(notRecipe).sort()).toEqual(['children', 'onClick']);
   });
 });
-

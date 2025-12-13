@@ -2,7 +2,7 @@
 
 ## Overview
 
-Superconnect is a Node.js CLI (distributed as the `superconnect` npm package) that runs a five‑stage pipeline:
+Superconnect is a Node.js CLI (distributed as the `superconnect` npm package, Node >= 20) that runs a five‑stage pipeline:
 
 1. **Repo summarizer** – scan a React/TypeScript or Angular repo for components and exports
 2. **Figma scan** – download component metadata from a Figma file
@@ -20,6 +20,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Resolves a target repo, validates access, and computes paths under `superconnect/` and `codeConnect/`
   - Reads `FIGMA_ACCESS_TOKEN` and agent API keys from the environment or a `.env` file in the target repo
   - Decides which stages to run based on existing artifacts and `--force`, and blocks agent stages when API keys are missing unless `--dry-run` is set
+  - When `SUPERCONNECT_E2E_VERBOSE` is truthy, captures stage stdout/stderr for easier test debugging
 
 - **Agent adapters** (`src/agent/agent-adapter.js`)
   - `OpenAIAgentAdapter` (Responses API) and `ClaudeAgentAdapter` (Anthropic SDK)
@@ -28,7 +29,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - `codegen({ payload, logLabel, cwd, logDir })`
   - Handle:
     - Model selection and `maxTokens` from config
-    - Writing `=== AGENT INPUT/OUTPUT ===` logs to disk
+    - Writing `=== AGENT INPUT ===` and `=== AGENT OUTPUT ===` logs to disk
     - Returning `{ code, stdout, stderr, logFile }` to callers
 
 ## Pipeline stages and data flow
@@ -39,9 +40,9 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Target repo root (`--root` or positional)
 - Behavior:
   - Ignores standard build/dep directories (`node_modules`, `dist`, `build`, etc.)
-  - Locates likely component roots (e.g., `src/components`, `packages/*/src/components`)
+  - Locates likely component roots (e.g., `src/components`, `packages/*/src/components`, `apps/*/src/components`)
   - Detects Angular components and module membership, capturing selectors and HTML/template files
-  - Locates theme recipe directories (e.g., `src/theme/recipes`)
+  - Locates theme recipe directories (e.g., `src/theme/recipes`, `packages/*/src/theme/recipes`)
   - Collects TypeScript/TSX files under those roots
   - For each file:
     - Reads content and extracts exported identifiers using regexes
@@ -53,6 +54,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Existing Code Connect files and configs
     - Component roots, theme roots
     - `component_source_files` (paths + exports)
+    - Detected lockfiles, `.env` file presence, and common build/tooling config files
 
 ### 2. Figma scan (`scripts/figma-scan.js`)
 
@@ -89,11 +91,13 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Calls the configured agent via `AgentAdapter.orient`, or writes payload-only/fake outputs when `--dry-run`/`--fake-orienter-output` are set
   - Streams agent stdout into:
     - `superconnect/orientation.jsonl` (one JSON object per component)
-    - A log file under `superconnect/orienter-agent.log`
+    - A log file at `superconnect/orienter-agent.log`
+  - For `--dry-run` and `--fake-orienter-output`, writes the payload preview to `superconnect/orienter-agent-payload.txt`
 - Position in pipeline:
   - Executed immediately before codegen and grouped with codegen in run output/log coloring to reflect it as part of the generation phase
 - Output data model (per line, JSON):
-  - `figma_component_id`, `figma_component_name`
+  - `figmaComponentId` / `figma_component_id`
+  - `figmaComponentName` / `figma_component_name`
   - `status`: `"mapped" | "missing" | "ambiguous"`
   - `confidence`: `0.0–1.0`
   - `files`: array of repo‑relative file paths
@@ -126,8 +130,9 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Call `AgentAdapter.codegen` (or use fake output) to get a selector/inputs schema
     - Render a `.figma.ts` file using `lit-html` templates; if no agent output is available, fall back to a stub connector per component
   - Write:
-    - `codeConnect/<Component>.figma.tsx` or `.figma.ts` (unless skipped or blocked by existing file and no `--force`)
-    - `superconnect/codegen-logs/*-codegen-result.json` (per‑component summary)
+  - `codeConnect/<Component>.figma.tsx` or `.figma.ts` (unless skipped or blocked by existing file and no `--force`)
+  - `superconnect/codegen-logs/*-codegen-result.json` (per‑component summary)
+  - `superconnect/mapping-agent-logs/*.log` (raw agent IO logs)
 - Codegen respects:
   - `--only` / `--exclude` filters (names/IDs/globs)
   - `--force` for overwriting existing mapping files
@@ -148,10 +153,11 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Codegen successes and skips (with reasons)
   - Prints a colorized run summary to stdout
   - Creates/overwrites `figma.config.json` at the target repo root with:
-    - `include`/`exclude` globs for Code Connect files and source (React `.tsx` or Angular `.ts`)
-    - Parser and label (`react` or `html`) chosen from detected/target framework
-    - Optional `interactiveSetupFigmaFileUrl`
-    - `documentUrlSubstitutions` mapping per‑component tokens (e.g., `<FIGMA_BUTTON>`) to live Figma node URLs
+  - `include`/`exclude` globs for Code Connect files plus common source roots (currently includes `packages/**/*.{ts,tsx}` and `apps/**/*.{ts,tsx}`)
+  - Parser and label (`react` or `html`) chosen from detected/target framework
+  - Optional `interactiveSetupFigmaFileUrl`
+  - `documentUrlSubstitutions` mapping tokens (e.g., `<FIGMA_BUTTON>`) to live Figma node URLs plus `<FIGMA_ICONS_BASE>` for convenience
+  - Optional `codeConnect.paths` entries for monorepo package import aliases when detected
 
 ## Configuration and assumptions
 

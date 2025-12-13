@@ -47,7 +47,8 @@ const parseArgs = (argv) => {
     figmaIndex: path.resolve(opts.figmaIndex),
     repoSummary: path.resolve(opts.repoSummary),
     output: outputPath,
-    agentLogDir: path.join(superconnectDir, 'orienter-agent.log'),
+    agentLogFile: path.join(superconnectDir, 'orienter-agent.log'),
+    payloadPreviewFile: path.join(superconnectDir, 'orienter-agent-payload.txt'),
     agentBackend: (opts.agentBackend || 'claude').toLowerCase(),
     agentModel: opts.agentModel || undefined,
     agentMaxTokens: parseMaxTokens(opts.agentMaxTokens),
@@ -83,13 +84,13 @@ const buildAdapter = (config) => {
   if (backend === 'openai') {
     return new OpenAIAgentAdapter({
       model: config.agentModel || undefined,
-      logDir: config.agentLogDir,
+      logDir: config.agentLogFile,
       maxTokens
     });
   }
   return new ClaudeAgentAdapter({
     model: config.agentModel || undefined,
-    logDir: config.agentLogDir,
+    logDir: config.agentLogFile,
     maxTokens
   });
 };
@@ -115,8 +116,8 @@ async function main() {
   const payload = buildPayload(promptText, figmaIndex, repoSummary, config.targetFramework);
 
   if (config.fakeOrienterOutput) {
-    await fs.ensureDir(config.agentLogDir);
-    await fs.writeFile(path.join(config.agentLogDir, 'payload.txt'), payload, 'utf8');
+    await fs.ensureDir(path.dirname(config.payloadPreviewFile));
+    await fs.writeFile(config.payloadPreviewFile, payload, 'utf8');
     await fs.copyFile(config.fakeOrienterOutput, config.output);
     outputStream.end();
     console.log(`Using fake orienter output from ${config.fakeOrienterOutput}`);
@@ -127,12 +128,11 @@ async function main() {
   const adapter = buildAdapter(config);
 
   if (config.dryRun) {
-    const logFile = path.join(config.agentLogDir, 'payload.txt');
-    await fs.ensureDir(config.agentLogDir);
-    await fs.writeFile(logFile, payload, 'utf8');
+    await fs.ensureDir(path.dirname(config.payloadPreviewFile));
+    await fs.writeFile(config.payloadPreviewFile, payload, 'utf8');
     // leave orientation output empty for dry run observability
     outputStream.end();
-    console.log(`Dry run: wrote orienter payload to ${logFile}`);
+    console.log(`Dry run: wrote orienter payload to ${config.payloadPreviewFile}`);
     return;
   }
 

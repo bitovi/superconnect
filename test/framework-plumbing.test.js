@@ -6,9 +6,11 @@ const pipelineScript = path.join(__dirname, '..', 'scripts', 'run-pipeline.js');
 
 const runPipelineDry = (target) => {
   const superconnectDir = path.join(target, 'superconnect');
+  fs.ensureDirSync(superconnectDir);
   const result = execFileSync('node', [pipelineScript, '--target', target, '--dry-run'], {
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: target
   });
   return result;
 };

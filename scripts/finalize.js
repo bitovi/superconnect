@@ -338,6 +338,8 @@ async function main() {
   const sourceGlobs = ['packages/**/*.{ts,tsx}', 'apps/**/*.{ts,tsx}'];
   const figmaFileUrl = figmaIndex.fileKey ? `https://www.figma.com/design/${figmaIndex.fileKey}` : null;
 
+  const normalizeNameKey = (value) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
   const buildDocumentSubstitutions = (details, baseUrl) => {
     if (!baseUrl) return undefined;
     const substitutions = { '<FIGMA_ICONS_BASE>': baseUrl };
@@ -362,6 +364,33 @@ async function main() {
     includeGlobs.add('codeConnect/**/*.figma.tsx');
   }
 
+  const derivePackagePathAliases = (repoRoot) => {
+    const packagesDir = path.join(repoRoot, 'packages');
+    if (!fs.existsSync(packagesDir) || !fs.statSync(packagesDir).isDirectory()) return undefined;
+    const aliases = {};
+    const entries = fs.readdirSync(packagesDir);
+    entries.forEach((entry) => {
+      const pkgDir = path.join(packagesDir, entry);
+      if (!fs.statSync(pkgDir).isDirectory()) return;
+      const pkgJsonPath = path.join(pkgDir, 'package.json');
+      if (!fs.existsSync(pkgJsonPath)) return;
+      try {
+        const pkg = fs.readJsonSync(pkgJsonPath);
+        if (!pkg?.name) return;
+        const srcIndexCandidates = ['index.ts', 'index.tsx', 'src/index.ts', 'src/index.tsx'].map((rel) =>
+          path.join(pkgDir, rel)
+        );
+        const existing = srcIndexCandidates.find((p) => fs.existsSync(p));
+        if (existing) {
+          aliases[pkg.name] = [path.relative(repoRoot, existing).replace(/\\/g, '/')];
+        }
+      } catch {
+        // ignore bad package.json
+      }
+    });
+    return Object.keys(aliases).length ? aliases : undefined;
+  };
+
   const codeConnectConfig = {
     include: [...includeGlobs, ...sourceGlobs],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**'],
@@ -380,37 +409,60 @@ async function main() {
     schemaVersion: 1,
     codeConnect: codeConnectConfig
   };
+
+  const aliasPaths = derivePackagePathAliases(config.baseCwd);
+  if (aliasPaths) {
+    metadata.codeConnect.paths = aliasPaths;
+  }
   const metadataPath = path.join(config.baseCwd, METADATA_FILE_NAME);
   fs.ensureDirSync(path.dirname(metadataPath));
   await fs.writeJson(metadataPath, metadata, { spaces: 2, flag: 'w' });
 
   console.log(summary);
 
-  if (substitutions) {
-    const substitutionTokens = new Set(Object.keys(substitutions || {}));
-    const tokenUsage = new Map();
-    context.codegenFiles.forEach((filePathRel) => {
-      const filePath = path.resolve(config.baseCwd, filePathRel);
-      const tokens = extractFigmaTokensFromFile(filePath);
-      tokens.forEach((token) => {
-        const current = tokenUsage.get(token) || 0;
-        tokenUsage.set(token, current + 1);
-      });
+  const substitutionTokens = new Set(Object.keys(substitutions || {}));
+  const tokenUsage = new Map();
+  context.codegenFiles.forEach((filePathRel) => {
+    const filePath = path.resolve(config.baseCwd, filePathRel);
+    const tokens = extractFigmaTokensFromFile(filePath);
+    tokens.forEach((token) => {
+      const current = tokenUsage.get(token) || 0;
+      tokenUsage.set(token, current + 1);
     });
-    const unmatchedTokens = Array.from(tokenUsage.keys()).filter((t) => !substitutionTokens.has(t));
-    if (unmatchedTokens.length >= 5) {
-      const sample = unmatchedTokens.slice(0, 5).join(', ');
-      console.warn(
-        chalk.yellow(
-          `⚠️  Found ${unmatchedTokens.length} Code Connect placeholder token(s) used in codeConnect files that do not correspond to components in this Figma file.`
-        )
-      );
-      console.warn(
-        chalk.yellow(
-          `   Examples: ${sample}. You may be using a different Figma kit version than the one these mappings were originally created for.`
-        )
-      );
-    }
+  });
+
+  const unmatchedTokens = Array.from(tokenUsage.keys()).filter((t) => !substitutionTokens.has(t));
+  if (unmatchedTokens.length && figmaIndex?.components?.length && codeConnectConfig.documentUrlSubstitutions) {
+    const byName = new Map(
+      figmaIndex.components
+        .map((c) => [normalizeNameKey(c.name), c])
+        .filter(([key, c]) => key && c && c.id)
+    );
+    unmatchedTokens.forEach((token) => {
+      const key = token.replace(/[<>]/g, '').replace(/^FIGMA_/, '');
+      const normalized = normalizeNameKey(key);
+      const match = byName.get(normalized);
+      if (match && figmaFileUrl) {
+        const nodeUrl = `${figmaFileUrl}?node-id=${(match.id || '').replace(/:/g, '-')}`;
+        codeConnectConfig.documentUrlSubstitutions[token] = nodeUrl;
+        substitutionTokens.add(token);
+      }
+    });
+  }
+
+  const stillUnmatched = Array.from(tokenUsage.keys()).filter((t) => !substitutionTokens.has(t));
+  if (stillUnmatched.length >= 5) {
+    const sample = stillUnmatched.slice(0, 5).join(', ');
+    console.warn(
+      chalk.yellow(
+        `⚠️  Found ${stillUnmatched.length} Code Connect placeholder token(s) used in codeConnect files that do not correspond to components in this Figma file.`
+      )
+    );
+    console.warn(
+      chalk.yellow(
+        `   Examples: ${sample}. You may be using a different Figma kit version than the one these mappings were originally created for.`
+      )
+    );
   }
 
   console.log(`${chalk.green('✓')} Wrote ${metadataPath}`);

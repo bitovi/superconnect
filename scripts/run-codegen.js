@@ -284,18 +284,36 @@ const isPseudoStateBooleanKey = (rawKey) => {
   return PSEUDO_STATE_BOOLEAN_TOKENS.some((token) => sanitized.includes(token));
 };
 
-const dropPseudoStateProps = (schema, propHints, hasConfidentSurface) => {
+const dropPseudoStateProps = (schema, propHints, hasConfidentSurface, figmaVariantProperties = null) => {
   if (!hasConfidentSurface) return schema;
   if (!schema || schema.status !== 'built') return schema;
   const props = Array.isArray(schema.props) ? schema.props : [];
   if (props.length === 0) return schema;
+
+  const variantKeys = figmaVariantProperties && typeof figmaVariantProperties === 'object'
+    ? Object.keys(figmaVariantProperties).map(sanitizePropKeyForMatch)
+    : [];
+  const hasVariantAxis = (figmaKey) => {
+    const key = sanitizePropKeyForMatch(figmaKey);
+    if (!key) return false;
+    if (!isPseudoStateAxisKey(key)) return false;
+    return variantKeys.includes(key);
+  };
 
   const allow = (prop) => propHints && propHints.has(prop?.name);
   const filtered = props.filter((prop) => {
     if (!prop) return false;
     if (allow(prop)) return true;
     const figmaKey = prop.figmaKey || prop.name || '';
-    if (prop.kind === 'enum' && isPseudoStateAxisKey(figmaKey)) return false;
+    const variantHasPseudo = hasVariantAxis(figmaKey);
+    if (prop.kind === 'enum' && isPseudoStateAxisKey(figmaKey)) {
+      return variantHasPseudo;
+    }
+    if (prop.kind === 'boolean' && isPseudoStateAxisKey(figmaKey)) {
+      if (variantHasPseudo) return false;
+      if (String(figmaKey).trim().startsWith('.') && isPseudoStateBooleanKey(figmaKey)) return false;
+      return false;
+    }
     if (prop.kind === 'boolean' && String(figmaKey).trim().startsWith('.') && isPseudoStateBooleanKey(figmaKey)) {
       return false;
     }
@@ -336,17 +354,33 @@ const buildPropSurfaceForAgent = (propHints, componentJson) => {
   return { validProps: rawHints.sort() };
 };
 
-const applyPropHintsToSchema = (schema, propNames) => {
+const applyPropHintsToSchema = (schema, propNames, figmaVariantProperties = null) => {
   if (!schema || schema.status !== 'built') return schema;
   if (!propNames || propNames.size === 0) return schema;
 
-  const allow = (name) => propNames.has(name) || name === 'children';
-  const filteredProps = Array.isArray(schema.props) ? schema.props.filter((p) => allow(p?.name)) : [];
+  const variantKeys =
+    figmaVariantProperties && typeof figmaVariantProperties === 'object'
+      ? new Set(Object.keys(figmaVariantProperties || {}).map(sanitizePropKeyForMatch))
+      : null;
+  const allow = (prop) => {
+    const name = prop?.name;
+    if (!name) return false;
+    if (propNames.has(name) || name === 'children') return true;
+    if (variantKeys && prop?.figmaKey && variantKeys.has(sanitizePropKeyForMatch(prop.figmaKey))) {
+      return true;
+    }
+    return false;
+  };
+  const filteredProps = Array.isArray(schema.props) ? schema.props.filter((p) => allow(p)) : [];
   if (filteredProps.length === 0) return schema;
 
   const exampleProps = schema.exampleProps && typeof schema.exampleProps === 'object' ? schema.exampleProps : {};
   const filteredExampleProps = Object.entries(exampleProps).reduce((acc, [key, value]) => {
-    if (allow(key)) acc[key] = value;
+    if (propNames.has(key) || key === 'children') acc[key] = value;
+    // Keep example for allowed variant-derived props if present.
+    if (!acc[key] && variantKeys && variantKeys.has(sanitizePropKeyForMatch(key))) {
+      acc[key] = value;
+    }
     return acc;
   }, {});
 
@@ -516,7 +550,7 @@ const renderTsxFromSchema = (
   options = {}
 ) => {
   const lines = [];
-  lines.push("import figma from '@figma/code-connect';");
+  lines.push("import figma from '@figma/code-connect/react';");
   const allowImplicitText = options.allowImplicitText !== undefined ? options.allowImplicitText : true;
   const canonicalizeAxisName = (rawAxis) => {
     const normalized = sanitizeJsName(normalizeFigmaKey(rawAxis)) || 'prop';
@@ -559,18 +593,6 @@ const renderTsxFromSchema = (
     Object.entries(normalizedVariantProps)
       .map(([name, values]) => {
         if ((name || '').trim().startsWith('.')) return null;
-        if (isPseudoStateAxisKey(name)) {
-          const axisKey = normalizeKeyForMatch(name);
-          const base = basePropsByKey.get(axisKey) || null;
-          const hasEvidence =
-            (base && base.kind === 'enum') ||
-            baseProps.some(
-              (prop) =>
-                prop?.kind === 'enum' &&
-                sanitizePropKeyForMatch(prop?.name) === sanitizePropKeyForMatch(name)
-            );
-          if (!hasEvidence) return null;
-        }
         const figmaKey = name || '';
         const normalizedName = canonicalizeAxisName(name);
         const enumValues = Array.isArray(values) ? values : Object.keys(values || {});
@@ -644,12 +666,7 @@ const renderTsxFromSchema = (
 
   const applySchemaHintsToDerived = (derived) => {
     if (basePropsByKey.size === 0) return derived;
-    const filtered = derived.filter((p) => {
-      const key = normalizeKeyForMatch(p?.figmaKey || p?.name);
-      return basePropsByKey.has(key) || allowTextProp(p);
-    });
-    const useFiltered = filtered.length > 0 ? filtered : derived;
-    return useFiltered.map((prop) => {
+    return derived.map((prop) => {
       if (!prop) return prop;
       const key = normalizeKeyForMatch(prop.figmaKey || prop.name);
       const base = basePropsByKey.get(key);
@@ -660,8 +677,13 @@ const renderTsxFromSchema = (
     });
   };
 
-  const hintedDerived = shouldUseFigmaProps ? applySchemaHintsToDerived([...derivedVariantProps, ...derivedComponentProps]) : baseProps;
-  const sourceProps = hintedDerived.filter((p) => {
+  const derivedProps = shouldUseFigmaProps
+    ? applySchemaHintsToDerived([...derivedVariantProps, ...derivedComponentProps])
+    : [];
+  // Preserve agent/schema props (for text, loading, etc.) and append Figma-derived props for new axes.
+  const combinedProps = shouldUseFigmaProps ? [...baseProps, ...derivedProps] : baseProps;
+
+  const sourceProps = combinedProps.filter((p) => {
     const name = p?.name || '';
     if (!name) return false;
     if (seenPropNames.has(name)) return false;
@@ -680,12 +702,19 @@ const renderTsxFromSchema = (
   );
   const allowedKeys = new Set([...variantKeySet, ...componentPropKeySet]);
   const hasExplicitFigmaProps = figmaVariantProperties !== null || figmaComponentProperties !== null;
+  const hasFigmaInfo = hasExplicitFigmaProps || allowedKeys.size > 0 || shouldUseFigmaProps;
 
-  const filteredPropsRaw = shouldUseFigmaProps
-    ? propEntries
-    : hasExplicitFigmaProps
-      ? propEntries.filter((p) => p.figmaKey && allowedKeys.has(p.figmaKey))
-      : propEntries;
+  const filterByAllowedKeys = (entries) => {
+    return entries.filter((p) => {
+      const key = normalizeFigmaKey(p?.figmaKey);
+      if (!key) return true;
+      if (allowedKeys.size > 0) return allowedKeys.has(key);
+      if (key.startsWith('.') && hasFigmaInfo) return false;
+      return true;
+    });
+  };
+
+  const filteredPropsRaw = filterByAllowedKeys(propEntries);
 
   const assignVarNames = (props) => {
     const used = new Set();
@@ -837,22 +866,12 @@ const renderTsxFromSchema = (
   propLines.forEach((l) => lines.push(l));
   lines.push('  },');
 
-  const exampleParam = 'props';
-  const exampleHeader = `  example: function Example(${exampleParam}) {`;
-  if (destructuredParams.trim()) {
-    lines.push(exampleHeader);
-    lines.push(`    const { ${destructuredParams} } = ${exampleParam} || {};`);
-    lines.push(`    return (`);
-    lines.push(`      <${schema.reactComponentName}${exampleAttrs}>${childExpr}</${schema.reactComponentName}>`);
-    lines.push('    );');
-    lines.push('  },');
-  } else {
-    lines.push(exampleHeader);
-    lines.push(`    return (`);
-    lines.push(`      <${schema.reactComponentName}${exampleAttrs}>${childExpr}</${schema.reactComponentName}>`);
-    lines.push('    );');
-    lines.push('  },');
-  }
+  const exampleHeader = destructuredParams.trim()
+    ? `  example: ({ ${destructuredParams} } = {}) => (`
+    : '  example: () => (';
+  lines.push(exampleHeader);
+  lines.push(`    <${schema.reactComponentName}${exampleAttrs}>${childExpr}</${schema.reactComponentName}>`);
+  lines.push('  ),');
   lines.push('});');
 
   return lines.join('\n');
@@ -1279,8 +1298,17 @@ const processOrienterEntry = async (orienterEntry, ctx) => {
 
   if (parsed?.status === 'built') {
     const coercedSchema = coerceSchemaToApiSurface(parsed, propHints);
-    const schemaWithHints = applyPropHintsToSchema(coercedSchema, propHints);
-    const schema = dropPseudoStateProps(schemaWithHints, propHints, hasConfidentSurface);
+    const schemaWithHints = applyPropHintsToSchema(
+      coercedSchema,
+      propHints,
+      componentJson?.data?.variantProperties || componentJson?.variantProperties || null
+    );
+    const schema = dropPseudoStateProps(
+      schemaWithHints,
+      propHints,
+      hasConfidentSurface,
+      componentJson?.data?.variantProperties || componentJson?.variantProperties || null
+    );
     const resolvedImportPath = normalizeImportPath(schema.reactImport?.path, requiredPaths, ctx.repo);
     if (schema.reactImport && resolvedImportPath) {
       schema.reactImport.path = resolvedImportPath;
