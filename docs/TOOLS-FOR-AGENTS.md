@@ -3,6 +3,7 @@
 If you find that one of these tools is not installed, STOP AND REPORT THIS TO THE USER. 
 
 # Guidance
+- For all planning and issue tracking in this repo, we use "beads" (bd). Run "bd quickstart" NOW to learn this tool
 - You can write small ephemeral scripts to accomplish tasks rather than brute-forcing them
 - When looking at git status, use the full "git status" command, NOT "git status -sb". Otherwise, your view of git state will be different from the user's, and it will cause confusion.
 
