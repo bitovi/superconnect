@@ -376,7 +376,7 @@ async function main() {
       `node ${path.join(paths.scriptDir, 'summarize-repo.js')}`,
       `--root "${paths.target}"`
     ].join(' ');
-    runCommand(`${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`, cmd, { shell: '/bin/bash' });
+    runCommand(`${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`, cmd);
   } else {
     console.log(
       `${chalk.dim('•')} ${highlight('Repo overview')} (skipped, ${codeColor(
