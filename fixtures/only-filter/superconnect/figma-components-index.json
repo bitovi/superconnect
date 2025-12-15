@@ -1,8 +1,0 @@
-{
-  "fileKey": "only-filter",
-  "fileName": "Only Filter Fixture",
-  "components": [
-    { "id": "btn1", "name": "Button" },
-    { "id": "al1", "name": "Alert" }
-  ]
-}

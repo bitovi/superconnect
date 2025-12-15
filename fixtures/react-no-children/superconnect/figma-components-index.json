@@ -1,8 +1,0 @@
-{
-  "fileKey": "react-no-children",
-  "fileName": "React No Children Fixture",
-  "components": [
-    { "id": "button_1", "name": "Button" }
-  ]
-}
-
