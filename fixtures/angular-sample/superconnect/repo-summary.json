@@ -1,5 +1,5 @@
 {
-  "root": "/Users/brandonharvey/src/superconnect/fixtures/angular-sample",
+  "root": ".",
   "packageJson": {
     "path": "package.json",
     "name": "angular-sample",
