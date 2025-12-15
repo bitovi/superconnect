@@ -9,7 +9,6 @@
     "test": "jest",
     "test:e2e:chakra": "RUN_CHAKRA_E2E=1 jest test/chakra-e2e.test.js",
     "test:e2e:chakra:small": "RUN_CHAKRA_E2E=1 CHAKRA_E2E_ONLY=Button jest test/chakra-e2e.test.js",
-    "test:e2e:chakra:record": "RUN_CHAKRA_E2E=1 CHAKRA_E2E_RECORD=1 jest test/chakra-e2e.test.js",
     "test:e2e:chakra:keep": "RUN_CHAKRA_E2E=1 CHAKRA_E2E_KEEP=1 jest test/chakra-e2e.test.js",
     "test:e2e:chakra:small:keep": "RUN_CHAKRA_E2E=1 CHAKRA_E2E_ONLY=Button CHAKRA_E2E_KEEP=1 jest test/chakra-e2e.test.js",
     "test:e2e:chakra:small:verbose": "RUN_CHAKRA_E2E=1 CHAKRA_E2E_ONLY=Button SUPERCONNECT_E2E_VERBOSE=1 jest test/chakra-e2e.test.js",
@@ -45,12 +44,16 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.18.0",
+    "@iarna/toml": "^2.2.5",
+    "@typescript-eslint/typescript-estree": "^8.50.0",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
+    "dotenv": "^17.2.3",
     "fast-glob": "^3.3.2",
     "fs-extra": "^11.3.2",
     "json-stringify-pretty-compact": "^4.0.0",
     "openai": "^4.104.0",
+    "p-limit": "^3.1.0",
     "undici": "^6.18.1"
   },
   "repository": {

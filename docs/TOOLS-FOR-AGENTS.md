@@ -1,10 +1,11 @@
 ## Installed Tools for Coding Agents
 
-If you find that one of these tools is not installed, STOP AND REPORT THIS TO THE USER. 
+Before anything else, run "bd quickstart" to learn the "beads" tool for planning and issue tracking. Do this now.
 
 # Guidance
 - You can write small ephemeral scripts to accomplish tasks rather than brute-forcing them
 - When looking at git status, use the full "git status" command, NOT "git status -sb". Otherwise, your view of git state will be different from the user's, and it will cause confusion.
+- Only git commit if I explicitly tell you to.
 
 ### ripgrep
 - Fast text search for strings, TODOs, config keys, or filenames

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Load environment variables from .env file early
+require('dotenv').config();
+
 /**
  * Superconnect pipeline v4 (5 stages):
  * 1) Figma scan
@@ -15,52 +18,30 @@ const { spawnSync } = require('child_process');
 const { Command } = require('commander');
 const readline = require('readline');
 const chalk = require('chalk');
+const toml = require('@iarna/toml');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
-const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codex-mini';
+const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codegen-mini';
 const DEFAULT_BACKEND = 'claude';
-const DEFAULT_MAX_TOKENS = 12000;
+const DEFAULT_MAX_TOKENS = 2048;
+const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
+const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_LAYER_DEPTH = 3;
+const DEFAULT_CONCURRENCY = 8;
 
 const parseMaybeInt = (value) => {
   const n = value ? parseInt(value, 10) : NaN;
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-function parseSimpleToml(text) {
-  const result = {};
-  let section = null;
-  const lines = text.split(/\r?\n/);
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
-    if (line.startsWith('[') && line.endsWith(']')) {
-      section = line.slice(1, -1).trim() || null;
-      if (section && !result[section]) result[section] = {};
-      continue;
-    }
-    const eq = line.indexOf('=');
-    if (eq === -1) continue;
-    const key = line.slice(0, eq).trim();
-    const valueRaw = line.slice(eq + 1).trim();
-    const valueWithoutComment = valueRaw.split('#')[0].trim();
-    const unquoted = valueWithoutComment.replace(/^"(.*)"$/, '$1');
-    if (section) {
-      result[section][key] = unquoted;
-    } else {
-      result[key] = unquoted;
-    }
-  }
-  return result;
-}
-
 function loadSuperconnectConfig(filePath = 'superconnect.toml') {
   const direct = path.resolve(process.cwd(), filePath);
   if (!fs.existsSync(direct)) return null;
   try {
     const raw = fs.readFileSync(direct, 'utf8');
-    return parseSimpleToml(raw);
+    return toml.parse(raw);
   } catch (err) {
     console.warn(`⚠️  Failed to load ${direct}: ${err.message}`);
     return null;
@@ -78,6 +59,27 @@ function normalizeAgentConfig(agentSection = {}) {
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
   const resolvedMaxTokens = backend === 'claude' ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
   return { backend, model, maxTokens: resolvedMaxTokens };
+}
+
+/**
+ * Normalize [codegen] section from TOML config.
+ * @param {object} codegenSection - The [codegen] section from TOML
+ * @returns {{ maxRetries: number, concurrency: number }}
+ */
+function normalizeCodegenConfig(codegenSection = {}) {
+  const maxRetries = parseMaybeInt(codegenSection.max_retries) ?? DEFAULT_MAX_RETRIES;
+  const concurrency = parseMaybeInt(codegenSection.concurrency) ?? DEFAULT_CONCURRENCY;
+  return { maxRetries, concurrency };
+}
+
+/**
+ * Normalize [figma] section from TOML config.
+ * @param {object} figmaSection - The [figma] section from TOML
+ * @returns {{ layerDepth: number }}
+ */
+function normalizeFigmaConfig(figmaSection = {}) {
+  const layerDepth = parseMaybeInt(figmaSection.layer_depth) ?? DEFAULT_LAYER_DEPTH;
+  return { layerDepth };
 }
 
 async function promptForConfig() {
@@ -167,7 +169,7 @@ async function promptForConfig() {
     );
   }
 
-  const toml = [
+  const tomlContent = [
     '[inputs]',
     '# (Requires FIGMA_ACCESS_TOKEN environment var)',
     `figma_url = "${figmaUrl}"`,
@@ -176,13 +178,17 @@ async function promptForConfig() {
     '[agent]',
     `max_tokens = ${maxTokens}`,
     ...agentSection,
+    '',
+    '[codegen]',
+    'max_retries = 2       # Retry attempts on validation failure',
+    'concurrency = 8       # Max parallel LLM requests during code generation',
     ''
   ].join('\n');
 
   const outPath = path.resolve(DEFAULT_CONFIG_FILE);
-  fs.writeFileSync(outPath, toml, 'utf8');
+  fs.writeFileSync(outPath, tomlContent, 'utf8');
   console.log(`${chalk.green('✓')} Wrote your configs to ${DEFAULT_CONFIG_FILE}. When you next run in this directory, we'll read from that instead.`);
-  return parseSimpleToml(toml);
+  return toml.parse(tomlContent);
 }
 
 function runCommand(label, command, options = {}) {
@@ -262,31 +268,13 @@ function parseArgv(argv) {
   };
 }
 
-function loadEnvToken(baseDir = process.cwd()) {
-  if (process.env.FIGMA_ACCESS_TOKEN) return process.env.FIGMA_ACCESS_TOKEN;
-  const envPath = path.resolve(baseDir, '.env');
-  if (!fs.existsSync(envPath)) return null;
-  const line = fs
-    .readFileSync(envPath, 'utf8')
-    .split(/\r?\n/)
-    .find((l) => l.trim().startsWith('FIGMA_ACCESS_TOKEN='));
-  if (!line) return null;
-  const [, value] = line.split('=');
-  return (value || '').trim() || null;
+function loadEnvToken() {
+  return process.env.FIGMA_ACCESS_TOKEN || null;
 }
 
-function loadAgentToken(backend, baseDir = process.cwd()) {
+function loadAgentToken(backend) {
   const envVar = backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  if (process.env[envVar]) return process.env[envVar];
-  const envPath = path.resolve(baseDir, '.env');
-  if (!fs.existsSync(envPath)) return null;
-  const line = fs
-    .readFileSync(envPath, 'utf8')
-    .split(/\r?\n/)
-    .find((l) => l.trim().startsWith(`${envVar}=`));
-  if (!line) return null;
-  const [, value] = line.split('=');
-  return (value || '').trim() || null;
+  return process.env[envVar] || null;
 }
 
 function resolvePaths(config) {
@@ -330,7 +318,7 @@ async function main() {
   const prospectiveFigmaIndex = path.join(prospectiveTarget, 'superconnect', 'figma-components-index.json');
   const figmaIndexMissing = !fs.existsSync(prospectiveFigmaIndex);
 
-  if (figmaIndexMissing && !args.figmaToken && !loadEnvToken(prospectiveTarget)) {
+  if (figmaIndexMissing && !args.figmaToken && !loadEnvToken()) {
     console.error('❌ FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
     console.error('   Set FIGMA_ACCESS_TOKEN in your environment or .env, or pass --figma-token.');
     process.exit(1);
@@ -350,10 +338,12 @@ async function main() {
   const target =
     args.target ||
     (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));
-  const figmaToken = args.figmaToken || loadEnvToken(target);
+  const figmaToken = args.figmaToken || loadEnvToken();
   const agentConfig = normalizeAgentConfig(cfg.agent || {});
+  const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
+  const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
   const agentEnvVar = agentConfig.backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  const agentToken = loadAgentToken(agentConfig.backend, target);
+  const agentToken = loadAgentToken(agentConfig.backend);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
@@ -420,7 +410,8 @@ async function main() {
       `"${paths.figmaUrl}"`,
       `--token "${figmaToken || ''}"`,
       `--output "${paths.figmaDir}"`,
-      `--index "${paths.figmaIndex}"`
+      `--index "${paths.figmaIndex}"`,
+      `--layer-depth ${figmaConfig.layerDepth}`
     ].join(' ');
     runCommand(`${highlight('Figma scan')} → ${figmaColor(rel(paths.figmaIndex))}`, cmd);
   } else {
@@ -432,6 +423,10 @@ async function main() {
   }
 
   if (needOrientation) {
+    // Orientation agent needs much higher max_tokens to output JSONL for all components.
+    // Use explicit user setting if provided, otherwise use orientation-specific default.
+    const userMaxTokens = parseMaybeInt(cfg?.agent?.max_tokens);
+    const orientationMaxTokens = userMaxTokens || DEFAULT_ORIENTATION_MAX_TOKENS;
     const cmd = [
       `node ${path.join(paths.scriptDir, 'run-orienter.js')}`,
       `--figma-index "${paths.figmaIndex}"`,
@@ -439,7 +434,7 @@ async function main() {
       `--output "${paths.orientation}"`,
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
-      agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
+      `--agent-max-tokens "${orientationMaxTokens}"`,
       inferredFramework ? `--target-framework "${inferredFramework}"` : '',
       args.dryRun ? '--dry-run' : ''
     ].join(' ');
@@ -466,6 +461,7 @@ async function main() {
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
+      `--concurrency "${codegenConfig.concurrency}"`,
       args.only && args.only.length ? `--only "${args.only.join(',')}"` : '',
       args.exclude && args.exclude.length ? `--exclude "${args.exclude.join(',')}"` : '',
       inferredFramework ? `--target-framework "${inferredFramework}"` : '',

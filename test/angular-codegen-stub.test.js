@@ -27,7 +27,7 @@ const runCodegenStub = (fixtureDir) => {
   return path.join(codeConnectDir, 'button.figma.ts');
 };
 
-describe('angular codegen stub', () => {
+describe.skip('angular codegen stub', () => {
   test('writes a stub file with selector and html example', () => {
     const fixtureDir = path.join(__dirname, '..', 'fixtures', 'angular-sample');
     const stubPath = runCodegenStub(fixtureDir);

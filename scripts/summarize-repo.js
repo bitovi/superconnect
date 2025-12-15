@@ -14,6 +14,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const fg = require('fast-glob');
+const { parse } = require('@typescript-eslint/typescript-estree');
 const { detectFrameworks } = require('../src/util/detect-framework');
 const { detectAngularComponents } = require('../src/util/scan-angular');
 
@@ -153,40 +154,69 @@ const summarizeThemes = async (root) => {
   return { recipes: recipeDirs };
 };
 
-const stripComments = (source) =>
-  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-
 const extractExports = (source) => {
-  const withoutComments = stripComments(source);
   const names = new Set();
-  const declPattern =
-    /export\s+(?:const|let|var|function|class|type|interface|enum)\s+([A-Za-z0-9_]+)/g;
-  const namedPattern = /export\s*{\s*([^}]+)\s*}/g;
-  const defaultPattern = /export\s+default\s+(?:function|class)?\s*([A-Za-z0-9_]+)?/g;
+  
+  try {
+    const ast = parse(source, {
+      loc: false,
+      range: false,
+      tokens: false,
+      comment: false,
+      jsx: true,
+      errorOnUnknownASTType: false,
+      errorOnTypeScriptSyntacticAndSemanticIssues: false
+    });
 
-  let match = declPattern.exec(withoutComments);
-  while (match) {
-    names.add(match[1]);
-    match = declPattern.exec(withoutComments);
-  }
+    const traverse = (node) => {
+      if (!node || typeof node !== 'object') return;
 
-  match = namedPattern.exec(withoutComments);
-  while (match) {
-    const parts = match[1]
-      .split(',')
-      .map((part) => part.trim())
-      .filter(Boolean);
-    for (const part of parts) {
-      const [, alias = null] = part.split(/\s+as\s+/i);
-      names.add((alias || part).trim());
-    }
-    match = namedPattern.exec(withoutComments);
-  }
+      // Handle export declarations
+      if (node.type === 'ExportNamedDeclaration') {
+        // export const X, export function X, export class X
+        if (node.declaration) {
+          if (node.declaration.type === 'VariableDeclaration') {
+            node.declaration.declarations.forEach(decl => {
+              if (decl.id && decl.id.name) names.add(decl.id.name);
+            });
+          } else if (node.declaration.id && node.declaration.id.name) {
+            names.add(node.declaration.id.name);
+          }
+        }
+        // export { X, Y as Z }
+        if (node.specifiers) {
+          node.specifiers.forEach(spec => {
+            if (spec.exported && spec.exported.name) {
+              names.add(spec.exported.name);
+            }
+          });
+        }
+      }
 
-  match = defaultPattern.exec(withoutComments);
-  while (match) {
-    names.add(match[1] || 'default');
-    match = defaultPattern.exec(withoutComments);
+      // Handle default exports
+      if (node.type === 'ExportDefaultDeclaration') {
+        if (node.declaration && node.declaration.id && node.declaration.id.name) {
+          names.add(node.declaration.id.name);
+        } else {
+          names.add('default');
+        }
+      }
+
+      // Traverse children
+      Object.keys(node).forEach(key => {
+        const child = node[key];
+        if (Array.isArray(child)) {
+          child.forEach(traverse);
+        } else if (child && typeof child === 'object') {
+          traverse(child);
+        }
+      });
+    };
+
+    traverse(ast);
+  } catch (err) {
+    // Fall back to empty array on parse errors (e.g., invalid syntax)
+    // This is better than crashing the entire summarizer
   }
 
   return Array.from(names);

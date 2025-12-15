@@ -106,7 +106,6 @@ const readComponentLogs = async (dir) => {
       reactName: data.reactComponentName || null,
       reason: data.reason || null,
       codeConnectFile: data.codeConnectFile || null,
-      confidence: data.confidence ?? null,
       figmaToken: data.figmaToken || null
     });
   }
@@ -153,7 +152,6 @@ const buildSummary = (context) => {
       codeColor(context.repoSummaryRel || '(not found)')
     )
   );
-  lines.push(continuationRow('', `Status: ${codeColor(scanStatus)}`));
   lines.push('');
 
   lines.push(figmaColor(chalk.bold('=== FIGMA SCANNING ===')));
@@ -181,7 +179,6 @@ const buildSummary = (context) => {
   lines.push('');
 
   lines.push(generatedColor(chalk.bold('=== CODE GENERATION SUMMARY ===')));
-  lines.push(continuationRow('', `Status: ${generatedColor(codegenStatus)}`));
   lines.push(
     formatRow(
       context.orientationMapped >= context.figmaCount
@@ -194,13 +191,6 @@ const buildSummary = (context) => {
     )
   );
   const agentRuns = context.builtCount + context.skippedCount;
-  lines.push(
-    formatRow(
-      '🟢',
-      `${highlight(agentRuns)} code generation agents ran, logs at:`,
-      generatedColor(context.codegenLogsRel)
-    )
-  );
   lines.push(
     formatRow('🟢', `${highlight(agentRuns)} code generation results at:`, generatedColor(context.componentLogsRel))
   );
@@ -258,7 +248,6 @@ const parseArgs = (argv) => {
     orientation: path.join(superconnectDir, 'orientation.jsonl'),
     codeConnectDir: path.resolve(baseCwd, opts.codeConnect),
     componentLogsDir: path.join(superconnectDir, 'codegen-logs'),
-    codegenLogsDir: path.join(superconnectDir, 'mapping-agent-logs'),
     superconnectDir,
     baseCwd,
     targetFramework: opts.targetFramework || null
@@ -297,10 +286,6 @@ async function main() {
     return false;
   });
   const codegenFiles = listCodeConnectFiles(config.codeConnectDir);
-  const codegenLogsPresent =
-    fs.existsSync(config.codegenLogsDir) &&
-    fs.statSync(config.codegenLogsDir).isDirectory() &&
-    fs.readdirSync(config.codegenLogsDir).length > 0;
 
   const builtDetails = componentLogs.filter((log) => Boolean(log.codeConnectFile));
   const skippedDetails = componentLogs.filter((log) => !log.codeConnectFile);
@@ -308,7 +293,6 @@ async function main() {
   const context = {
     figmaIndexRel: path.relative(config.baseCwd, config.figmaIndex) || config.figmaIndex,
     componentLogsRel: path.relative(config.baseCwd, config.componentLogsDir) || config.componentLogsDir,
-    codegenLogsRel: path.relative(config.baseCwd, config.codegenLogsDir) || config.codegenLogsDir,
     codeConnectRel: path.relative(config.baseCwd, config.codeConnectDir) || config.codeConnectDir,
     orientationRel: path.relative(config.baseCwd, config.orientation) || config.orientation,
     figmaCount: Array.isArray(figmaIndex.components) ? figmaIndex.components.length : 0,
@@ -319,7 +303,6 @@ async function main() {
     builtDetails,
     skippedDetails,
     codegenFiles: codegenFiles.map((f) => path.relative(config.baseCwd, f) || f),
-    codegenLogsPresent,
     figmaFileKey: figmaIndex.fileKey || null,
     figmaFileName: figmaIndex.fileName || null,
     figmaUrl: figmaIndex.fileKey ? `https://www.figma.com/design/${figmaIndex.fileKey}` : null,
