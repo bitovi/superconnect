@@ -25,8 +25,8 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
 - **Agent adapters** (`src/agent/agent-adapter.js`)
   - `OpenAIAgentAdapter` (Responses API) and `ClaudeAgentAdapter` (Anthropic SDK)
   - Implement a shared interface:
-    - `orient({ payload, logLabel, outputStream, logDir })`
-    - `codegen({ payload, logLabel, cwd, logDir })`
+    - `orient({ payload, logLabel, outputStream, logDir })` – single-turn for orienter stage
+    - `chatStateless({ system, user, maxTokens, logLabel })` – single-turn stateless call for direct codegen (used for initial generation and retry attempts)
   - Handle:
     - Model selection and `maxTokens` from config
     - Writing `=== AGENT INPUT ===` and `=== AGENT OUTPUT ===` logs to disk
@@ -104,6 +104,9 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - `notes`: brief explanation
 
 ### 4. Codegen (`scripts/run-codegen.js`)
+### 4. Codegen (`scripts/run-codegen.js`)
+
+Uses direct codegen approach where agents generate complete Code Connect files with built-in validation and retry logic.
 
 - Inputs:
   - `superconnect/figma-components-index.json`
@@ -111,36 +114,45 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - `superconnect/orientation.jsonl`
   - `superconnect/repo-summary.json` (framework hints and Angular component metadata)
   - Agent backend configuration (same as Orienter)
-  - Optional fake mapping output for testing
-- Behavior per oriented component:
-  - Normalize the orienter record (ID/name fields, file lists)
-  - Resolve the Figma component’s per-component JSON (React path)
-  - Read the selected source files from the target repo
-  - Build an agent payload:
-    - Schema-mapping prompt (`prompts/react-mapping-agent.md` for React, `prompts/angular-mapping-agent.md` for Angular)
-    - Compact Figma metadata (component set, variants, properties)
-    - Orientation info
-    - Inlined source file contents
-    - Target framework hint and Angular component list (for Angular runs)
-  - React path:
-    - Call `AgentAdapter.codegen` to get a JSON mapping schema
-    - Normalize the React import path against the file system
-    - Render a `.figma.tsx` file from the mapping schema, Figma properties, and example props
-  - Angular path:
-    - Call `AgentAdapter.codegen` (or use fake output) to get a selector/inputs schema
-    - Render a `.figma.ts` file using `lit-html` templates; if no agent output is available, fall back to a stub connector per component
-  - Write:
+
+- Architecture:
+  - Each component gets an independent agent call with cached system prefix
+  - System prompt includes full Code Connect API documentation
+  - For each component: generate → validate → retry if needed → move to next
+  - Validate BEFORE moving on (prevents error accumulation across components)
+  - This approach enables stateless processing with validation isolation
+
+- Modules:
+  - `src/react/direct-codegen.js` – React direct codegen implementation
+  - `src/angular/direct-codegen.js` – Angular direct codegen implementation
+  - `src/util/validate-code-connect.js` – Validation layer
+
+- Validation layer checks:
+  - All `figma.enum('KEY', ...)` calls: KEY must exist in `variantProperties`
+  - All `figma.boolean('KEY')` calls: KEY must exist in `componentProperties` as BOOLEAN type
+  - All `figma.string('KEY')` calls: KEY must exist in `componentProperties` as TEXT type
+  - All `figma.instance('KEY')` calls: KEY must exist in `componentProperties` as INSTANCE_SWAP type
+  - All `figma.textContent('KEY')` calls: KEY must exist in `textLayers`
+  - All `figma.children('KEY')` calls: KEY must exist in `slotLayers`
+
+- Retry behavior:
+  - On validation failure, provide previous code + specific errors
+  - Agent attempts to fix within same conversation (maintains context)
+  - Max retries: 2 (configurable in `superconnect.toml`)
+  - After max retries, record failure and move to next component
+
+- Agent adapter support:
+  - Uses `chatStateless({ system, user, maxTokens, logLabel })` method
+  - System prompt is cached across calls for efficiency
+  - Each component call is independent (stateless)
+
+- Output:
   - `codeConnect/<Component>.figma.tsx` or `.figma.ts` (unless skipped or blocked by existing file and no `--force`)
   - `superconnect/codegen-logs/*-codegen-result.json` (per‑component summary)
-  - `superconnect/mapping-agent-logs/*.log` (raw agent IO logs)
 - Codegen respects:
   - `--only` / `--exclude` filters (names/IDs/globs)
   - `--force` for overwriting existing mapping files
-  - `--fake-mapping-output` for deterministic testing
 
-### 5. Finalizer (`scripts/finalize.js`)
-
-- Inputs:
   - `superconnect/figma-components-index.json`
   - `superconnect/orientation.jsonl`
   - `superconnect/codegen-logs/*.json`
@@ -163,7 +175,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
 
 - **Config file**: `superconnect.toml`
   - `[inputs]` – `figma_url`, `component_repo_path`
-  - `[agent]` – `backend`, `sdk_model`, `max_tokens`
+  - `[agent]` – `backend`, `sdk_model`, `max_tokens` (default: 2048 for codegen, 32768 for orientation)
   - Parsed via a lightweight TOML parser that supports:
     - Top‑level keys
     - Single‑level sections

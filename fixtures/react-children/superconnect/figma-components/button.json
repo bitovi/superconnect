@@ -7,6 +7,10 @@
   },
   "componentProperties": [
     { "name": "label", "type": "STRING" }
-  ]
+  ],
+  "textLayers": [
+    { "name": "Label", "type": "TEXT", "characters": "Click me" }
+  ],
+  "slotLayers": null
 }
 

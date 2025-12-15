@@ -19,9 +19,12 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
-const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codex-mini';
+const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codegen-mini';
 const DEFAULT_BACKEND = 'claude';
-const DEFAULT_MAX_TOKENS = 12000;
+const DEFAULT_MAX_TOKENS = 2048;
+const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
+const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_LAYER_DEPTH = 3;
 
 const parseMaybeInt = (value) => {
   const n = value ? parseInt(value, 10) : NaN;
@@ -78,6 +81,26 @@ function normalizeAgentConfig(agentSection = {}) {
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
   const resolvedMaxTokens = backend === 'claude' ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
   return { backend, model, maxTokens: resolvedMaxTokens };
+}
+
+/**
+ * Normalize [codegen] section from TOML config.
+ * @param {object} codegenSection - The [codegen] section from TOML
+ * @returns {{ maxRetries: number }}
+ */
+function normalizeCodegenConfig(codegenSection = {}) {
+  const maxRetries = parseMaybeInt(codegenSection.max_retries) ?? DEFAULT_MAX_RETRIES;
+  return { maxRetries };
+}
+
+/**
+ * Normalize [figma] section from TOML config.
+ * @param {object} figmaSection - The [figma] section from TOML
+ * @returns {{ layerDepth: number }}
+ */
+function normalizeFigmaConfig(figmaSection = {}) {
+  const layerDepth = parseMaybeInt(figmaSection.layer_depth) ?? DEFAULT_LAYER_DEPTH;
+  return { layerDepth };
 }
 
 async function promptForConfig() {
@@ -176,6 +199,9 @@ async function promptForConfig() {
     '[agent]',
     `max_tokens = ${maxTokens}`,
     ...agentSection,
+    '',
+    '[codegen]',
+    'max_retries = 2       # Retry attempts on validation failure',
     ''
   ].join('\n');
 
@@ -352,6 +378,8 @@ async function main() {
     (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));
   const figmaToken = args.figmaToken || loadEnvToken(target);
   const agentConfig = normalizeAgentConfig(cfg.agent || {});
+  const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
+  const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
   const agentEnvVar = agentConfig.backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
   const agentToken = loadAgentToken(agentConfig.backend, target);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
@@ -420,7 +448,8 @@ async function main() {
       `"${paths.figmaUrl}"`,
       `--token "${figmaToken || ''}"`,
       `--output "${paths.figmaDir}"`,
-      `--index "${paths.figmaIndex}"`
+      `--index "${paths.figmaIndex}"`,
+      `--layer-depth ${figmaConfig.layerDepth}`
     ].join(' ');
     runCommand(`${highlight('Figma scan')} → ${figmaColor(rel(paths.figmaIndex))}`, cmd);
   } else {
@@ -432,6 +461,10 @@ async function main() {
   }
 
   if (needOrientation) {
+    // Orientation agent needs much higher max_tokens to output JSONL for all components.
+    // Use explicit user setting if provided, otherwise use orientation-specific default.
+    const userMaxTokens = parseMaybeInt(cfg?.agent?.max_tokens);
+    const orientationMaxTokens = userMaxTokens || DEFAULT_ORIENTATION_MAX_TOKENS;
     const cmd = [
       `node ${path.join(paths.scriptDir, 'run-orienter.js')}`,
       `--figma-index "${paths.figmaIndex}"`,
@@ -439,7 +472,7 @@ async function main() {
       `--output "${paths.orientation}"`,
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
-      agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
+      `--agent-max-tokens "${orientationMaxTokens}"`,
       inferredFramework ? `--target-framework "${inferredFramework}"` : '',
       args.dryRun ? '--dry-run' : ''
     ].join(' ');

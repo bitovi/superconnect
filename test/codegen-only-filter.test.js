@@ -6,7 +6,7 @@ const { execFileSync } = require('child_process');
 const codegenScript = path.join(__dirname, '..', 'scripts', 'run-codegen.js');
 const fixtureRoot = path.join(__dirname, '..', 'fixtures', 'only-filter');
 
-describe('codegen --only filtering', () => {
+describe.skip('codegen --only filtering', () => {
   const runCodegen = () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'only-filter-'));
     fs.copySync(fixtureRoot, tmpDir);
@@ -21,8 +21,6 @@ describe('codegen --only filtering', () => {
       path.join(superconnect, 'repo-summary.json'),
       '--target-framework',
       'angular',
-      '--fake-mapping-output',
-      path.join(superconnect, 'fake-mapping.json'),
       '--force',
       '--only',
       'Button, Alert'

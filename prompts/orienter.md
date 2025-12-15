@@ -26,27 +26,23 @@ Output format (JSONL):
     "figma_component_id": string,
     "figma_component_name": string,
     "status": "mapped" | "missing" | "ambiguous",
-    "confidence": number,      // from 0.0 to 1.0
-    "files": string[],         // repo-relative file paths
-    "notes": string            // short human-readable explanation
+    "files": string[]          // repo-relative file paths
   }
 
 Semantics:
 
 - "mapped":
   - You have identified a clear primary implementation file (and maybe a few closely-related files).
-  - Set confidence to a relatively high value (e.g. 0.7–1.0 depending on how strong the match is).
 - "missing":
   - You are unable to find any plausible implementation in the repo summary.
-  - Set files to [] and confidence to a low value (e.g. 0.0–0.2).
+  - Set files to [].
 - "ambiguous":
   - There are multiple plausible implementation files and you cannot clearly choose one.
   - Still choose the single best set of files you would recommend.
-  - Set confidence to a medium value (e.g. 0.3–0.7) and explain the ambiguity in notes.
 
 Important constraints:
 
 - For every Figma component listed in the Figma components index, you MUST output exactly one JSON object line.
 - Do NOT output any text before, after, or between the JSON objects. No prose, no markdown, no comments.
-- Do NOT include fields other than: figma_component_id, figma_component_name, status, confidence, files, notes.
+- Do NOT include fields other than: figma_component_id, figma_component_name, status, files.
 - Do NOT hallucinate file paths. Only use paths that appear in the repo summary JSON.

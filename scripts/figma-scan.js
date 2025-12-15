@@ -38,20 +38,25 @@ function parseFileKey(input) {
   return urlMatch ? urlMatch[1] : input;
 }
 
+const DEFAULT_LAYER_DEPTH = 3;
+
 function parseArgs() {
   const program = new Command();
   program
     .argument('<fileKeyOrUrl>', 'Figma file key or URL')
     .option('--token <token>', 'Figma API token (or set FIGMA_ACCESS_TOKEN)')
     .option('--output <dir>', 'Output directory', './figma-variants')
-    .option('--index <file>', 'Canonical index output path (figma-components-index.json)');
+    .option('--index <file>', 'Canonical index output path (figma-components-index.json)')
+    .option('--layer-depth <depth>', 'Max depth for layer tree traversal (default 3)', DEFAULT_LAYER_DEPTH.toString());
   program.parse(process.argv);
   const opts = program.opts();
+  const layerDepth = parseInt(opts.layerDepth, 10);
   return {
     fileKey: parseFileKey(program.args[0]),
     token: opts.token || process.env.FIGMA_ACCESS_TOKEN,
     output: opts.output,
-    indexPath: opts.index || null
+    indexPath: opts.index || null,
+    layerDepth: Number.isFinite(layerDepth) && layerDepth > 0 ? layerDepth : DEFAULT_LAYER_DEPTH
   };
 }
 
@@ -261,7 +266,115 @@ const extractComponentProperties = (componentSet) => {
   return filtered.length > 0 ? filtered : null;
 };
 
-function extractVariants(componentSet, breadcrumbs) {
+/**
+ * Extract text layers from the component tree for figma.textContent() usage.
+ * Traverses up to maxDepth levels and collects TEXT nodes.
+ * @param {object} node - Figma node to traverse
+ * @param {number} maxDepth - Maximum depth to traverse (default 3)
+ * @returns {Array<{name: string, type: string, characters?: string}>}
+ */
+const extractTextLayers = (node, maxDepth = 3) => {
+  const textLayers = [];
+  const seenNames = new Set();
+
+  const traverse = (current, depth) => {
+    if (!current || depth > maxDepth) return;
+
+    if (current.type === 'TEXT') {
+      const name = (current.name || '').trim();
+      if (name && !seenNames.has(name)) {
+        seenNames.add(name);
+        const layer = { name, type: 'TEXT' };
+        if (current.characters) {
+          layer.characters = current.characters;
+        }
+        textLayers.push(layer);
+      }
+    }
+
+    if (Array.isArray(current.children)) {
+      for (const child of current.children) {
+        traverse(child, depth + 1);
+      }
+    }
+  };
+
+  // Start traversal from each variant (COMPONENT child)
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      if (child.type === 'COMPONENT') {
+        traverse(child, 0);
+      }
+    }
+  }
+
+  return textLayers;
+};
+
+/**
+ * Semantic names that suggest a layer is a slot for child components.
+ */
+const SLOT_NAME_PATTERNS = /^(icon|leading|trailing|prefix|suffix|content|children|slot|container|start|end|left|right)$/i;
+
+/**
+ * Extract potential slot layers from the component tree for figma.children() usage.
+ * Looks for FRAME/GROUP nodes with semantic names or containing INSTANCE children.
+ * @param {object} node - Figma node to traverse
+ * @param {number} maxDepth - Maximum depth to traverse (default 3)
+ * @returns {Array<{name: string, type: string}>}
+ */
+const extractSlotLayers = (node, maxDepth = 3) => {
+  const slotLayers = [];
+  const seenNames = new Set();
+
+  const isSlotCandidate = (current) => {
+    if (current.type !== 'FRAME' && current.type !== 'GROUP') return false;
+    const name = (current.name || '').trim();
+    if (!name) return false;
+
+    // Check for semantic slot name
+    if (SLOT_NAME_PATTERNS.test(name)) return true;
+
+    // Check if contains INSTANCE children (indicates instance swap slot)
+    if (Array.isArray(current.children)) {
+      const hasInstance = current.children.some((c) => c.type === 'INSTANCE');
+      if (hasInstance) return true;
+    }
+
+    return false;
+  };
+
+  const traverse = (current, depth) => {
+    if (!current || depth > maxDepth) return;
+
+    if (isSlotCandidate(current)) {
+      const name = (current.name || '').trim();
+      if (!seenNames.has(name)) {
+        seenNames.add(name);
+        slotLayers.push({ name, type: current.type });
+      }
+    }
+
+    if (Array.isArray(current.children)) {
+      for (const child of current.children) {
+        traverse(child, depth + 1);
+      }
+    }
+  };
+
+  // Start traversal from each variant (COMPONENT child)
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      if (child.type === 'COMPONENT') {
+        traverse(child, 0);
+      }
+    }
+  }
+
+  return slotLayers;
+};
+
+function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_DEPTH) {
   const variants = [];
   const propertyOptions = {};
   const seenVariantIds = new Set();
@@ -328,12 +441,18 @@ function extractVariants(componentSet, breadcrumbs) {
         ? safeReferencedProps
         : null;
 
+  // Extract text layers and slot layers for Code Connect helpers
+  const textLayers = extractTextLayers(componentSet, layerDepth);
+  const slotLayers = extractSlotLayers(componentSet, layerDepth);
+
   const basePayload = {
     componentSetId: componentSet.id,
     componentName: componentSet.name,
     variantProperties,
     variantValueEnums,
     componentProperties: mergedComponentProperties,
+    textLayers: textLayers.length > 0 ? textLayers : null,
+    slotLayers: slotLayers.length > 0 ? slotLayers : null,
     variants,
     totalVariants: variants.length,
     nameAliases: buildAliases(componentSet.name),
@@ -415,7 +534,7 @@ async function main() {
         }
       }
 
-      const variantData = extractVariants(componentSet, breadcrumbs);
+      const variantData = extractVariants(componentSet, breadcrumbs, config.layerDepth);
       const baseName = sanitizeFilename(componentSet.name) || 'component';
       let filename = baseName;
       let suffix = 1;
