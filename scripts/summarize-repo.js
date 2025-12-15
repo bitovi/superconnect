@@ -154,7 +154,7 @@ const summarizeThemes = async (root) => {
   return { recipes: recipeDirs };
 };
 
-const extractExports = (source) => {
+const extractExports = (source, filePath = '') => {
   const names = new Set();
   
   try {
@@ -164,8 +164,12 @@ const extractExports = (source) => {
       tokens: false,
       comment: false,
       jsx: true,
+      sourceType: 'module',
+      ecmaVersion: 'latest',
       errorOnUnknownASTType: false,
-      errorOnTypeScriptSyntacticAndSemanticIssues: false
+      errorOnTypeScriptSyntacticAndSemanticIssues: false,
+      // Allow parsing errors without throwing
+      loggerFn: false
     });
 
     const traverse = (node) => {
@@ -215,8 +219,9 @@ const extractExports = (source) => {
 
     traverse(ast);
   } catch (err) {
-    // Fall back to empty array on parse errors (e.g., invalid syntax)
-    // This is better than crashing the entire summarizer
+    // Silently fall back to empty array on parse errors
+    // This prevents the entire summarizer from crashing on syntax errors
+    // The file will just report zero exports
   }
 
   return Array.from(names);
@@ -270,7 +275,7 @@ const summarizeTsFiles = async (root, componentRoots = [], themeRecipeDirs = [])
   const processFile = async (relPath) => {
     const absolutePath = path.join(root, relPath);
     const [stat, content] = await Promise.all([fs.stat(absolutePath), fs.readFile(absolutePath, 'utf8')]);
-    const exports = extractExports(content);
+    const exports = extractExports(content, relPath);
     return {
       path: relPath,
       exports,
