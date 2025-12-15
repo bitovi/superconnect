@@ -15,6 +15,7 @@ const { spawnSync } = require('child_process');
 const { Command } = require('commander');
 const readline = require('readline');
 const chalk = require('chalk');
+const toml = require('@iarna/toml');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
@@ -32,39 +33,12 @@ const parseMaybeInt = (value) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-function parseSimpleToml(text) {
-  const result = {};
-  let section = null;
-  const lines = text.split(/\r?\n/);
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
-    if (line.startsWith('[') && line.endsWith(']')) {
-      section = line.slice(1, -1).trim() || null;
-      if (section && !result[section]) result[section] = {};
-      continue;
-    }
-    const eq = line.indexOf('=');
-    if (eq === -1) continue;
-    const key = line.slice(0, eq).trim();
-    const valueRaw = line.slice(eq + 1).trim();
-    const valueWithoutComment = valueRaw.split('#')[0].trim();
-    const unquoted = valueWithoutComment.replace(/^"(.*)"$/, '$1');
-    if (section) {
-      result[section][key] = unquoted;
-    } else {
-      result[key] = unquoted;
-    }
-  }
-  return result;
-}
-
 function loadSuperconnectConfig(filePath = 'superconnect.toml') {
   const direct = path.resolve(process.cwd(), filePath);
   if (!fs.existsSync(direct)) return null;
   try {
     const raw = fs.readFileSync(direct, 'utf8');
-    return parseSimpleToml(raw);
+    return toml.parse(raw);
   } catch (err) {
     console.warn(`⚠️  Failed to load ${direct}: ${err.message}`);
     return null;
@@ -192,7 +166,7 @@ async function promptForConfig() {
     );
   }
 
-  const toml = [
+  const tomlContent = [
     '[inputs]',
     '# (Requires FIGMA_ACCESS_TOKEN environment var)',
     `figma_url = "${figmaUrl}"`,
@@ -209,9 +183,9 @@ async function promptForConfig() {
   ].join('\n');
 
   const outPath = path.resolve(DEFAULT_CONFIG_FILE);
-  fs.writeFileSync(outPath, toml, 'utf8');
+  fs.writeFileSync(outPath, tomlContent, 'utf8');
   console.log(`${chalk.green('✓')} Wrote your configs to ${DEFAULT_CONFIG_FILE}. When you next run in this directory, we'll read from that instead.`);
-  return parseSimpleToml(toml);
+  return toml.parse(tomlContent);
 }
 
 function runCommand(label, command, options = {}) {
