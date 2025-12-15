@@ -282,6 +282,28 @@ figma.connect(Button, 'url', {
       expect(result.errors.some(e => e.includes('Logical operator in JSX'))).toBe(true);
     });
 
+    it('catches logical operators in JSX conditional rendering (React)', () => {
+      const badCode = `
+import figma from '@figma/code-connect/react';
+import { Tooltip, TooltipArrowTip } from './Tooltip';
+figma.connect(Tooltip, 'url', {
+  props: { showArrow: figma.boolean('ShowArrow') },
+  example: ({ showArrow }) => (
+    <Tooltip>
+      {showArrow && <TooltipArrowTip />}
+      Content
+    </Tooltip>
+  )
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { componentProperties: [{ name: 'ShowArrow', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Logical operator in JSX'))).toBe(true);
+    });
+
     it('catches comparison operators in template interpolation', () => {
       const badCode = `
 import figma, { html } from '@figma/code-connect/html';

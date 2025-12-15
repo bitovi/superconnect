@@ -267,13 +267,14 @@ function checkTemplateInterpolations(code) {
     const lineNum = index + 1;
 
     // Check for ternary expressions inside ${} (template literals) or {} (JSX)
-    // Pattern: ${ ... ? ... : ... } or attribute={value ? x : y}
+    // Pattern: ${ ... ? ... : ... } or {value ? x : y}
     if (/\$\{[^}]*\?[^}]*:[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Ternary expression in template interpolation - Code Connect doesn't allow conditionals. Compute value in props instead.`);
     }
-    // JSX prop with ternary: prop={condition ? value : other}
-    if (/=\{[^}]*\?[^}]*:[^}]*\}/.test(line)) {
-      errors.push(`Line ${lineNum}: Ternary expression in JSX prop - Code Connect doesn't allow conditionals. Compute value in props instead.`);
+    // JSX with ternary: {condition ? value : other}, prop={condition ? x : y}
+    // Matches any {...} that contains ternary (including prop values and JSX children)
+    if (/\{[^}]*\?[^}]*:[^}]*\}/.test(line)) {
+      errors.push(`Line ${lineNum}: Ternary expression in JSX - Code Connect doesn't allow conditionals. Compute value in props instead.`);
     }
 
     // Check for logical AND/OR inside ${} (template literals) or {} (JSX)
@@ -281,9 +282,10 @@ function checkTemplateInterpolations(code) {
     if (/\$\{[^}]*(?:&&|\|\|)[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Logical operator in template interpolation - Code Connect doesn't allow &&/||. Compute value in props instead.`);
     }
-    // JSX prop with logical operator: prop={value && 'text'} or prop={value || 'default'}
-    if (/=\{[^}]*(?:&&|\|\|)[^}]*\}/.test(line)) {
-      errors.push(`Line ${lineNum}: Logical operator in JSX prop - Code Connect doesn't allow &&/||. Compute value in props instead.`);
+    // JSX with logical operator: {value && 'text'}, {value || 'default'}, {condition && <Element />}
+    // Matches any {...} that contains && or || (including prop values and JSX children)
+    if (/\{[^}]*(?:&&|\|\|)[^}]*\}/.test(line)) {
+      errors.push(`Line ${lineNum}: Logical operator in JSX - Code Connect doesn't allow &&/||. Compute value in props instead.`);
     }
 
     // Check for backtick nesting inside ${} (common error pattern)
