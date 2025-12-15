@@ -1,0 +1,24 @@
+# Test files and fixtures
+test/
+fixtures/
+.beads/
+
+# Development files
+.github/
+.gitignore
+.gitmodules
+
+# Documentation for development
+AGENTS.md
+CONTRIBUTING.md
+TESTING.md
+
+# Temporary and build artifacts
+tmp/
+coverage/
+*.log
+.DS_Store
+.env
+
+# Don't publish git metadata
+.git

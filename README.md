@@ -11,7 +11,7 @@ Then you publish these back to your Figma file using Figma's own CLI tool to `fi
 # Installation
 
 - Install from npm
-  - `npm install -g superconnect`
+  - `npm install -g @bitovi/superconnect`
 
 - Install from git
   - clone this repo

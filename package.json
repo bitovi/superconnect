@@ -1,5 +1,5 @@
 {
-  "name": "superconnect",
+  "name": "@bitovi/superconnect",
   "version": "0.1.0",
   "description": "CLI that turns a Figma design system file and a React/Angular component repo into publishable Figma Code Connect mappings",
   "bin": {
@@ -17,7 +17,8 @@
     "test:e2e:zapui:keep": "RUN_ZAPUI_E2E=1 ZAPUI_E2E_KEEP=1 jest test/zapui-e2e.test.js",
     "test:e2e:zapui:small:keep": "RUN_ZAPUI_E2E=1 ZAPUI_E2E_ONLY=Button ZAPUI_E2E_KEEP=1 jest test/zapui-e2e.test.js",
     "test:e2e:zapui:small:verbose": "RUN_ZAPUI_E2E=1 ZAPUI_E2E_ONLY=Button SUPERCONNECT_E2E_VERBOSE=1 jest test/zapui-e2e.test.js",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "prepublishOnly": "npm test"
   },
   "jest": {
     "testPathIgnorePatterns": [
@@ -37,7 +38,7 @@
     "cli",
     "tooling"
   ],
-  "author": "",
+  "author": "Bitovi",
   "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
