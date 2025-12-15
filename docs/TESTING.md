@@ -118,6 +118,13 @@ npm test -- -t "validates react component"
 
 ### E2E: Chakra UI (React)
 
+**⚠️ Important for Coding Agents:**
+- **ALWAYS use the npm scripts** (`npm run test:e2e:chakra:small`), not `npm test -- chakra-e2e`
+- **DO NOT** try to run Jest directly with environment variables like `RUN_CHAKRA_E2E=1 npm test chakra-e2e`
+- **DO NOT** run tests in background with `&` or `nohup` - they take 2-3 minutes, just wait
+- The tests will automatically load `.env` from the repo root
+- Check test results in Jest's final output, not intermediate "RUNS" messages
+
 ```bash
 # Small subset (Button only, ~2 min)
 npm run test:e2e:chakra:small
@@ -139,6 +146,12 @@ CHAKRA_E2E_ONLY="Button,Alert,Badge" npm run test:e2e:chakra
 ```
 
 ### E2E: ZapUI (Angular)
+
+**⚠️ Important for Coding Agents:**
+- **ALWAYS use the npm scripts** (`npm run test:e2e:zapui:small`), not `npm test -- zapui-e2e`
+- **DO NOT** try to run Jest directly with environment variables
+- The tests will automatically load `.env` from the repo root
+- ZapUI tests are typically faster (~45 sec) than Chakra tests
 
 ```bash
 # Small subset (Button only, ~2 min)
