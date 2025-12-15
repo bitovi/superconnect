@@ -12,7 +12,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const { validateCodeConnectWithCLI } = require('../util/validate-code-connect');
 
-const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_MAX_RETRIES = 4;
 
 /**
  * Build the system prompt combining our guidance with Figma's official API docs.

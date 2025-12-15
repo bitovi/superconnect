@@ -184,7 +184,7 @@ async function promptForConfig() {
     ...agentSection,
     '',
     '[codegen]',
-    'max_retries = 2       # Retry attempts on validation failure',
+    'max_retries = 4       # Retry attempts on validation failure',
     'concurrency = 8       # Max parallel LLM requests during code generation',
     ''
   ].join('\n');
