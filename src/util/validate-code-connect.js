@@ -242,15 +242,81 @@ function validateCodeConnect({ generatedCode, figmaEvidence, orienterOutput = nu
     errors.push('Missing @figma/code-connect import');
   }
 
+  // Check for invalid JavaScript expressions in template interpolations
+  // Code Connect doesn't allow ternaries, conditionals, or binary operators in ${} placeholders
+  const templateInterpolationErrors = checkTemplateInterpolations(generatedCode);
+  errors.push(...templateInterpolationErrors);
+
   return {
     valid: errors.length === 0,
     errors
   };
 }
 
+/**
+ * Check for invalid JavaScript expressions in template interpolations (HTML) and JSX expressions (React).
+ * Code Connect doesn't allow ternaries (?:), logical operators (&&, ||), or binary expressions.
+ * @param {string} code - The generated code
+ * @returns {string[]} - Array of error messages
+ */
+function checkTemplateInterpolations(code) {
+  const errors = [];
+  const lines = code.split('\n');
+
+  lines.forEach((line, index) => {
+    const lineNum = index + 1;
+
+    // Check for ternary expressions inside ${} (template literals) or {} (JSX)
+    // Pattern: ${ ... ? ... : ... } or attribute={value ? x : y}
+    if (/\$\{[^}]*\?[^}]*:[^}]*\}/.test(line)) {
+      errors.push(`Line ${lineNum}: Ternary expression in template interpolation - Code Connect doesn't allow conditionals. Compute value in props instead.`);
+    }
+    // JSX prop with ternary: prop={condition ? value : other}
+    if (/=\{[^}]*\?[^}]*:[^}]*\}/.test(line)) {
+      errors.push(`Line ${lineNum}: Ternary expression in JSX prop - Code Connect doesn't allow conditionals. Compute value in props instead.`);
+    }
+
+    // Check for logical AND/OR inside ${} (template literals) or {} (JSX)
+    // Pattern: ${ ... && ... } or ${ ... || ... }
+    if (/\$\{[^}]*(?:&&|\|\|)[^}]*\}/.test(line)) {
+      errors.push(`Line ${lineNum}: Logical operator in template interpolation - Code Connect doesn't allow &&/||. Compute value in props instead.`);
+    }
+    // JSX prop with logical operator: prop={value && 'text'} or prop={value || 'default'}
+    if (/=\{[^}]*(?:&&|\|\|)[^}]*\}/.test(line)) {
+      errors.push(`Line ${lineNum}: Logical operator in JSX prop - Code Connect doesn't allow &&/||. Compute value in props instead.`);
+    }
+
+    // Check for backtick nesting inside ${} (common error pattern)
+    // Pattern: ${ ... `...` ... }
+    if (/\$\{[^}]*`[^`]*`[^}]*\}/.test(line)) {
+      errors.push(`Line ${lineNum}: Nested template literal in interpolation - Code Connect doesn't allow this. Compute string in props instead.`);
+    }
+
+    // Check for comparison operators inside ${} or {} (e.g., === !== < > <= >=)
+    // Pattern: ${ ... === ... } or [prop]="${value === 'something'}"
+    if (/\$\{[^}]*(?:===|!==|==|!=|<=|>=|<|>)[^}]*\}/.test(line)) {
+      errors.push(`Line ${lineNum}: Comparison operator in template interpolation - Code Connect doesn't allow binary expressions. Compute value in props instead.`);
+    }
+    if (/=["']\$\{[^}]*(?:===|!==|==|!=|<=|>=|<|>)[^}]*\}["']/.test(line)) {
+      errors.push(`Line ${lineNum}: Comparison operator in attribute - Code Connect doesn't allow binary expressions. Compute boolean value in props instead.`);
+    }
+  });
+
+  // Check for function bodies with statements before return (HTML templates only)
+  // Pattern: example: (...) => { ... return html`...` }
+  // Code Connect requires: example: (...) => html`...`
+  const exampleFnMatch = code.match(/example:\s*\([^)]*\)\s*=>\s*\{/);
+  if (exampleFnMatch) {
+    errors.push(`Example function has a body with statements - Code Connect requires arrow function to directly return template: example: (props) => html\`...\` not example: (props) => { ... return html\`...\` }`);
+  }
+
+  return errors;
+}
+
 module.exports = {
   validateCodeConnect,
   extractFigmaCalls,
   buildValidKeySets,
-  normalizeKey
+  normalizeKey,
+  checkTemplateInterpolations
 };

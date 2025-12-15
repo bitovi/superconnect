@@ -199,5 +199,122 @@ figma.connect(Button, 'url', {
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('NonexistentLayer'))).toBe(true);
     });
+
+    it('catches ternary expressions in template interpolation', () => {
+      const badCode = `
+import figma, { html } from '@figma/code-connect/html';
+figma.connect('url', {
+  props: { hasIcon: figma.boolean('Icon') },
+  example: ({ hasIcon }) => html\`<button \${hasIcon ? 'icon="star"' : ''}></button>\`
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { componentProperties: [{ name: 'Icon', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Ternary expression'))).toBe(true);
+    });
+
+    it('catches nested template literals in interpolation', () => {
+      const badCode = `
+import figma, { html } from '@figma/code-connect/html';
+figma.connect('url', {
+  props: { label: figma.string('Label') },
+  example: ({ label }) => html\`<input [label]="\${label ? \\\`'\${label}'\\\` : ''}"/>\`
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { componentProperties: [{ name: 'Label', type: 'TEXT' }], variantProperties: {}, textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Nested template literal'))).toBe(true);
+    });
+
+    it('catches logical operators in template interpolation', () => {
+      const badCode = `
+import figma, { html } from '@figma/code-connect/html';
+figma.connect('url', {
+  props: { disabled: figma.boolean('Disabled') },
+  example: ({ disabled }) => html\`<button \${disabled && 'disabled'}></button>\`
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { componentProperties: [{ name: 'Disabled', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Logical operator'))).toBe(true);
+    });
+
+    it('catches ternary expressions in JSX props (React)', () => {
+      const badCode = `
+import figma from '@figma/code-connect/react';
+import { Button } from './Button';
+figma.connect(Button, 'url', {
+  props: { hasIcon: figma.boolean('Icon') },
+  example: ({ hasIcon }) => <Button icon={hasIcon ? 'star' : undefined} />
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { componentProperties: [{ name: 'Icon', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Ternary expression in JSX'))).toBe(true);
+    });
+
+    it('catches logical operators in JSX props (React)', () => {
+      const badCode = `
+import figma from '@figma/code-connect/react';
+import { Button } from './Button';
+figma.connect(Button, 'url', {
+  props: { label: figma.string('Label') },
+  example: ({ label }) => <Button label={label || 'Default'} />
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { componentProperties: [{ name: 'Label', type: 'TEXT' }], variantProperties: {}, textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Logical operator in JSX'))).toBe(true);
+    });
+
+    it('catches comparison operators in template interpolation', () => {
+      const badCode = `
+import figma, { html } from '@figma/code-connect/html';
+figma.connect('url', {
+  props: { state: figma.enum('State', { Disabled: 'disabled' }) },
+  example: ({ state }) => html\`<input [disabled]="\${state === 'disabled'}"/>\`
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { variantProperties: { State: ['Disabled', 'Default'] }, componentProperties: [], textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Comparison operator'))).toBe(true);
+    });
+
+    it('catches function body with statements before return', () => {
+      const badCode = `
+import figma, { html } from '@figma/code-connect/html';
+figma.connect('url', {
+  props: { icon: figma.string('Icon') },
+  example: ({ icon }) => {
+    const hasIcon = icon !== undefined;
+    return html\`<button>\${icon}</button>\`;
+  }
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { componentProperties: [{ name: 'Icon', type: 'TEXT' }], variantProperties: {}, textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Example function has a body'))).toBe(true);
+    });
   });
 });

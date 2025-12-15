@@ -169,12 +169,6 @@ class OpenAIAgentAdapter {
       cacheReadTokens: 0
     } : null;
 
-    // Log token usage
-    if (response.usage) {
-      const { prompt_tokens, completion_tokens } = response.usage;
-      console.log(`  ${logLabel} tokens: in=${prompt_tokens} out=${completion_tokens}`);
-    }
-
     return { text: response.choices?.[0]?.message?.content || '', usage };
   }
 }
@@ -244,8 +238,7 @@ class ClaudeAgentAdapter {
         const { input_tokens, output_tokens } = response.usage;
         const usageMsg = `\n[Usage: in=${input_tokens} out=${output_tokens} max=${this.maxTokens}]\n`;
         writeLog(usageMsg);
-        // Also log to console for visibility
-        console.log(`  ${logLabel} tokens: in=${input_tokens} out=${output_tokens}${response.stop_reason === 'max_tokens' ? ' (TRUNCATED)' : ''}`);
+        // Console logging removed - details captured in attempts array
       }
       
       const stdout = extractClaudeText(response) || '';
@@ -297,16 +290,6 @@ class ClaudeAgentAdapter {
       messages: chatMessages.map((m) => ({ role: m.role, content: m.content }))
     });
 
-    // Log token usage for analysis
-    if (response.usage) {
-      const { input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens } = response.usage;
-      const cacheInfo = [];
-      if (cache_creation_input_tokens) cacheInfo.push(`cache_write=${cache_creation_input_tokens}`);
-      if (cache_read_input_tokens) cacheInfo.push(`cache_read=${cache_read_input_tokens}`);
-      const cacheStr = cacheInfo.length > 0 ? ` ${cacheInfo.join(' ')}` : ' (cache not active - prompt may be <4096 tokens)';
-      console.log(`  ${logLabel} tokens: in=${input_tokens} out=${output_tokens}${cacheStr}`);
-    }
-
     return extractClaudeText(response) || '';
   }
 
@@ -349,16 +332,6 @@ class ClaudeAgentAdapter {
       cacheWriteTokens: response.usage.cache_creation_input_tokens || 0,
       cacheReadTokens: response.usage.cache_read_input_tokens || 0
     } : null;
-
-    // Log token usage for analysis
-    if (response.usage) {
-      const { input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens } = response.usage;
-      const cacheInfo = [];
-      if (cache_creation_input_tokens) cacheInfo.push(`cache_write=${cache_creation_input_tokens}`);
-      if (cache_read_input_tokens) cacheInfo.push(`cache_read=${cache_read_input_tokens}`);
-      const cacheStr = cacheInfo.length > 0 ? ` ${cacheInfo.join(' ')}` : ' (cache not active - prompt may be <4096 tokens)';
-      console.log(`  ${logLabel} tokens: in=${input_tokens} out=${output_tokens}${cacheStr}`);
-    }
 
     return { text: extractClaudeText(response) || '', usage };
   }

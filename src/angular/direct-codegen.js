@@ -229,12 +229,8 @@ async function processComponent({
         return { success: true, code, errors: [], attempts };
       }
 
-      // Validation failed - log errors for visibility
+      // Validation failed - errors captured in attempts array
       lastErrors = validationResult.errors;
-      if (attempt <= maxRetries) {
-        console.log(`    ⚠️  Validation failed (retry ${attempt}/${maxRetries}):`);
-        lastErrors.forEach(err => console.log(`       ${err}`));
-      }
     } catch (err) {
       lastErrors = [`Agent error: ${err.message}`];
       attempts.push({ attempt, usage: null, valid: false, errors: lastErrors });

@@ -1186,10 +1186,6 @@ async function main() {
     });
 
     console.log(`Generating Code Connect for ${generatedColor(logBaseName)}`);
-    if (requiredPaths.length > 0) {
-      const filesLabel = requiredPaths.map((p) => codeColor(p)).join(', ');
-      console.log(`    ... from ${filesLabel}`);
-    }
 
     try {
       // Call the appropriate direct codegen processor
