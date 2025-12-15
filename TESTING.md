@@ -435,7 +435,7 @@ The ZapUI E2E test can print each child command and its combined stdout/stderr
 
 - Verbose small run
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui:small`
-- Verbose full run
+- Verbose full run (advanced)
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui`
 
 ### Inspecting artifacts
@@ -502,7 +502,7 @@ The Chakra E2E test can print each child command and its combined stdout/stderr
 
 - Verbose small run
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra:small`
-- Verbose full run
+- Verbose full run (advanced)
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra`
 
 ### Inspecting artifacts

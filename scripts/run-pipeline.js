@@ -23,7 +23,7 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
-const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codegen-mini';
+const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codex-mini';
 const DEFAULT_BACKEND = 'claude';
 const DEFAULT_MAX_TOKENS = 2048;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;

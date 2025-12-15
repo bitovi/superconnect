@@ -94,7 +94,7 @@ Prompts live in `prompts/` and define how the agents should behave:
 To understand why the agent produced a particular mapping, look at:
 
 - The relevant prompt in `prompts/`
-- The agent logs in `superconnect/orienter-agent.log/` and `superconnect/mapping-agent-logs/`
+- The agent logs in `superconnect/orienter-agent.log` and `superconnect/codegen-logs/*.json`
 
 ## Tests and fixtures
 

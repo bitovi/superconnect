@@ -160,7 +160,7 @@ You can choose your AI backends by editing `superconnect.toml`:
     - Requires OPENAI_API_KEY
     - sdk_model must be an OpenAI model (e.g., gpt-5.1-codex-mini)
 
-Code gen agents log to superconnect/orienter-agent.log/ and superconnect/mapping-agent-logs/
+Code gen agents log to superconnect/orienter-agent.log and superconnect/codegen-logs/
 
 # Outputs
 
@@ -171,9 +171,8 @@ Code gen agents log to superconnect/orienter-agent.log/ and superconnect/mapping
     - figma-components/*.json: per-component extracted Figma metadata
     - repo-summary.json: lightweight summary of the repo (framework detection, Angular component metadata, exports)
     - orientation.jsonl: agent suggestions for which files to read for each Figma component
-    - codegen-logs/*.json: per-component codegen decisions and metadata
-    - orienter-agent.log/: orientation agent interaction logs
-    - mapping-agent-logs/: codegen agent interaction logs
+    - orienter-agent.log: orientation agent interaction logs
+    - codegen-logs/*.json: per-component codegen agent interaction logs, decisions and metadata
 - In codeConnect/
     - *.figma.tsx or *.figma.ts files for each successfully mapped component, ready for Code Connect
 - At repo root:
