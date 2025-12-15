@@ -25,12 +25,14 @@ Property bindings use `[prop]`, event bindings use `(event)`.
 
 **NO JavaScript expressions in template interpolations.**
 Code Connect does NOT allow ternaries, conditionals, or binary operators inside `${}` placeholders.
+Also avoid prefix unary operators like `!value` inside `${}` placeholders.
 
 ❌ WRONG:
 ```typescript
 html`<button ${disabled ? 'disabled' : ''}>${label}</button>`
 html`<input [icon]="${hasIcon ? `'star'` : ''}">`
 html`<input [disabled]="${state === 'disabled'}">`  // comparison operator
+html`<input [disabled]="${!disabled}">`             // prefix unary operator
 ```
 
 ✅ CORRECT - Compute values in props, not template:

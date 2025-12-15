@@ -248,6 +248,22 @@ figma.connect('url', {
       expect(result.errors.some(e => e.includes('Logical operator'))).toBe(true);
     });
 
+    it('catches prefix unary operators in template interpolation', () => {
+      const badCode = `
+import figma, { html } from '@figma/code-connect/html';
+figma.connect('url', {
+  props: { disabled: figma.boolean('Disabled') },
+  example: ({ disabled }) => html\`<button [disabled]="\${!disabled}"></button>\`
+});`;
+
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { componentProperties: [{ name: 'Disabled', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Prefix unary operator'))).toBe(true);
+    });
+
     it('catches ternary expressions in JSX props (React)', () => {
       const badCode = `
 import figma from '@figma/code-connect/react';

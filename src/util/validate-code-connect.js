@@ -298,6 +298,13 @@ function checkTemplateInterpolations(code) {
       errors.push(`Line ${lineNum}: Logical operator in template interpolation - Code Connect doesn't allow &&/||. Compute value in props instead.`);
     }
 
+    // Check for prefix unary operators inside ${} (template literals)
+    // Figma Code Connect parsing expects placeholders to be simple mapped values,
+    // not unary expressions like ${!disabled}
+    if (/\$\{\s*(?:!|~|\+|-|typeof\b|void\b|delete\b)/.test(line)) {
+      errors.push(`Line ${lineNum}: Prefix unary operator in template interpolation - Code Connect doesn't allow !/~/+/-/typeof/void/delete in \${} placeholders. Compute the value in props instead.`);
+    }
+
     // Check for logical operators in JSX context (both inside {} and bare)
     // Matches: {x && y}, prop={x || y}, or bare "iconStart && <Icon />"
     const hasLogicalOp = /(?:&&|\|\|)/.test(line);
