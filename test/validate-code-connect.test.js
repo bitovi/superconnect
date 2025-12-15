@@ -338,5 +338,49 @@ figma.connect('url', {
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('Example function has a body'))).toBe(true);
     });
+
+    it('catches bare ternary expressions in JSX (not wrapped in braces)', () => {
+      const badCode = `
+import figma from '@figma/code-connect/react';
+import { Modal } from './Modal';
+figma.connect(Modal, 'https://figma.com/file/abc?node-id=1-2', {
+  props: { footer: figma.children('.footer?') },
+  example: ({ footer }) => (
+    <Modal>
+      <ModalBody>Content</ModalBody>
+      footer ? <ModalFooter>{footer}</ModalFooter> : null
+    </Modal>
+  )
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { variantProperties: {}, componentProperties: [], textLayers: [], slotLayers: [{ name: '.footer?' }] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Ternary expression in JSX'))).toBe(true);
+    });
+
+    it('catches bare logical operators in JSX (not wrapped in braces)', () => {
+      const badCode = `
+import figma from '@figma/code-connect/react';
+import { EmptyState } from './EmptyState';
+figma.connect(EmptyState, 'https://figma.com/file/abc?node-id=1-2', {
+  props: { iconStart: figma.instance('.iconStart?') },
+  example: ({ iconStart }) => (
+    <EmptyState>
+      iconStart && <Icon>{iconStart}</Icon>
+      <EmptyStateTitle>Empty</EmptyStateTitle>
+    </EmptyState>
+  )
+});`;
+      
+      const result = validateCodeConnect({
+        generatedCode: badCode,
+        figmaEvidence: { variantProperties: {}, componentProperties: [{ name: '.iconStart?', type: 'INSTANCE_SWAP' }], textLayers: [], slotLayers: [] }
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Logical operator in JSX'))).toBe(true);
+    });
   });
 });

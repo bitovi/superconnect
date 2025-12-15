@@ -20,18 +20,29 @@ If a boolean like `Has Icon` controls visibility of an instance slot `Icon`, use
 **Map to code conventions, not Figma conventions.**
 Figma variant values are Title Case for designers. Infer the correct code values from the component's prop types or API hints provided.
 
-**NO JavaScript expressions in JSX prop values.**
-Code Connect does NOT allow ternaries, conditionals, or complex expressions inside JSX `{}` placeholders.
+**NO JavaScript expressions in JSX - CRITICAL RULE.**
+Code Connect DOES NOT allow ternaries, logical operators, or comparison operators in JSX - neither in prop values NOR in JSX children (whether wrapped in `{}` or not).
 
-❌ WRONG:
+❌ WRONG - Ternaries, logical operators, comparisons:
 ```tsx
+// In prop values
 <Button icon={hasIcon ? 'star' : undefined} />
 <Input label={label ? label : ''} />
-<Checkbox disabled={state === 'disabled'} />  // comparison operator
+<Checkbox disabled={state === 'disabled'} />
+
+// In JSX children (in braces)
+{showIcon && <Icon />}
+{footer ? <DialogFooter>{footer}</DialogFooter> : null}
+
+// BARE expressions in JSX (NOT in braces) - FAILS PARSER
+iconStart && <Icon>{iconStart}</Icon>
+label !== undefined ? <PinInputLabel>{label}</PinInputLabel> : null
+footer ? <DialogFooter>{footer}</DialogFooter> : null
 ```
 
-✅ CORRECT - Compute values in props, not JSX:
+✅ CORRECT - Compute values in props using figma helpers:
 ```tsx
+// Use figma.enum() for conditional values
 props: {
   icon: figma.enum('Has Icon', { 
     'Yes': 'star',
@@ -43,18 +54,40 @@ props: {
   }),
 }
 example: ({ icon, disabled }) => <Button icon={icon} disabled={disabled} />
-```
 
-For optional props, pass `undefined` and Code Connect will omit the prop from output:
-```tsx
+// Use figma.boolean() for optional children (element or undefined)
+props: {
+  icon: figma.boolean('.showIcon?', {
+    true: <Icon />,
+    false: undefined
+  })
+}
+example: ({ icon }) => (
+  <Container>
+    {icon}
+    <Text>Label</Text>
+  </Container>
+)
+
+// Use figma.children() for optional content slots
+props: {
+  footer: figma.children('.footer?')
+}
+example: ({ footer }) => (
+  <Dialog>
+    <DialogBody>Content</DialogBody>
+    {footer}
+  </Dialog>
+)
+
+// For optional props, pass undefined and Code Connect omits the prop
 props: {
   label: figma.enum('Label', {
     'Yes': figma.textContent('Label text'),
     'No': undefined,
   }),
 }
-// When label is undefined, <Input label={label} /> renders as <Input />
-example: ({ label }) => <Input label={label} />
+example: ({ label }) => <Input label={label} />  // renders as <Input /> when undefined
 ```
 
 **Example function MUST directly return JSX.**

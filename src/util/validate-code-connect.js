@@ -266,26 +266,50 @@ function checkTemplateInterpolations(code) {
   lines.forEach((line, index) => {
     const lineNum = index + 1;
 
-    // Check for ternary expressions inside ${} (template literals) or {} (JSX)
-    // Pattern: ${ ... ? ... : ... } or {value ? x : y}
+    // Skip import lines and comments
+    if (line.trim().startsWith('import ') || line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')) {
+      return;
+    }
+
+    // Check for ternary expressions inside ${} (template literals)
+    // Pattern: ${ ... ? ... : ... }
     if (/\$\{[^}]*\?[^}]*:[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Ternary expression in template interpolation - Code Connect doesn't allow conditionals. Compute value in props instead.`);
     }
-    // JSX with ternary: {condition ? value : other}, prop={condition ? x : y}
-    // Matches any {...} that contains ternary (including prop values and JSX children)
-    if (/\{[^}]*\?[^}]*:[^}]*\}/.test(line)) {
-      errors.push(`Line ${lineNum}: Ternary expression in JSX - Code Connect doesn't allow conditionals. Compute value in props instead.`);
+
+    // Check for ternary expressions in JSX context (both inside {} and bare)
+    // Matches: {x ? y : z}, prop={x ? y : z}, or bare "x ? <Component /> : null"
+    // Look for ternary pattern with ? and : that appears in JSX context
+    const hasTernary = line.includes('?') && line.includes(':');
+    if (hasTernary) {
+      // Check if it's in JSX context (has < or > nearby, or inside {})
+      const inJsxContext = /</.test(line) || /\{[^}]*\?/.test(line);
+      // Exclude URL query params (http:// or https://)
+      const isUrl = /https?:\/\//.test(line);
+      
+      if (inJsxContext && !isUrl) {
+        errors.push(`Line ${lineNum}: Ternary expression in JSX - Code Connect doesn't allow conditionals. Use figma.boolean() to map the condition instead.`);
+      }
     }
 
-    // Check for logical AND/OR inside ${} (template literals) or {} (JSX)
+    // Check for logical AND/OR inside ${} (template literals)
     // Pattern: ${ ... && ... } or ${ ... || ... }
     if (/\$\{[^}]*(?:&&|\|\|)[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Logical operator in template interpolation - Code Connect doesn't allow &&/||. Compute value in props instead.`);
     }
-    // JSX with logical operator: {value && 'text'}, {value || 'default'}, {condition && <Element />}
-    // Matches any {...} that contains && or || (including prop values and JSX children)
-    if (/\{[^}]*(?:&&|\|\|)[^}]*\}/.test(line)) {
-      errors.push(`Line ${lineNum}: Logical operator in JSX - Code Connect doesn't allow &&/||. Compute value in props instead.`);
+
+    // Check for logical operators in JSX context (both inside {} and bare)
+    // Matches: {x && y}, prop={x || y}, or bare "iconStart && <Icon />"
+    const hasLogicalOp = /(?:&&|\|\|)/.test(line);
+    if (hasLogicalOp) {
+      // Check if it's in JSX context (has < or > nearby, or inside {})
+      const inJsxContext = /</.test(line) || /\{[^}]*(?:&&|\|\|)/.test(line);
+      // Exclude logical operators in regular JS (like if statements, function declarations)
+      const isRegularJs = /^\s*(?:if|while|for|function|const|let|var|return)\s/.test(line);
+      
+      if (inJsxContext && !isRegularJs) {
+        errors.push(`Line ${lineNum}: Logical operator in JSX - Code Connect doesn't allow &&/||. Use figma.boolean() to map the condition instead.`);
+      }
     }
 
     // Check for backtick nesting inside ${} (common error pattern)
@@ -296,11 +320,24 @@ function checkTemplateInterpolations(code) {
 
     // Check for comparison operators inside ${} or {} (e.g., === !== < > <= >=)
     // Pattern: ${ ... === ... } or [prop]="${value === 'something'}"
-    if (/\$\{[^}]*(?:===|!==|==|!=|<=|>=|<|>)[^}]*\}/.test(line)) {
+    if (/\$\{[^}]*(?:===|!==|==|!=|<=|>=)[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Comparison operator in template interpolation - Code Connect doesn't allow binary expressions. Compute value in props instead.`);
     }
-    if (/=["']\$\{[^}]*(?:===|!==|==|!=|<=|>=|<|>)[^}]*\}["']/.test(line)) {
+    if (/=["']\$\{[^}]*(?:===|!==|==|!=|<=|>=)[^}]*\}["']/.test(line)) {
       errors.push(`Line ${lineNum}: Comparison operator in attribute - Code Connect doesn't allow binary expressions. Compute boolean value in props instead.`);
+    }
+
+    // Check for comparison operators in JSX context (both inside {} and bare)
+    const hasComparison = /(?:===|!==|==|!=|<=|>=)/.test(line);
+    if (hasComparison) {
+      // Check if it's in JSX context (not in figma.connect URL or node-id)
+      const inJsxContext = (/</.test(line) || /\{[^}]*(?:===|!==)/.test(line)) && 
+                           !line.includes('node-id=') && 
+                           !line.includes('figma.connect');
+      
+      if (inJsxContext) {
+        errors.push(`Line ${lineNum}: Comparison operator in JSX - Code Connect doesn't allow binary expressions. Compute boolean value in props instead.`);
+      }
     }
   });
 
