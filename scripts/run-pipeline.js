@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Load environment variables from .env file early
+require('dotenv').config();
+
 /**
  * Superconnect pipeline v4 (5 stages):
  * 1) Figma scan
@@ -265,31 +268,13 @@ function parseArgv(argv) {
   };
 }
 
-function loadEnvToken(baseDir = process.cwd()) {
-  if (process.env.FIGMA_ACCESS_TOKEN) return process.env.FIGMA_ACCESS_TOKEN;
-  const envPath = path.resolve(baseDir, '.env');
-  if (!fs.existsSync(envPath)) return null;
-  const line = fs
-    .readFileSync(envPath, 'utf8')
-    .split(/\r?\n/)
-    .find((l) => l.trim().startsWith('FIGMA_ACCESS_TOKEN='));
-  if (!line) return null;
-  const [, value] = line.split('=');
-  return (value || '').trim() || null;
+function loadEnvToken() {
+  return process.env.FIGMA_ACCESS_TOKEN || null;
 }
 
-function loadAgentToken(backend, baseDir = process.cwd()) {
+function loadAgentToken(backend) {
   const envVar = backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  if (process.env[envVar]) return process.env[envVar];
-  const envPath = path.resolve(baseDir, '.env');
-  if (!fs.existsSync(envPath)) return null;
-  const line = fs
-    .readFileSync(envPath, 'utf8')
-    .split(/\r?\n/)
-    .find((l) => l.trim().startsWith(`${envVar}=`));
-  if (!line) return null;
-  const [, value] = line.split('=');
-  return (value || '').trim() || null;
+  return process.env[envVar] || null;
 }
 
 function resolvePaths(config) {
@@ -333,7 +318,7 @@ async function main() {
   const prospectiveFigmaIndex = path.join(prospectiveTarget, 'superconnect', 'figma-components-index.json');
   const figmaIndexMissing = !fs.existsSync(prospectiveFigmaIndex);
 
-  if (figmaIndexMissing && !args.figmaToken && !loadEnvToken(prospectiveTarget)) {
+  if (figmaIndexMissing && !args.figmaToken && !loadEnvToken()) {
     console.error('❌ FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
     console.error('   Set FIGMA_ACCESS_TOKEN in your environment or .env, or pass --figma-token.');
     process.exit(1);
@@ -353,12 +338,12 @@ async function main() {
   const target =
     args.target ||
     (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));
-  const figmaToken = args.figmaToken || loadEnvToken(target);
+  const figmaToken = args.figmaToken || loadEnvToken();
   const agentConfig = normalizeAgentConfig(cfg.agent || {});
   const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
   const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
   const agentEnvVar = agentConfig.backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  const agentToken = loadAgentToken(agentConfig.backend, target);
+  const agentToken = loadAgentToken(agentConfig.backend);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);

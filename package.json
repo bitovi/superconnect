@@ -48,6 +48,7 @@
     "@typescript-eslint/typescript-estree": "^8.50.0",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
+    "dotenv": "^17.2.3",
     "fast-glob": "^3.3.2",
     "fs-extra": "^11.3.2",
     "json-stringify-pretty-compact": "^4.0.0",
