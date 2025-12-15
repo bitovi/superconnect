@@ -99,9 +99,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - `figmaComponentId` / `figma_component_id`
   - `figmaComponentName` / `figma_component_name`
   - `status`: `"mapped" | "missing" | "ambiguous"`
-  - `confidence`: `0.0–1.0`
   - `files`: array of repo‑relative file paths
-  - `notes`: brief explanation
 
 ### 4. Codegen (`scripts/run-codegen.js`)
 ### 4. Codegen (`scripts/run-codegen.js`)
