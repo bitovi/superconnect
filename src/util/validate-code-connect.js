@@ -1,17 +1,33 @@
 /**
  * Code Connect Validation Layer
  *
- * Validates generated .figma.tsx/.figma.ts files against Figma evidence
- * to catch common errors before accepting agent output.
+ * Two-tier validation approach:
  *
- * Validates:
+ * 1. FAST PRE-CHECK (validateCodeConnect):
+ *    - Quick regex-based checks for basic structure
+ *    - Validates figma.*() calls against Figma evidence
+ *    - Catches obvious errors before spawning CLI
+ *
+ * 2. CLI VALIDATION (validateCodeConnectWithCLI):
+ *    - Uses the official Figma CLI as authoritative validator
+ *    - Catches all errors that Figma will reject
+ *    - Runs fast pre-check first, then CLI if pre-check passes
+ *
+ * Pre-check validates:
  * - figma.string('KEY') - KEY must exist in componentProperties (TEXT) or variantProperties
  * - figma.boolean('KEY') - KEY must exist in componentProperties (BOOLEAN) or variantProperties
  * - figma.enum('KEY', {...}) - KEY must exist in variantProperties
  * - figma.instance('KEY') - KEY must exist in componentProperties (INSTANCE_SWAP)
  * - figma.textContent('LayerName') - LayerName must exist in textLayers
  * - figma.children('LayerName') - LayerName must exist in slotLayers
+ *
+ * CLI validation catches:
+ * - Props used in example() but not defined in props object
+ * - Invalid TypeScript/JSX syntax
+ * - All Code Connect API errors
  */
+
+const { validateWithFigmaCLI } = require('./validate-with-figma-cli');
 
 /**
  * Extract all figma.*() calls from generated code using regex.
@@ -359,8 +375,51 @@ function checkTemplateInterpolations(code) {
   return errors;
 }
 
+/**
+ * Full validation using Figma CLI as the authoritative source.
+ *
+ * This is the recommended validation approach:
+ * 1. Run fast pre-checks (structure, figma.*() calls) to catch obvious errors
+ * 2. Run Figma CLI parse to catch all remaining errors
+ *
+ * @param {object} options
+ * @param {string} options.generatedCode - The .figma.tsx/.figma.ts content
+ * @param {object} options.figmaEvidence - Per-component JSON from figma-scan.js
+ * @param {'react'|'angular'} [options.framework='react'] - Target framework
+ * @param {boolean} [options.skipCLI=false] - Skip CLI validation (for testing)
+ * @returns {{ valid: boolean, errors: string[] }}
+ */
+function validateCodeConnectWithCLI({ 
+  generatedCode, 
+  figmaEvidence, 
+  framework = 'react',
+  skipCLI = false 
+}) {
+  // Step 1: Run fast pre-checks
+  const preCheckResult = validateCodeConnect({ generatedCode, figmaEvidence });
+  if (!preCheckResult.valid) {
+    return preCheckResult;
+  }
+
+  // Step 2: Skip CLI if requested (for testing)
+  if (skipCLI) {
+    return preCheckResult;
+  }
+
+  // Step 3: Run CLI validation
+  const parser = framework === 'angular' ? 'html' : 'react';
+
+  const cliResult = validateWithFigmaCLI({
+    code: generatedCode,
+    parser
+  });
+
+  return cliResult;
+}
+
 module.exports = {
   validateCodeConnect,
+  validateCodeConnectWithCLI,
   extractFigmaCalls,
   buildValidKeySets,
   normalizeKey,

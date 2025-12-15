@@ -163,6 +163,22 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(`\n❌ Orienter failed: ${err.message}`);
+  
+  if (err.code === 'ENOENT') {
+    console.error('\n💡 File not found - check that these files exist:');
+    console.error('   - superconnect/figma-components-index.json (from Figma scan)');
+    console.error('   - superconnect/repo-summary.json (from repo analysis)');
+    console.error('   Run the full pipeline: npx superconnect');
+  } else if (err.message.includes('API') || err.message.includes('authentication')) {
+    console.error('\n💡 API error - verify your ANTHROPIC_API_KEY or OPENAI_API_KEY');
+  } else if (err.message.includes('JSON')) {
+    console.error('\n💡 JSON parse error - check input files contain valid JSON');
+  }
+  
+  if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
+    console.error(`\nStack trace:\n${err.stack}`);
+  }
+  
   process.exit(1);
 });

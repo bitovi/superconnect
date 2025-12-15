@@ -461,7 +461,12 @@ const readRequestedFiles = async (repoRoot, requested) => {
         const content = await fs.readFile(absolute, 'utf8');
         return { path: relPath, content };
       } catch (err) {
-        return { path: relPath, error: err.message };
+        const errorMsg = err.code === 'ENOENT' 
+          ? `File not found: ${relPath}` 
+          : err.code === 'EACCES'
+          ? `Permission denied reading: ${relPath}`
+          : err.message;
+        return { path: relPath, error: errorMsg };
       }
     })
   );
@@ -1079,6 +1084,11 @@ async function main() {
 
   if (!figmaIndex?.components) {
     console.error(`❌ Could not read figma index: ${config.figmaIndex}`);
+    console.error('\n💡 Troubleshooting:');
+    console.error('  - Ensure you have run the Figma scan step first');
+    console.error('  - Check that the file exists and contains valid JSON');
+    console.error('  - Verify the file has a "components" array');
+    console.error('  - Try running: npx superconnect (to run full pipeline)');
     process.exit(1);
   }
 
@@ -1250,11 +1260,22 @@ async function main() {
       }
     } catch (err) {
       console.error(`Error processing ${logBaseName}: ${err.message}`);
+      
+      // Provide context for common issues
+      if (err.message.includes('ENOENT')) {
+        console.error('💡 File not found - check that all required files exist');
+      } else if (err.message.includes('JSON')) {
+        console.error('💡 Invalid JSON - check that component data files are valid JSON');
+      } else if (err.message.includes('timeout')) {
+        console.error('💡 Request timed out - try again or increase timeout settings');
+      }
+      
       const logEntry = {
         figmaName: componentMeta.name,
         figmaId: componentMeta.id,
         status: 'error',
-        reason: `Exception: ${err.message}`
+        reason: `Exception: ${err.message}`,
+        stack: err.stack
       };
       await writeLog(ctx.logDir, logBaseName, logEntry);
       return { logEntry, written: false };
@@ -1308,6 +1329,23 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(`\n❌ Code generation failed: ${err.message}`);
+  
+  if (err.code === 'ENOENT') {
+    console.error('\n💡 File not found - ensure orienter step completed successfully');
+    console.error('   Check that these files exist:');
+    console.error('   - superconnect/figma-components-index.json');
+    console.error('   - superconnect/repo-summary.json');
+    console.error('   - superconnect/orientation.jsonl');
+  } else if (err.message.includes('API') || err.message.includes('authentication')) {
+    console.error('\n💡 API error - verify your ANTHROPIC_API_KEY or OPENAI_API_KEY');
+  } else if (err.message.includes('JSON')) {
+    console.error('\n💡 JSON parse error - check that input files contain valid JSON');
+  }
+  
+  if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
+    console.error(`\nStack trace:\n${err.stack}`);
+  }
+  
   process.exit(1);
 });

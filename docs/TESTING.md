@@ -132,11 +132,14 @@ npm run test:e2e:chakra:small
 # Full suite (all components, ~2.5 min)
 npm run test:e2e:chakra
 
-# Keep artifacts for inspection
-npm run test:e2e:chakra:small:keep
+# Keep artifacts for inspection (prints temp dir path)
+CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra:small
 
 # Verbose output (shows all child commands)
-npm run test:e2e:chakra:small:verbose
+SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra:small
+
+# Combine flags as needed
+CHAKRA_E2E_KEEP=1 SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra
 ```
 
 **Subset control:**
@@ -160,11 +163,14 @@ npm run test:e2e:zapui:small
 # Full suite (all components, ~45 sec)
 npm run test:e2e:zapui
 
-# Keep artifacts for inspection
-npm run test:e2e:zapui:small:keep
+# Keep artifacts for inspection (prints temp dir path)
+ZAPUI_E2E_KEEP=1 npm run test:e2e:zapui:small
 
-# Verbose output
-npm run test:e2e:zapui:small:verbose
+# Verbose output (shows all child commands)
+SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui:small
+
+# Combine flags as needed
+ZAPUI_E2E_KEEP=1 SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui
 ```
 
 **Subset control:**
@@ -326,13 +332,13 @@ fixtures/{name}/
 
 1. **Keep artifacts for inspection:**
    ```bash
-   npm run test:e2e:chakra:small:keep
+   CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra:small
    ```
    Temp directory path printed in test output.
 
 2. **Enable verbose output:**
    ```bash
-   npm run test:e2e:chakra:small:verbose
+   SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra:small
    ```
    Shows all child commands and stdout/stderr.
 
@@ -429,8 +435,8 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 The ZapUI E2E test can print each child command and its combined stdout/stderr
 
 - Verbose small run
-  - `npm run test:e2e:zapui:small:verbose`
-- Verbose full run (advanced)
+  - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui:small`
+- Verbose full run
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui`
 
 ### Inspecting artifacts
@@ -438,8 +444,8 @@ The ZapUI E2E test can print each child command and its combined stdout/stderr
 By default the E2E test deletes its temp directory in a `finally` block
 
 - To inspect outputs (generated `codeConnect/*.figma.ts`, `superconnect/*`, logs)
-  - Full run: `npm run test:e2e:zapui:keep`
-  - Small run: `npm run test:e2e:zapui:small:keep`
+  - Full run: `ZAPUI_E2E_KEEP=1 npm run test:e2e:zapui`
+  - Small run: `ZAPUI_E2E_KEEP=1 npm run test:e2e:zapui:small`
   - The test prints the temp directory path when keep is enabled
 
 ## Chakra UI React E2E validation
@@ -496,8 +502,8 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 The Chakra E2E test can print each child command and its combined stdout/stderr
 
 - Verbose small run
-  - `npm run test:e2e:chakra:small:verbose`
-- Verbose full run (advanced)
+  - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra:small`
+- Verbose full run
   - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra`
 
 ### Inspecting artifacts
@@ -505,6 +511,6 @@ The Chakra E2E test can print each child command and its combined stdout/stderr
 By default the E2E test deletes its temp directory in a `finally` block
 
 - To inspect outputs (generated `codeConnect/*.figma.tsx`, `superconnect/*`, logs)
-  - Full run: `npm run test:e2e:chakra:keep`
-  - Small run: `npm run test:e2e:chakra:small:keep`
+  - Full run: `CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra`
+  - Small run: `CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra:small`
   - The test prints the temp directory path when keep is enabled

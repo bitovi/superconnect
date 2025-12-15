@@ -382,7 +382,19 @@ const main = async () => {
 
 if (require.main === module) {
   main().catch((err) => {
-    process.stderr.write(`${err.stack || err.message}\n`);
+    process.stderr.write(`❌ Repository summarization failed: ${err.message}\n`);
+    
+    // Provide helpful context
+    if (err.code === 'EACCES') {
+      process.stderr.write('\n💡 Permission denied - check file/directory permissions\n');
+    } else if (err.message.includes('glob') || err.message.includes('pattern')) {
+      process.stderr.write('\n💡 File pattern error - check your file paths and patterns\n');
+    } else if (err.message.includes('parse') || err.message.includes('JSON')) {
+      process.stderr.write('\n💡 Parse error - check that your config files contain valid JSON/TOML\n');
+    } else {
+      process.stderr.write(`\nStack trace:\n${err.stack}\n`);
+    }
+    
     process.exitCode = 1;
   });
 }

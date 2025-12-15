@@ -289,6 +289,16 @@ async function main() {
 
   const builtDetails = componentLogs.filter((log) => Boolean(log.codeConnectFile));
   const skippedDetails = componentLogs.filter((log) => !log.codeConnectFile);
+  
+  // Warn if no components were built
+  if (builtDetails.length === 0 && componentLogs.length > 0) {
+    console.warn('\n⚠️  No Code Connect files were generated');
+    console.warn('💡 Common reasons:');
+    console.warn('   - All components failed code generation (check codegen-logs/)');
+    console.warn('   - Components were skipped due to errors in orienter stage');
+    console.warn('   - API rate limits or authentication issues');
+    console.warn('   Run with SUPERCONNECT_E2E_VERBOSE=1 for detailed logs\n');
+  }
 
   const context = {
     figmaIndexRel: path.relative(config.baseCwd, config.figmaIndex) || config.figmaIndex,
@@ -452,6 +462,19 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(`\n❌ Finalization failed: ${err.message}`);
+  
+  if (err.code === 'ENOENT') {
+    console.error('\n💡 File not found - ensure all previous pipeline steps completed successfully');
+  } else if (err.message.includes('JSON')) {
+    console.error('\n💡 JSON parse error - check that generated files contain valid JSON');
+  } else if (err.message.includes('write') || err.code === 'EACCES') {
+    console.error('\n💡 File write error - check permissions in output directories');
+  }
+  
+  if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
+    console.error(`\nStack trace:\n${err.stack}`);
+  }
+  
   process.exit(1);
 });

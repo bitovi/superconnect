@@ -1,5 +1,6 @@
 const {
   validateCodeConnect,
+  validateCodeConnectWithCLI,
   extractFigmaCalls,
   buildValidKeySets,
   normalizeKey
@@ -397,6 +398,58 @@ figma.connect(EmptyState, 'https://figma.com/file/abc?node-id=1-2', {
       });
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('Logical operator in JSX'))).toBe(true);
+    });
+  });
+
+  describe('validateCodeConnectWithCLI', () => {
+    it('falls back to pre-check when skipCLI is true', () => {
+      const goodCode = `
+import figma from '@figma/code-connect/react';
+import { Button } from './Button';
+
+figma.connect(Button, 'https://figma.com/file/abc?node-id=1-2', {
+  props: {
+    label: figma.string('Label'),
+  },
+  example: ({ label }) => <Button>{label}</Button>
+});`;
+
+      const result = validateCodeConnectWithCLI({
+        generatedCode: goodCode,
+        figmaEvidence: { 
+          variantProperties: {}, 
+          componentProperties: [{ name: 'Label', type: 'TEXT' }], 
+          textLayers: [], 
+          slotLayers: [] 
+        },
+        skipCLI: true
+      });
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('catches pre-check errors before CLI validation', () => {
+      // Missing figma.connect call - just imports but no connection
+      const badCode = `
+import figma from '@figma/code-connect/react';
+import { Button } from './Button';
+
+export const Button = () => <button>Click</button>;`;
+
+      const result = validateCodeConnectWithCLI({
+        generatedCode: badCode,
+        figmaEvidence: { 
+          variantProperties: {}, 
+          componentProperties: [], 
+          textLayers: [], 
+          slotLayers: [] 
+        },
+        skipCLI: true
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Missing figma.connect'))).toBe(true);
     });
   });
 });

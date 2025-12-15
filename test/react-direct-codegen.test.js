@@ -115,6 +115,7 @@ figma.connect(Button, 'https://figma.com/test', {
         chatStateless: jest.fn()
           .mockResolvedValueOnce(`
 import figma from '@figma/code-connect/react'
+import { Button } from './Button'
 figma.connect(Button, 'url', {
   props: {
     invalid: figma.boolean('NonExistent'),
@@ -124,6 +125,7 @@ figma.connect(Button, 'url', {
           `)
           .mockResolvedValueOnce(`
 import figma from '@figma/code-connect/react'
+import { Button } from './Button'
 figma.connect(Button, 'url', {
   props: {
     disabled: figma.boolean('Disabled'),
@@ -158,6 +160,7 @@ figma.connect(Button, 'url', {
       const mockAgent = {
         chatStateless: jest.fn().mockResolvedValue(`
 import figma from '@figma/code-connect/react'
+import { Button } from './Button'
 figma.connect(Button, 'url', {
   props: {
     bad: figma.boolean('NonExistent'),
@@ -176,7 +179,7 @@ figma.connect(Button, 'url', {
           textLayers: [],
           slotLayers: []
         },
-        orientation: {},
+        orientation: { importPath: './Button' },
         figmaUrl: 'url',
         sourceContext: {},
         maxRetries: 1,

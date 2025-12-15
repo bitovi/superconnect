@@ -10,7 +10,7 @@
 
 const fs = require('fs-extra');
 const path = require('path');
-const { validateCodeConnect } = require('../util/validate-code-connect');
+const { validateCodeConnectWithCLI } = require('../util/validate-code-connect');
 
 const DEFAULT_MAX_RETRIES = 2;
 
@@ -29,6 +29,9 @@ function buildSystemPrompt() {
     
     return `${guidance}\n\n---\n\n${apiDocs}`;
   } catch (err) {
+    if (err.code === 'ENOENT') {
+      throw new Error(`Prompt file not found: ${err.path}\n  This is likely a package installation issue. Try reinstalling: npm install`);
+    }
     throw new Error(`Failed to read prompt files: ${err.message}`);
   }
 }
@@ -211,8 +214,8 @@ async function processComponent({
 
       lastCode = code;
 
-      // Validate the generated code
-      const validationResult = validateCodeConnect({
+      // Validate the generated code using Figma CLI as authoritative source
+      const validationResult = validateCodeConnectWithCLI({
         generatedCode: code,
         figmaEvidence,
         framework: 'angular'

@@ -54,7 +54,19 @@ class OpenAIAgentAdapter {
     this.defaultLogDir = options.logDir || null;
     this.defaultCwd = options.cwd;
     const apiKey = process.env.OPENAI_API_KEY;
-    this.client = apiKey ? new OpenAI({ apiKey }) : null;
+    
+    if (!apiKey) {
+      throw new Error(
+        'OPENAI_API_KEY environment variable is required\n\n' +
+        '💡 How to fix:\n' +
+        '  1. Get an API key from https://platform.openai.com/api-keys\n' +
+        '  2. Add to your .env file: OPENAI_API_KEY=sk-...\n' +
+        '  3. Or export in your shell: export OPENAI_API_KEY=sk-...\n' +
+        '  4. Ensure .env file is in your project root directory'
+      );
+    }
+    
+    this.client = new OpenAI({ apiKey });
   }
 
   orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
@@ -103,7 +115,19 @@ class OpenAIAgentAdapter {
       if (outputStream) outputStream.end();
       return { code: 0, stdout, stderr: '', logFile: logStream?.file || null };
     } catch (err) {
-      const message = err?.message || 'Unknown OpenAI error';
+      let message = err?.message || 'Unknown OpenAI error';
+      
+      // Provide helpful context for common errors
+      if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
+        message = `OpenAI API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify OPENAI_API_KEY is set correctly in your environment or .env file\n  - Check that your API key is valid at https://platform.openai.com/api-keys\n  - Ensure your .env file is in the project root directory`;
+      } else if (err?.status === 429 || message.includes('rate limit')) {
+        message = `OpenAI API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://platform.openai.com/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes`;
+      } else if (err?.status === 403) {
+        message = `OpenAI API access denied: ${message}\n\n💡 Troubleshooting:\n  - Your API key may not have access to the requested model\n  - Check your organization settings at https://platform.openai.com/account/organization`;
+      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || message.includes('fetch failed')) {
+        message = `Network error connecting to OpenAI API: ${message}\n\n💡 Troubleshooting:\n  - Check your internet connection\n  - Verify firewall/proxy settings allow access to api.openai.com\n  - If behind a corporate proxy, you may need to configure proxy settings`;
+      }
+      
       writeLog(`${message}\n`);
       if (logStream?.stream) logStream.stream.end();
       if (outputStream) outputStream.end();
@@ -191,7 +215,19 @@ class ClaudeAgentAdapter {
     this.defaultLogDir = options.logDir || null;
     this.defaultCwd = options.cwd;
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    this.client = apiKey ? new Anthropic({ apiKey }) : null;
+    
+    if (!apiKey) {
+      throw new Error(
+        'ANTHROPIC_API_KEY environment variable is required\n\n' +
+        '💡 How to fix:\n' +
+        '  1. Get an API key from https://console.anthropic.com/settings/keys\n' +
+        '  2. Add to your .env file: ANTHROPIC_API_KEY=sk-ant-...\n' +
+        '  3. Or export in your shell: export ANTHROPIC_API_KEY=sk-ant-...\n' +
+        '  4. Ensure .env file is in your project root directory'
+      );
+    }
+    
+    this.client = new Anthropic({ apiKey });
   }
 
   orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
@@ -257,6 +293,17 @@ class ClaudeAgentAdapter {
         if (errorBody.type === 'invalid_request_error' && errorBody.message) {
           message = errorBody.message;
         }
+      }
+      
+      // Provide helpful context for common errors
+      if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
+        message = `Claude API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify ANTHROPIC_API_KEY is set correctly in your environment or .env file\n  - Get your API key from https://console.anthropic.com/settings/keys\n  - Ensure your .env file is in the project root directory`;
+      } else if (err?.status === 429 || message.includes('rate limit')) {
+        message = `Claude API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://console.anthropic.com/settings/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes or reduce concurrency`;
+      } else if (err?.status === 403) {
+        message = `Claude API access denied: ${message}\n\n💡 Troubleshooting:\n  - Your API key may not have access to the requested model\n  - Verify your account status at https://console.anthropic.com`;
+      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || message.includes('fetch failed')) {
+        message = `Network error connecting to Claude API: ${message}\n\n💡 Troubleshooting:\n  - Check your internet connection\n  - Verify firewall/proxy settings allow access to api.anthropic.com\n  - If behind a corporate proxy, you may need to configure proxy settings`;
       }
       
       writeLog(`${message}\n`);

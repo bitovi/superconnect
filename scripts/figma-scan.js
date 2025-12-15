@@ -61,10 +61,15 @@ function parseArgs() {
 }
 
 async function figmaRequest(pathname, token) {
-  const res = await fetch(`https://api.figma.com${pathname}`, {
-    method: 'GET',
-    headers: { 'X-Figma-Token': token }
-  });
+  let res;
+  try {
+    res = await fetch(`https://api.figma.com${pathname}`, {
+      method: 'GET',
+      headers: { 'X-Figma-Token': token }
+    });
+  } catch (err) {
+    throw new Error(`Network request failed: ${err.message}. Check your internet connection and firewall/proxy settings.`);
+  }
   const text = await res.text();
   if (!res.ok) {
     throw new Error(`Figma API error: ${res.status} - ${text}`);

@@ -44,6 +44,10 @@ function loadSuperconnectConfig(filePath = 'superconnect.toml') {
     return toml.parse(raw);
   } catch (err) {
     console.warn(`⚠️  Failed to load ${direct}: ${err.message}`);
+    if (err.message.includes('parse') || err.message.includes('Expected')) {
+      console.warn('💡 TOML syntax error - check your configuration file syntax');
+      console.warn('   Valid TOML guide: https://toml.io/en/v1.0.0');
+    }
     return null;
   }
 }
@@ -505,6 +509,28 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(`\n❌ Pipeline failed: ${err.message}`);
+  
+  // Provide helpful context based on error type
+  if (err.code === 'ENOENT') {
+    console.error('\n💡 File not found - check that all required files exist');
+    console.error('   Common causes:');
+    console.error('   - Missing superconnect.toml configuration file');
+    console.error('   - Missing Figma scan output files');
+    console.error('   - Incorrect file paths in configuration');
+  } else if (err.code === 'EACCES') {
+    console.error('\n💡 Permission denied - check file/directory permissions');
+  } else if (err.message.includes('FIGMA') || err.message.includes('Figma')) {
+    console.error('\n💡 Figma-related error - check your FIGMA_ACCESS_TOKEN and network connection');
+  } else if (err.message.includes('API') || err.message.includes('fetch')) {
+    console.error('\n💡 API error - check your API keys and network connection');
+  }
+  
+  if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
+    console.error(`\nStack trace:\n${err.stack}`);
+  } else {
+    console.error('\nRun with SUPERCONNECT_E2E_VERBOSE=1 for full stack trace');
+  }
+  
   process.exit(1);
 });
