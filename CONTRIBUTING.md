@@ -69,7 +69,7 @@ Most reusable logic lives under `src/`:
   - Templates (`*.html`)
   This data is written into `repo-summary.json` as `angular_components` and reused by Angular codegen
 
-- `src/colors.js`  
+- `scripts/colors.js`  
   Shared color utilities for CLI output (used by pipeline scripts for consistent formatting)
 
 ## Prompts and agent contracts
@@ -91,7 +91,7 @@ Prompts live in `prompts/` and define how the agents should behave:
 To understand why the agent produced a particular mapping, look at:
 
 - The relevant prompt in `prompts/`
-- The agent logs in `superconnect/orienter-agent.log` and `superconnect/mapping-agent-logs/`
+- The agent logs in `superconnect/orienter-agent.log/` and `superconnect/mapping-agent-logs/`
 
 ## Tests and fixtures
 
