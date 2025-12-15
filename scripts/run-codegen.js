@@ -29,6 +29,7 @@ const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-a
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 const { processComponent: processReactComponent } = require('../src/react/direct-codegen');
 const { processComponent: processAngularComponent } = require('../src/angular/direct-codegen');
+const pLimit = require('p-limit');
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
 
@@ -923,6 +924,7 @@ const parseArgs = (argv) => {
     .option('--agent-backend <value>', 'Agent backend (openai|claude)', 'claude')
     .option('--agent-model <value>', 'Agent model for SDK backends')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
+    .option('--concurrency <number>', 'Max concurrent LLM requests', parseInt, 5)
     .option('--only <list...>', 'Component names/IDs (globs allowed); accepts comma or space separated values')
     .option('--exclude <list...>', 'Component names/IDs to skip (globs allowed)')
     .option('--target-framework <value>', 'Target framework hint (react|angular)')
@@ -952,6 +954,7 @@ const parseArgs = (argv) => {
     agentBackend: (opts.agentBackend || 'claude').toLowerCase(),
     agentModel: opts.agentModel || undefined,
     agentMaxTokens: parseInt(opts.agentMaxTokens, 10) || undefined,
+    concurrency: opts.concurrency || 5,
     only: parseList(opts.only),
     exclude: parseList(opts.exclude),
     targetFramework: opts.targetFramework || null
@@ -1106,24 +1109,17 @@ async function main() {
     seen: new Set()
   };
 
-  const normalizedOrienter = orienterRecords.map(normalizeOrienterRecord).filter((rec) => rec.status === 'mapped');
-  const filteredOrienter = filterOrienterEntries(normalizedOrienter, figmaIndex, config.only, config.exclude);
-  if (filteredOrienter.length !== normalizedOrienter.length) {
-    const removed = normalizedOrienter.length - filteredOrienter.length;
-    console.log(
-      `Filtering orienter entries: kept ${filteredOrienter.length} of ${normalizedOrienter.length} (${removed} filtered out)`
-    );
-  }
-
-  for (const orienterEntry of filteredOrienter) {
-    if (stopRequested) {
-      console.log('Stopping codegen early due to interrupt request.');
-      break;
-    }
-
+  /**
+   * Process a single orienter entry and return the result.
+   * @param {object} orienterEntry - The orienter record
+   * @param {object} ctx - Shared context (read-only usage)
+   * @returns {Promise<{logEntry: object, written: boolean}>}
+   */
+  async function processOneComponent(orienterEntry, ctx) {
     const normalized = normalizeOrienterRecord(orienterEntry);
-    if (normalized.status !== 'mapped') continue;
-    if (markSeenOrSkip(normalized, ctx.seen)) continue;
+    if (normalized.status !== 'mapped') {
+      return { logEntry: null, written: false };
+    }
 
     const { componentMeta, orienterName, logBaseName, componentKey } = resolveComponentIdentity(
       normalized,
@@ -1148,8 +1144,7 @@ async function main() {
         reason: 'Could not build Figma URL - missing fileKey or component ID'
       };
       await writeLog(ctx.logDir, logBaseName, logEntry);
-      ctx.summaries.push(logEntry);
-      continue;
+      return { logEntry, written: false };
     }
 
     // Build figma evidence for direct codegen
@@ -1221,8 +1216,7 @@ async function main() {
             codeConnectFile: path.relative(ctx.repo, targetPath)
           };
           await writeLog(ctx.logDir, logBaseName, logEntry);
-          ctx.summaries.push(logEntry);
-          continue;
+          return { logEntry, written: false };
         }
 
         // Ensure directory exists and write file
@@ -1239,7 +1233,7 @@ async function main() {
           attempts: result.attempts || []
         };
         await writeLog(ctx.logDir, logBaseName, logEntry);
-        ctx.summaries.push(logEntry);
+        return { logEntry, written: true };
       } else {
         // Generation failed
         const logEntry = {
@@ -1252,7 +1246,7 @@ async function main() {
           attempts: result.attempts || []
         };
         await writeLog(ctx.logDir, logBaseName, logEntry);
-        ctx.summaries.push(logEntry);
+        return { logEntry, written: false };
       }
     } catch (err) {
       console.error(`Error processing ${logBaseName}: ${err.message}`);
@@ -1263,9 +1257,50 @@ async function main() {
         reason: `Exception: ${err.message}`
       };
       await writeLog(ctx.logDir, logBaseName, logEntry);
-      ctx.summaries.push(logEntry);
+      return { logEntry, written: false };
     }
   }
+
+  const normalizedOrienter = orienterRecords.map(normalizeOrienterRecord).filter((rec) => rec.status === 'mapped');
+  const filteredOrienter = filterOrienterEntries(normalizedOrienter, figmaIndex, config.only, config.exclude);
+  if (filteredOrienter.length !== normalizedOrienter.length) {
+    const removed = normalizedOrienter.length - filteredOrienter.length;
+    console.log(
+      `Filtering orienter entries: kept ${filteredOrienter.length} of ${normalizedOrienter.length} (${removed} filtered out)`
+    );
+  }
+
+  // Deduplicate before parallel processing to avoid race conditions
+  const seen = new Set();
+  const uniqueEntries = filteredOrienter.filter(entry => {
+    const normalized = normalizeOrienterRecord(entry);
+    const key = normalized.figmaComponentId || (normalized.figmaComponentName || '').toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  if (uniqueEntries.length !== filteredOrienter.length) {
+    const duplicates = filteredOrienter.length - uniqueEntries.length;
+    console.log(`Removed ${duplicates} duplicate component(s), processing ${uniqueEntries.length} unique component(s)`);
+  }
+
+  // Process components in parallel using p-limit
+  const limit = pLimit(config.concurrency);
+  
+  const tasks = uniqueEntries.map(entry =>
+    limit(async () => {
+      if (stopRequested) return null; // Skip queued tasks that haven't started
+      return processOneComponent(entry, ctx);
+    })
+  );
+
+  const results = await Promise.all(tasks);
+  
+  // Collect results
+  ctx.summaries = results
+    .filter(r => r !== null && r.logEntry !== null)
+    .map(r => r.logEntry);
 
   const built = ctx.summaries.filter((s) => s.status === 'built');
   const skipped = ctx.summaries.filter((s) => s.status !== 'built');
