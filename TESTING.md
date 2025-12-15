@@ -2,46 +2,356 @@
 
 This repo has fast unit tests and optional end-to-end (E2E) validations against real design systems.
 
-## Testing strategy and motivation
+## Quickstart
 
-Superconnect sits between two live systems (a component repo and a Figma file) and relies on LLMs for orientation and mapping, so we test at two layers.
+```bash
+# Run all unit tests (fast, no network required)
+npm test
 
-- Unit tests give fast, deterministic coverage of the pipeline logic and helpers
-  - These are what CI runs on every change
-  - They protect core behavior like parsing, normalization, heuristics, and rendering
-- E2E tests validate the full pipeline against real design systems
-  - They catch integration issues we cannot see in fixtures alone (Figma metadata shape changes, CLI expectations, agent output drift)
-  - They require network access and tokens, so they are opt‑in
+# Watch mode for TDD
+npm run test:watch
 
-## How to run all tests
+# Run specific test file
+npm test -- test/react-direct-codegen.test.js
 
-- Core unit suite (what CI should run)
-  - `npm test`
-- Optional live E2E suites (run manually when you want full coverage)
-  - Chakra React
-    - Small subset: `npm run test:e2e:chakra:small`
-    - Full suite: `npm run test:e2e:chakra`
-    - Keep artifacts (full): `npm run test:e2e:chakra:keep`
-    - Keep artifacts (small): `npm run test:e2e:chakra:small:keep`
-  - ZapUI Angular
-    - Small subset: `npm run test:e2e:zapui:small`
-    - Full suite: `npm run test:e2e:zapui`
-    - Keep artifacts (full): `npm run test:e2e:zapui:keep`
-    - Keep artifacts (small): `npm run test:e2e:zapui:small:keep`
-  - These require Figma + agent tokens and network access
-    - `FIGMA_ACCESS_TOKEN=...`
-    - `ANTHROPIC_API_KEY=...`
-  - E2E tests first look in `process.env`, then fall back to `.env` in this repo root for those values
-  - Advanced knobs (prefer npm scripts first)
-    - `CHAKRA_E2E_ONLY` (example: `Button`)
-    - `CHAKRA_E2E_KEEP=1` to keep the temp directory
-    - `ZAPUI_E2E_ONLY` (example: `Button`)
-    - `ZAPUI_E2E_KEEP=1` to keep the temp directory
-    - `SUPERCONNECT_E2E_VERBOSE=1` to echo child commands and output
-  - CI policy
-    - CI runs unit tests on every push
-    - When secrets are available on `main`, CI runs only the small E2E suites to reduce runtime and flake
-    - Full live E2E runs are intended for developers to run locally
+# E2E tests (requires tokens, see Prerequisites)
+npm run test:e2e:chakra:small      # Chakra React (Button only)
+npm run test:e2e:zapui:small       # ZapUI Angular (Button only)
+```
+
+## Prerequisites
+
+**Required:**
+- Node.js ≥ 20.0.0
+- Dependencies installed: `npm install`
+
+**For E2E tests only:**
+- `FIGMA_ACCESS_TOKEN` with scopes:
+  - Files: `file_content:read`
+  - Development: `file_code_connect:write`, `file_dev_resources:read`, `file_dev_resources:write`
+- `ANTHROPIC_API_KEY` (for Claude backend)
+- Git submodules initialized: `git submodule update --init fixtures/chakra-ui fixtures/zapui`
+
+Set tokens in `.env` at repo root or export as environment variables.
+
+## Test Suites
+
+### Unit Tests (test/*.test.js)
+
+**Scope:**
+- Agent adapters (OpenAI, Claude SDK integration)
+- Framework detection (React, Angular repo identification)
+- Codegen logic (React/Angular direct codegen, validation, retry)
+- Parsing (TOML config, JSONL orientation, export extraction)
+- Filtering (`--only`, `--exclude` flags)
+- Angular-specific (component discovery, selector extraction, template stubs)
+- React-specific (prop handling, variant mapping, enum canonicalization)
+
+**Coverage:**
+- ~30 test files covering core pipeline logic
+- Tests run with Jest, no network calls, deterministic
+- All tests use fixtures in `fixtures/` directory
+
+**What CI runs:**
+- Full unit suite on every push
+- Fast (< 10 seconds), no secrets required
+
+### E2E Tests (test/chakra-e2e.test.js, test/zapui-e2e.test.js)
+
+**Scope:**
+- Full pipeline against real Chakra UI (React) and ZapUI (Angular) repos
+- Live Figma API calls
+- Live LLM calls (orientation + codegen)
+- Validation via `figma connect parse` and `figma connect publish --dry-run`
+- Benchmark metrics tracking
+
+**What they catch:**
+- Figma API shape changes
+- Agent output format drift
+- CLI integration issues
+- Real-world edge cases not covered by fixtures
+
+**What CI runs:**
+- Small subsets only (Button component) when secrets available
+- Full runs are for local development
+
+## Testing Strategy
+
+Superconnect sits between two live systems (Figma + component repos) and relies on LLMs, so we test at two layers:
+
+1. **Unit tests** - Deterministic, fast coverage of pipeline logic
+   - Protect core behavior: parsing, normalization, rendering
+   - Run on every CI build
+   - Use static fixtures, no network
+
+2. **E2E tests** - Live integration validation
+   - Catch issues unit tests can't see
+   - Require tokens and network access
+   - Opt-in for developers, small subsets in CI
+
+## Running Tests
+
+### All Unit Tests
+
+```bash
+npm test
+```
+
+### Watch Mode (TDD)
+
+```bash
+npm run test:watch
+```
+
+### Single Test File
+
+```bash
+npm test -- test/framework-detection.test.js
+```
+
+### Filter by Test Name
+
+```bash
+npm test -- -t "validates react component"
+```
+
+### E2E: Chakra UI (React)
+
+```bash
+# Small subset (Button only, ~2 min)
+npm run test:e2e:chakra:small
+
+# Full suite (all components, ~15 min)
+npm run test:e2e:chakra
+
+# Keep artifacts for inspection
+npm run test:e2e:chakra:small:keep
+
+# Verbose output (shows all child commands)
+npm run test:e2e:chakra:small:verbose
+```
+
+**Subset control:**
+```bash
+# Custom component list
+CHAKRA_E2E_ONLY="Button,Alert,Badge" npm run test:e2e:chakra
+```
+
+### E2E: ZapUI (Angular)
+
+```bash
+# Small subset (Button only, ~2 min)
+npm run test:e2e:zapui:small
+
+# Full suite (all components, ~15 min)
+npm run test:e2e:zapui
+
+# Keep artifacts for inspection
+npm run test:e2e:zapui:small:keep
+
+# Verbose output
+npm run test:e2e:zapui:small:verbose
+```
+
+**Subset control:**
+```bash
+# Custom component list
+ZAPUI_E2E_ONLY="Button,Alert" npm run test:e2e:zapui
+```
+
+## Repository Conventions
+
+### Test Organization
+
+```
+test/
+├── *-e2e.test.js           # E2E tests (require tokens)
+├── agent-adapter.test.js   # Agent SDK integration
+├── angular-*.test.js       # Angular-specific logic
+├── react-*.test.js         # React-specific logic
+├── framework-*.test.js     # Framework detection
+├── codegen-*.test.js       # Codegen filtering/logic
+├── validate-*.test.js      # Validation layer
+└── util/                   # Test helpers
+```
+
+### Naming Conventions
+
+- Test files: `{feature}.test.js` (e.g., `react-direct-codegen.test.js`)
+- E2E tests: `{system}-e2e.test.js` (e.g., `chakra-e2e.test.js`)
+- Describe blocks: Feature or module name
+- Test names: Imperative ("validates X", "generates Y"), not "should validate X"
+
+### Fixtures
+
+```
+fixtures/
+├── react-sample/           # Minimal React fixtures
+├── angular-sample/         # Minimal Angular fixtures
+├── react-{feature}/        # Feature-specific React fixtures
+├── chakra-ui/              # Git submodule (E2E only)
+└── zapui/                  # Git submodule (E2E only)
+```
+
+**Fixture structure:**
+```
+fixtures/{name}/
+├── superconnect/
+│   ├── figma-components-index.json  # Figma metadata
+│   ├── figma-components/*.json      # Per-component data
+│   ├── orientation.jsonl            # Expected orienter output
+│   └── repo-summary.json            # Repo analysis
+├── src/                             # Sample source files
+├── codeConnect/                     # Expected outputs
+└── figma.config.json                # Expected config
+```
+
+### Adding New Tests
+
+1. **Unit test for new feature:**
+   ```javascript
+   // test/my-feature.test.js
+   const { myFunction } = require('../src/util/my-feature');
+   
+   describe('myFunction', () => {
+     test('handles edge case', () => {
+       expect(myFunction('input')).toBe('output');
+     });
+   });
+   ```
+
+2. **Create fixture if needed:**
+   ```bash
+   mkdir -p fixtures/my-feature/{src,superconnect,codeConnect}
+   # Add minimal repro files
+   ```
+
+3. **Run your test:**
+   ```bash
+   npm test -- test/my-feature.test.js
+   ```
+
+## Determinism and Reliability
+
+### Unit Tests
+
+**Always deterministic** - no randomness, time dependencies, or network calls.
+
+- Use static fixtures (checked into git)
+- Mock time if needed (Jest fake timers)
+- Mock file system when appropriate (fs-extra operations are real in tests)
+
+### E2E Tests
+
+**Intentionally non-deterministic** - validates against live systems.
+
+**Expected variability:**
+- LLM output wording changes (we validate structure, not exact text)
+- Figma API response times
+- Network latency
+
+**Flake policy:**
+- E2E tests are opt-in (not blocking CI by default)
+- Small subsets in CI catch regressions without full flake surface
+- If E2E test flakes repeatedly, investigate:
+  1. Is the flake in our code or external system?
+  2. Can we add retry logic or looser assertions?
+  3. Should this check move to a unit test?
+
+**Avoiding flake:**
+- E2E tests use `SUPERCONNECT_E2E_VERBOSE=1` for debugging
+- Tests clean up temp directories in `finally` blocks
+- Use `--keep` variants to inspect artifacts when debugging
+
+### Time and Randomness
+
+- No `Math.random()` in unit tests
+- No `new Date()` without mocking (use Jest fake timers if needed)
+- Deterministic sorting (always specify comparator for arrays)
+
+### Network Isolation
+
+- Unit tests: **Zero network calls** (all data from fixtures)
+- E2E tests: **Controlled network** (only to Figma API and agent backends)
+
+## CI Policy
+
+**On every push:**
+- All unit tests (`npm test`)
+
+**On `main` branch with secrets:**
+- Small E2E subsets (Button only for Chakra + ZapUI)
+- Reduces runtime and flake risk
+
+**Full E2E runs:**
+- Intended for local developer validation before major releases
+- Not blocking CI due to runtime (~30 min) and external dependencies
+
+## Debugging Failed Tests
+
+### Unit Test Failures
+
+1. **Run single test file:**
+   ```bash
+   npm test -- test/failing-test.test.js
+   ```
+
+2. **Run specific test by name:**
+   ```bash
+   npm test -- -t "exact test name"
+   ```
+
+3. **Add `console.log` and re-run** - Jest shows all output
+
+4. **Check fixtures** - Verify input data in `fixtures/{name}/`
+
+### E2E Test Failures
+
+1. **Keep artifacts for inspection:**
+   ```bash
+   npm run test:e2e:chakra:small:keep
+   ```
+   Temp directory path printed in test output.
+
+2. **Enable verbose output:**
+   ```bash
+   npm run test:e2e:chakra:small:verbose
+   ```
+   Shows all child commands and stdout/stderr.
+
+3. **Check logs:**
+   ```
+   {tempDir}/superconnect/
+   ├── orienter-agent.log          # Orientation LLM calls
+   ├── mapping-agent-logs/*.log    # Codegen LLM calls
+   ├── codegen-logs/*.json         # Per-component results
+   └── orientation.jsonl           # Orienter decisions
+   ```
+
+4. **Validate generated files manually:**
+   ```bash
+   cd {tempDir}
+   figma connect parse
+   ```
+
+5. **Check for API changes:**
+   - Figma API might have changed structure
+   - LLM output format might have drifted
+   - Compare to working baseline in previous commits
+
+## Unit tests
+
+- Test runner
+  - Jest, configured via `npm test`
+- Location
+  - Test files live in `test/` alongside the pipeline and helper scripts they cover
+- Scope
+  - Agent adapters, framework detection and plumbing
+  - Angular-specific behavior (component discovery, stubs, figma.config.json, fallback URLs)
+  - React/Angular codegen filters (e.g., prop handling, `--only` filtering)
+- Running
+  - Run the full unit suite: `npm test`
+  - Watch mode for local development: `npm run test:watch`
 
 ## Unit tests
 

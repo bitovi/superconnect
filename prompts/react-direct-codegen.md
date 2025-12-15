@@ -11,6 +11,31 @@ Given Figma component metadata and React component info, generate a single `.fig
 **Import from the package, not source paths.**
 Use the package's public export (e.g., the main entry point from `package.json`), not internal source paths like `packages/react/src/components/...`.
 
+**Use EXACT export names from the provided source files.**
+The source file context shows you what's actually exported. Use those exact names in your import and `figma.connect()` call.
+
+- Scan the source for `export const`, `export function`, `export class`, or `export { ... }`
+- The first argument to `figma.connect()` must match an actual exported identifier
+- Don't assume a shorter name exists - if the export is `ButtonRoot`, use `ButtonRoot`, not `Button`
+
+Example: If source shows:
+```tsx
+export const DialogRoot = withProvider(...)
+export const DialogTitle = withContext(...)
+```
+
+Then:
+```tsx
+import { DialogRoot } from '...'
+figma.connect(DialogRoot, 'https://...', { ... })  // ✓ Matches actual export
+```
+
+NOT:
+```tsx
+import { Dialog } from '...'
+figma.connect(Dialog, 'https://...', { ... })  // ✗ No such export exists
+```
+
 **Drop pseudo-state variants entirely.**
 Variants named `state` or `interaction` with values like `default`, `hover`, `pressed`, `focused` are for Figma previews only. Components don't accept `state="hover"` as a prop. Omit these.
 

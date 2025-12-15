@@ -25,6 +25,7 @@ const DEFAULT_MAX_TOKENS = 2048;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
 const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_LAYER_DEPTH = 3;
+const DEFAULT_CONCURRENCY = 5;
 
 const parseMaybeInt = (value) => {
   const n = value ? parseInt(value, 10) : NaN;
@@ -86,11 +87,12 @@ function normalizeAgentConfig(agentSection = {}) {
 /**
  * Normalize [codegen] section from TOML config.
  * @param {object} codegenSection - The [codegen] section from TOML
- * @returns {{ maxRetries: number }}
+ * @returns {{ maxRetries: number, concurrency: number }}
  */
 function normalizeCodegenConfig(codegenSection = {}) {
   const maxRetries = parseMaybeInt(codegenSection.max_retries) ?? DEFAULT_MAX_RETRIES;
-  return { maxRetries };
+  const concurrency = parseMaybeInt(codegenSection.concurrency) ?? DEFAULT_CONCURRENCY;
+  return { maxRetries, concurrency };
 }
 
 /**
@@ -202,6 +204,7 @@ async function promptForConfig() {
     '',
     '[codegen]',
     'max_retries = 2       # Retry attempts on validation failure',
+    'concurrency = 5       # Max parallel LLM requests during code generation',
     ''
   ].join('\n');
 
@@ -499,6 +502,7 @@ async function main() {
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
+      `--concurrency "${codegenConfig.concurrency}"`,
       args.only && args.only.length ? `--only "${args.only.join(',')}"` : '',
       args.exclude && args.exclude.length ? `--exclude "${args.exclude.join(',')}"` : '',
       inferredFramework ? `--target-framework "${inferredFramework}"` : '',

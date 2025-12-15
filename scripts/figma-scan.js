@@ -189,36 +189,21 @@ const inferReferenceType = (name, existingType = null) => {
   return 'INSTANCE_SWAP';
 };
 
-const collectPropertyReferences = (node, map) => {
-  if (!node || typeof node !== 'object') return;
-  const refs = node.componentPropertyReferences;
-  if (refs && typeof refs === 'object') {
-    Object.values(refs).forEach((ref) => {
-      if (typeof ref !== 'string') return;
-      const match = ref.match(/([^#]+)#/); // capture name before #
-      const name = match && match[1] ? match[1].trim() : null;
-      if (!name) return;
-      if (!map.has(name)) {
-        map.set(name, { name, type: inferReferenceType(name) });
-      }
-    });
-  }
-  if (Array.isArray(node.children)) {
-    node.children.forEach((child) => collectPropertyReferences(child, map));
-  }
-};
-
 const normalizeComponentPropertyDefinitions = (defs) => {
   if (!defs || typeof defs !== 'object') return [];
 
-  return Object.values(defs)
-    .map((def) => {
+  return Object.entries(defs)
+    .map(([key, def]) => {
       if (!def || typeof def !== 'object') return null;
-      const name = (def.name || '').trim();
-      if (!name) return null;
+      // The key format is "propertyName#nodeId" or just "propertyName"
+      // Extract the property name by removing the #nodeId suffix
+      const rawName = key.split('#')[0].trim();
+      if (!rawName) return null;
+      // Skip VARIANT properties - they're handled separately as variantProperties
+      if (def.type === 'VARIANT') return null;
       const base = {
-        name,
-        type: inferReferenceType(name, def.type || null)
+        name: rawName,
+        type: inferReferenceType(rawName, def.type || null)
       };
       if (Object.prototype.hasOwnProperty.call(def, 'defaultValue')) {
         base.defaultValue = def.defaultValue;
@@ -228,42 +213,14 @@ const normalizeComponentPropertyDefinitions = (defs) => {
     .filter(Boolean);
 };
 
-const filterChildDefinitionsByCoverage = (defsByChild) => {
-  const totalChildren = defsByChild.length;
-  if (totalChildren === 0) return [];
-
-  const counts = new Map();
-  defsByChild.forEach((defs) => {
-    defs.forEach((def) => {
-      if (!def?.name) return;
-      const entry = counts.get(def.name) || { def, count: 0 };
-      entry.count += 1;
-      counts.set(def.name, entry);
-    });
-  });
-
-  return Array.from(counts.values())
-    .map((entry) => {
-      const { def, count } = entry;
-      if (def.type === 'STRING' && count < totalChildren) return null;
-      return def;
-    })
-    .filter(Boolean);
-};
-
 const extractComponentProperties = (componentSet) => {
   if (!componentSet || typeof componentSet !== 'object') return null;
 
+  // Only extract properties defined at the component SET level.
+  // Properties defined on individual variants are NOT valid for Code Connect
+  // (the SDK validates against the set's componentPropertyDefinitions).
   const fromSet = normalizeComponentPropertyDefinitions(componentSet.componentPropertyDefinitions);
-  if (fromSet.length > 0) return fromSet;
-
-  const children = Array.isArray(componentSet.children) ? componentSet.children : [];
-  const defsByChild = children
-    .filter((child) => child && typeof child === 'object' && child.type === 'COMPONENT')
-    .map((child) => normalizeComponentPropertyDefinitions(child.componentPropertyDefinitions));
-
-  const filtered = filterChildDefinitionsByCoverage(defsByChild);
-  return filtered.length > 0 ? filtered : null;
+  return fromSet.length > 0 ? fromSet : null;
 };
 
 /**
@@ -378,16 +335,12 @@ function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_D
   const variants = [];
   const propertyOptions = {};
   const seenVariantIds = new Set();
-  const propertyRefs = new Map();
 
   if (componentSet.children) {
     for (const variant of componentSet.children) {
       if (variant.type !== 'COMPONENT') continue;
       if (seenVariantIds.has(variant.id)) continue;
       seenVariantIds.add(variant.id);
-
-      // Collect exposed component property references from the variant tree (e.g., iconStart?, iconEnd?).
-      collectPropertyReferences(variant, propertyRefs);
 
       const { properties, rawProperties } = parseVariantProperties(variant.name, propertyOptions);
       const entry = {
@@ -420,26 +373,10 @@ function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_D
       variantProperties[rawKey] = values;
     });
 
+  // Only use properties defined at the component SET level.
+  // Variant-level property references are NOT valid for Code Connect
+  // (the SDK validates against the set's componentPropertyDefinitions).
   const componentProperties = extractComponentProperties(componentSet);
-  const referencedProps = Array.from(propertyRefs.values());
-  const componentPropNames = new Set(
-    Array.isArray(componentProperties) ? componentProperties.map((p) => p?.name).filter(Boolean) : []
-  );
-  const safeReferencedProps = referencedProps.filter((prop) => {
-    if (!prop?.name) return false;
-    if (prop.type !== 'STRING') return true;
-    return componentPropNames.has(prop.name);
-  });
-  const mergedComponentProperties =
-    componentProperties && Array.isArray(componentProperties)
-      ? Array.from(
-          new Map(
-            [...componentProperties, ...safeReferencedProps].map((p) => [p.name || '', p])
-          ).values()
-        )
-      : safeReferencedProps.length > 0
-        ? safeReferencedProps
-        : null;
 
   // Extract text layers and slot layers for Code Connect helpers
   const textLayers = extractTextLayers(componentSet, layerDepth);
@@ -450,7 +387,7 @@ function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_D
     componentName: componentSet.name,
     variantProperties,
     variantValueEnums,
-    componentProperties: mergedComponentProperties,
+    componentProperties,
     textLayers: textLayers.length > 0 ? textLayers : null,
     slotLayers: slotLayers.length > 0 ? slotLayers : null,
     variants,

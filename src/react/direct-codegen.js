@@ -88,7 +88,9 @@ function buildComponentPrompt({ figmaEvidence, orientation, figmaUrl, sourceCont
     for (const [filePath, content] of Object.entries(sourceContext)) {
       sections.push(`### ${filePath}\n`);
       sections.push('```tsx');
-      sections.push(content.slice(0, 3000)); // Truncate to avoid huge prompts
+      // Allow generous source context - models have large context windows
+      // and truncating too aggressively cuts off important export declarations
+      sections.push(content.slice(0, 20000));
       sections.push('```\n');
     }
   }
