@@ -156,7 +156,7 @@ Superconnect runs five logical stages:
 
 # Agent Backends
 
-Superconnect abstracts the “agent” through adapters; you choose the backend in superconnect.toml:
+Superconnect supports two different AI backends; you can choose one by editing `superconnect.toml`:
 
 - Claude SDK (backend = "claude")
     - Uses @anthropic-ai/sdk
@@ -169,7 +169,7 @@ Superconnect abstracts the “agent” through adapters; you choose the backend 
     - sdk_model sets the OpenAI model (e.g., gpt-5.1-codex-mini)
     - max_tokens caps response length
 
-Agents log to superconnect/orienter-agent.log and superconnect/mapping-agent-logs
+Agents log to superconnect/orienter-agent.log/ and superconnect/mapping-agent-logs/
 
 # Outputs
 
@@ -180,8 +180,9 @@ Agents log to superconnect/orienter-agent.log and superconnect/mapping-agent-log
     - figma-components/*.json: per-component extracted Figma metadata
     - repo-summary.json: lightweight summary of the repo (framework detection, Angular component metadata, exports)
     - orientation.jsonl: agent suggestions for which files to read for each Figma component
-    - component-logs/*.json: per-component codegen decisions and metadata
-    - mapping-agent-logs/*.log, orienter-agent.log: raw agent interaction logs
+    - codegen-logs/*.json: per-component codegen decisions and metadata
+    - orienter-agent.log/: orientation agent interaction logs
+    - mapping-agent-logs/: codegen agent interaction logs
 - In codeConnect/
     - *.figma.tsx or *.figma.ts files for each successfully mapped component, ready for Code Connect
 - At repo root:
@@ -194,7 +195,7 @@ The pipeline is designed for graceful partial runs:
 
 - Ctrl+C during codegen
     - Codegen finishes the current component, then stops processing more
-    - superconnect/component-logs/ and codeConnect/ contain whatever was completed so far
+    - superconnect/codegen-logs/ and codeConnect/ contain whatever was completed so far
     - The pipeline still runs the finalizer, so you get an accurate summary of what was built versus skipped
 - Rerunning without --force
     - Repo summary, Figma scan, and orienter are skipped if their outputs already exist
