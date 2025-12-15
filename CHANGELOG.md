@@ -27,4 +27,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for monorepo path aliases
 - Document URL substitutions for Figma node links
 
-[0.1.0]: https://github.com/bitovi/figma-code-connect-ai-poc/releases/tag/v0.1.0
+[0.1.0]: https://github.com/bitovi/superconnect/releases/tag/v0.1.0

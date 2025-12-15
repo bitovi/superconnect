@@ -59,12 +59,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bitovi/figma-code-connect-ai-poc.git"
+    "url": "git+https://github.com/bitovi/superconnect.git"
   },
   "bugs": {
-    "url": "https://github.com/bitovi/figma-code-connect-ai-poc/issues"
+    "url": "https://github.com/bitovi/superconnect/issues"
   },
-  "homepage": "https://github.com/bitovi/figma-code-connect-ai-poc#readme",
+  "homepage": "https://github.com/bitovi/superconnect",
   "devDependencies": {
     "@figma/code-connect": "^1.3.12",
     "jest": "^30.2.0"
