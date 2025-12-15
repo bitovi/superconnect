@@ -146,6 +146,9 @@ Superconnect runs five logical stages:
           - superconnect/repo-summary.json (framework hints, Angular components)
           - Source files from the component repo
       - Output: codeConnect/{component}.figma.tsx or .figma.ts
+      - Agents follow Figma's Code Connect API documentation:
+          - React: https://developers.figma.com/docs/code-connect/react/
+          - HTML/Angular: https://developers.figma.com/docs/code-connect/html/
   5. Finalizer (scripts/finalize.js)
       - Input: everything above
       - Output: A human-friendly run summary printed to stdout (no file), with colored sections and stats, plus figma.config.json written at the repo root (parser/label and include globs set for React or Angular)
