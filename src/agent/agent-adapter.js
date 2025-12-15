@@ -248,7 +248,17 @@ class ClaudeAgentAdapter {
       if (outputStream) outputStream.end();
       return { code: 0, stdout, stderr: '', logFile: logStream?.file || null };
     } catch (err) {
-      const message = err?.message || 'Unknown Claude error';
+      // Extract detailed error message from Anthropic API errors
+      let message = err?.message || 'Unknown Claude error';
+      
+      // Check for rate limit errors in the error response
+      if (err?.status === 400 || err?.status === 429) {
+        const errorBody = err?.error || {};
+        if (errorBody.type === 'invalid_request_error' && errorBody.message) {
+          message = errorBody.message;
+        }
+      }
+      
       writeLog(`${message}\n`);
       if (logStream?.stream) logStream.stream.end();
       if (outputStream) outputStream.end();
