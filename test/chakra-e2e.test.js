@@ -123,6 +123,12 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
   printRunModeBanner(subset);
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chakra-e2e-'));
+  const keepArtifacts = shouldKeep();
+  
+  if (keepArtifacts) {
+    console.log(`\nTemp directory (will be preserved): ${tmpDir}`);
+  }
+  
   try {
     copyFixture(tmpDir);
     writeConfig(tmpDir);
@@ -158,10 +164,14 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
       }
     );
     expect(publishOutput).toEqual(expect.stringContaining('All Code Connect files are valid'));
+  } catch (error) {
+    if (keepArtifacts) {
+      console.error(`\n❌ Test failed. Artifacts preserved at: ${tmpDir}`);
+      console.error(`   To inspect: cd ${tmpDir}`);
+    }
+    throw error;
   } finally {
-    if (shouldKeep()) {
-      console.log(`CHAKRA_E2E_KEEP set; leaving temp dir at ${tmpDir}`);
-    } else {
+    if (!keepArtifacts) {
       fs.removeSync(tmpDir);
     }
   }

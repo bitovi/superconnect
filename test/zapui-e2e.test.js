@@ -123,8 +123,12 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
   const subset = getOnlyList();
   printRunModeBanner(subset);
 
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zapui-e2e-'));
-  try {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zapui-e2e-'));  const keepArtifacts = shouldKeep();
+  
+  if (keepArtifacts) {
+    console.log(`\nTemp directory (will be preserved): ${tmpDir}`);
+  }
+    try {
     copyZapuiFixture(tmpDir);
     writeConfig(tmpDir);
     fs.removeSync(path.join(tmpDir, 'superconnect'));
@@ -160,10 +164,14 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
     );
 
     expect(publishOutput).toEqual(expect.stringContaining('All Code Connect files are valid'));
+  } catch (error) {
+    if (keepArtifacts) {
+      console.error(`\n❌ Test failed. Artifacts preserved at: ${tmpDir}`);
+      console.error(`   To inspect: cd ${tmpDir}`);
+    }
+    throw error;
   } finally {
-    if (shouldKeep()) {
-      console.log(`ZAPUI_E2E_KEEP set; leaving temp dir at ${tmpDir}`);
-    } else {
+    if (!keepArtifacts) {
       fs.removeSync(tmpDir);
     }
   }
