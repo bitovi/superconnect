@@ -25,7 +25,7 @@ const DEFAULT_MAX_TOKENS = 2048;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
 const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_LAYER_DEPTH = 3;
-const DEFAULT_CONCURRENCY = 5;
+const DEFAULT_CONCURRENCY = 8;
 
 const parseMaybeInt = (value) => {
   const n = value ? parseInt(value, 10) : NaN;
@@ -204,7 +204,7 @@ async function promptForConfig() {
     '',
     '[codegen]',
     'max_retries = 2       # Retry attempts on validation failure',
-    'concurrency = 5       # Max parallel LLM requests during code generation',
+    'concurrency = 8       # Max parallel LLM requests during code generation',
     ''
   ].join('\n');
 

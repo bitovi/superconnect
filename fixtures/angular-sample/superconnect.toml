@@ -8,4 +8,4 @@ max_tokens = 4000
 
 [codegen]
 max_retries = 2       # Retry attempts on validation failure
-concurrency = 5       # Max parallel LLM requests during code generation
+concurrency = 8       # Max parallel LLM requests during code generation

@@ -121,7 +121,7 @@ npm test -- -t "validates react component"
 # Small subset (Button only, ~2 min)
 npm run test:e2e:chakra:small
 
-# Full suite (all components, ~15 min)
+# Full suite (all components, ~2.5 min)
 npm run test:e2e:chakra
 
 # Keep artifacts for inspection
@@ -143,7 +143,7 @@ CHAKRA_E2E_ONLY="Button,Alert,Badge" npm run test:e2e:chakra
 # Small subset (Button only, ~2 min)
 npm run test:e2e:zapui:small
 
-# Full suite (all components, ~15 min)
+# Full suite (all components, ~45 sec)
 npm run test:e2e:zapui
 
 # Keep artifacts for inspection
@@ -285,7 +285,7 @@ fixtures/{name}/
 
 **Full E2E runs:**
 - Intended for local developer validation before major releases
-- Not blocking CI due to runtime (~30 min) and external dependencies
+- Not blocking CI due to external dependencies (concurrency=8: Chakra ~2.5min, ZapUI ~45sec)
 
 ## Debugging Failed Tests
 
