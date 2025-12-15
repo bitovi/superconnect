@@ -55,6 +55,7 @@ Set tokens in `.env` at repo root or export as environment variables.
 **What CI runs:**
 - Full unit suite on every push
 - Fast (< 10 seconds), no secrets required
+- Full E2E suites on main branch commits (~3.5 min total when secrets available)
 
 ### E2E Tests (test/chakra-e2e.test.js, test/zapui-e2e.test.js)
 
@@ -72,8 +73,8 @@ Set tokens in `.env` at repo root or export as environment variables.
 - Real-world edge cases not covered by fixtures
 
 **What CI runs:**
-- Small subsets only (Button component) when secrets available
-- Full runs are for local development
+- Full E2E suites on main branch commits (Chakra ~2.5min, ZapUI ~45sec)
+- Small subsets on feature branches (Button only) when secrets available
 
 ## Testing Strategy
 
@@ -278,14 +279,17 @@ fixtures/{name}/
 
 **On every push:**
 - All unit tests (`npm test`)
+- Fast (< 10 seconds), deterministic, no secrets required
 
-**On `main` branch with secrets:**
-- Small E2E subsets (Button only for Chakra + ZapUI)
-- Reduces runtime and flake risk
+**On `main` branch commits with secrets:**
+- Full E2E test suites (Chakra UI + ZapUI)
+- Runtime: ~3.5 min total (Chakra ~2.5min, ZapUI ~45sec with concurrency=8)
+- Validates against live Figma API and LLM backends
+- Requires `FIGMA_ACCESS_TOKEN` and `ANTHROPIC_API_KEY` secrets
 
-**Full E2E runs:**
-- Intended for local developer validation before major releases
-- Not blocking CI due to external dependencies (concurrency=8: Chakra ~2.5min, ZapUI ~45sec)
+**Local development:**
+- Run small E2E subsets for fast iteration (`npm run test:e2e:chakra:small`)
+- Run full E2E before submitting PRs to validate changes
 
 ## Debugging Failed Tests
 
