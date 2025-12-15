@@ -141,11 +141,22 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
       : [];
     expect(connectors.length).toBeGreaterThan(0);
 
-    run(figmaCli, ['connect', 'parse'], { cwd: tmpDir, env });
-    const publishOutput = run(figmaCli, ['connect', 'publish', '--dry-run'], {
-      cwd: tmpDir,
-      env
-    });
+    const publishOutput = run(
+      figmaCli,
+      [
+        'connect',
+        'publish',
+        '--dry-run',
+        '--exit-on-unreadable-files',
+        '--skip-update-check',
+        '--outDir',
+        path.join(tmpDir, 'superconnect', 'code-connect-json')
+      ],
+      {
+        cwd: tmpDir,
+        env
+      }
+    );
     expect(publishOutput).toEqual(expect.stringContaining('All Code Connect files are valid'));
   } finally {
     if (shouldKeep()) {
