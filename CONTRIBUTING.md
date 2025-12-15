@@ -79,14 +79,17 @@ Prompts live in `prompts/` and define how the agents should behave:
 - `prompts/orienter.md`  
   Instructions for the orienter stage, describing how to map Figma components to source files
 
-- `prompts/react-mapping-agent.md`  
-  Mapping schema contract for React codegen, including expectations for imports, props, and examples
+- `prompts/react-direct-codegen.md`  
+  Direct codegen prompt for React, teaches agents the Code Connect API and how to generate `.figma.tsx` files
 
-- `prompts/angular-mapping-agent.md`  
-  Mapping schema contract for Angular codegen, including selectors, inputs, and template usage
+- `prompts/angular-direct-codegen.md`  
+  Direct codegen prompt for Angular, teaches agents the Code Connect API and how to generate `.figma.ts` files
 
-- `prompts/single-codegen.md`  
-  A focused prompt used in some tests and experiments for isolated mapping runs
+- `prompts/figma-code-connect-react.md`  
+  Reference documentation for Figma's Code Connect React API
+
+- `prompts/figma-code-connect-html.md`  
+  Reference documentation for Figma's Code Connect HTML/Angular API
 
 To understand why the agent produced a particular mapping, look at:
 

@@ -27,7 +27,7 @@ This document guides contributors and coding agents working in this repo. It com
   - Use Node.js CommonJS modules (`require`, `module.exports`) consistently with existing code.
   - Prefer small modules with a few exported functions over large, monolithic files.
   - Keep CLI entrypoints (`scripts/*.js`) as thin orchestration layers that delegate to helpers.
-  - Avoid introducing frameworks or build steps; keep things runnable with plain Node ≥ 18.
+  - Avoid introducing frameworks or build steps; keep things runnable with plain Node ≥ 20.
 
 - **Functions and data**
   - Encode configuration in data structures (objects, arrays, JSON) where possible instead of deeply nested conditionals.

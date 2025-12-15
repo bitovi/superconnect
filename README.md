@@ -1,31 +1,27 @@
 # Superconnect: Code Generator for Figma Code Connect
 
-Superconnect is an AI-powered code generation tool that turns a Figma design system file and a React or Angular component repo into Figma Code Connect mappings. It:
+Superconnect is an AI-powered code generation tool that writes your Figma Code Connect mappings for you. It does this by:
 
-- Scans your Figma file
-- Explores your React or Angular component repo
-- Generates a set of Code Connect files for you (`.figma.tsx` or `.figma.ts`), ready to be published to your Figma file
+- Scanning your Figma file via API
+- Exploring your React or Angular component repo
+- Using coding agents to generate `.figma.tsx` or `.figma.ts` files
+
+Then you publish these back to your Figma file using Figma's own CLI tool to `figma connect publish`.
 
 # Installation
 
-- Install from npm (if published for your org)
+- Install from npm
   - `npm install -g superconnect`
-  - if you see `npm error code E404`, the package isn’t available on the public npm registry
 
-- Install from a git checkout (recommended for now)
+- Install from git
   - clone this repo
-  - in the `superconnect` repo: `npm install && npm link`
-  - in your component repo: `npm link superconnect`
-
-- Or run from a local checkout without linking
-  - in the `superconnect` repo: `npm install`
-  - then run `node scripts/run-pipeline.js --help`
+  - `npm install && npm link`
 
 # Required environment and config
 
 - Requires Node.js >= 20.0.0
 - Environment variables
-  - `FIGMA_ACCESS_TOKEN` – Figma personal access token used by the Figma scan stage
+  - `FIGMA_ACCESS_TOKEN` – Figma personal access token used to access Figma file
   - `ANTHROPIC_API_KEY` – required when `backend = "claude"` (default)
   - `OPENAI_API_KEY` – required when `backend = "openai"`
   - these can be set in your shell or in an `.env` file in your React or Angular repo
