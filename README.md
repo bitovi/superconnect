@@ -28,7 +28,7 @@ Then you publish these back to your Figma file using Figma's own CLI tool to `fi
 
 - superconnect.toml
   - Superconnect seeks `superconnect.toml` config file in the current working directory
-  - If missing, the tool will prompt you the first time and then write the config file for you
+  - If missing, the tool will prompt you on first run and then write the config file for you
 
 # Workflow
 
@@ -36,15 +36,12 @@ Then you publish these back to your Figma file using Figma's own CLI tool to `fi
 
 You have:
 
-- a Figma file containing some components
-  - assumes an Enterprise Figma account, and that you have full write permissions
+- a Figma file with components, an Enterprise Figma account, and write permissions to that file
 - a repo implementing those same components (React or Angular)
 
 ## 1. Figma access token
 
-Superconnect relies on a Figma personal access token, which you generate. You must have full write permissions to the Figma file and Code Connect must be enabled in your "Enterprise"-level Figma org.
-
-### Getting a Figma access token
+Superconnect relies on a Figma personal access token, which you create through Figma. To get the token:
 
 - In Figma, open your account menu
 - Choose **Settings** (or **Profile & Settings**)
@@ -54,10 +51,10 @@ Superconnect relies on a Figma personal access token, which you generate. You mu
 - In your terminal environment (or `.env` in your component repo), set
   - `FIGMA_ACCESS_TOKEN=<your token here>`
 
-Minimum scopes for the token:
+### Scopes for the token
 
 - Files
-  - `file_content:read`  (to download the Figma file and component nodes during the scan stage)
+  - `file_content:read` (to read components)
 - Development
   - `file_code_connect:write`  (to write Code Connect content)
   - `file_dev_resources:read` + `write`  (to read and write Code Connect content)
@@ -66,16 +63,16 @@ Minimum scopes for the token:
 
 For Code Connect mappings to work, assets from the design system must first be "published" within Figma. (Reminder, your Figma design system file should be in an Enterprise org where you have edit rights.)
 
-- Switch to the **Assets** tab in the left sidebar (must not be in dev mode)
-- Click the **Library** icon to open the **Manage libraries** dialog
+- Switch to the **Assets** tab in the left sidebar (not in dev mode)
+- Click the **Library** icon (looks like a book) to open the **Manage libraries** dialog
 - Under **This file**, you should see your design system file listed
 - Click **Publish…**
 
 ## 3. Code Generation
 
-From the root of your React or Angular component repo, run `superconnect`. It will prompt you for the Figma file URL and save your settings to a config file, `superconnect.toml`. You can set your preferred AI -- the default is 'claude' (claude-haiku-4-5), and ANTHROPIC_API_KEY is assumed to be in your environment. If you switch to 'openai' (gpt-5.1-codex-mini), it will look for your OPENAI_API_KEY. 
+From the root of your React or Angular component repo, run `superconnect`. It will prompt you for the Figma file URL and save your settings to a config file, `superconnect.toml`. 
 
-`superconnect` will:
+`superconnect` will proceed to:
 
 - Inspect the repo and figure out if it's React or Angular (combination projects not supported!)
 - Scan the components in your Figma file
@@ -89,7 +86,7 @@ At this point you have local Code Connect mappings but Figma does not see them y
 
 ## 4. Publish mappings to Figma
 
-Next you push the generated mappings to Figma using Figma's own CLI. You must have `@figma/code-connect` installed in the component repo or globally. Run:
+Next you push the generated mappings back to Figma, using Figma's own CLI. You must have `@figma/code-connect` installed in the component repo or globally. Run:
 
 ```bash
 npx figma connect publish
@@ -152,20 +149,18 @@ Superconnect runs five logical stages:
 
 # Agent Backends
 
-Superconnect supports two different AI backends; you can choose one by editing `superconnect.toml`:
+You can choose your AI backends by editing `superconnect.toml`:
 
 - Claude SDK (backend = "claude")
     - Uses @anthropic-ai/sdk
     - Requires ANTHROPIC_API_KEY
-    - sdk_model sets the Claude model (e.g., claude-haiku-4-5)
-    - max_tokens caps response length
+    - sdk_model must be a Claude model (e.g., claude-haiku-4-5)
 - OpenAI SDK (backend = "openai")
     - Uses the openai Responses API
     - Requires OPENAI_API_KEY
-    - sdk_model sets the OpenAI model (e.g., gpt-5.1-codex-mini)
-    - max_tokens caps response length
+    - sdk_model must be an OpenAI model (e.g., gpt-5.1-codex-mini)
 
-Agents log to superconnect/orienter-agent.log/ and superconnect/mapping-agent-logs/
+Code gen agents log to superconnect/orienter-agent.log/ and superconnect/mapping-agent-logs/
 
 # Outputs
 
