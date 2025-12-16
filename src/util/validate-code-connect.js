@@ -70,6 +70,31 @@ function normalizeKey(key) {
 }
 
 /**
+ * Check if a variant property is a boolean variant.
+ * Boolean variants have exactly 2 values that are:
+ * - "True"/"False"
+ * - "Yes"/"No"
+ * - "On"/"Off"
+ * (case insensitive)
+ * @param {Array<string>} values - Variant values
+ * @returns {boolean}
+ */
+function isBooleanVariant(values) {
+  if (!Array.isArray(values) || values.length !== 2) return false;
+  
+  const normalized = values.map(v => String(v).toLowerCase()).sort();
+  const pairs = [
+    ['false', 'true'],
+    ['no', 'yes'],
+    ['off', 'on']
+  ];
+  
+  return pairs.some(pair => 
+    normalized[0] === pair[0] && normalized[1] === pair[1]
+  );
+}
+
+/**
  * Build a set of valid keys from Figma evidence.
  * @param {object} figmaEvidence
  * @returns {{
@@ -96,6 +121,10 @@ function buildValidKeySets(figmaEvidence) {
     enumKeys.add(normalized);
     // Variant props can also be used with figma.string()
     stringKeys.add(normalized);
+    // Boolean variants (True/False, Yes/No, On/Off) can use figma.boolean()
+    if (isBooleanVariant(variantProps[key])) {
+      booleanKeys.add(normalized);
+    }
   });
 
   // Add component properties based on type

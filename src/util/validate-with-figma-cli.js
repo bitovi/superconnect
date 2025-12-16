@@ -53,7 +53,6 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
       {
         cwd: tempDir, // Run from temp directory so relative glob works
         encoding: 'utf8',
-        shell: true,
         timeout: 30000, // 30 second timeout
         env: { ...process.env, FORCE_COLOR: '0' } // Disable colors for easier parsing
       }
