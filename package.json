@@ -51,6 +51,9 @@
     "p-limit": "^3.1.0",
     "undici": "^6.18.1"
   },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bitovi/superconnect.git"

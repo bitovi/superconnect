@@ -19,7 +19,7 @@ Then you publish these back to your Figma file using Figma's own CLI tool to `fi
 
 # Required environment and config
 
-- Requires Node.js >= 20.0.0
+- Requires Node.js >= 22.0.0
 - Environment variables
   - `FIGMA_ACCESS_TOKEN` – Figma personal access token used to access Figma file
   - `ANTHROPIC_API_KEY` – required when `backend = "claude"` (default)

@@ -22,7 +22,7 @@ npm run test:e2e:zapui:small       # ZapUI Angular (Button only)
 ## Prerequisites
 
 **Required:**
-- Node.js ≥ 20.0.0
+- Node.js ≥ 22.0.0
 - Dependencies installed: `npm install`
 
 **For E2E tests only:**
