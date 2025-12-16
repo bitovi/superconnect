@@ -8,6 +8,12 @@ Superconnect is an AI-powered code generation tool that writes your Figma Code C
 
 Then you publish these back to your Figma file using Figma's own CLI tool to `figma connect publish`.
 
+Figma Code Connect [also offers an interactive setup to help create Code Connect files](https://developers.figma.com/docs/code-connect/quickstart-guide/#use-the-interactive-setup), but Superconnect:
+
+- **Works fully automatically** - no interactive terminal prompts, maps all components in one run
+- **Supports Angular/HTML** - Figma's interactive setup and AI features only work for React components; Angular requires manual mapping
+- **Lets you bring your own AI model** - use Claude, OpenAI, or switch to a smarter model if needed
+
 # Installation
 
 - Install from npm
