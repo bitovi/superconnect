@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2025-12-16
+
+### Changed
+- Improve README comparison with Figma Code Connect, clarifying that Superconnect works fully automatically and supports Angular/HTML (which Figma's interactive setup does not)
+
 ## [0.1.9] - 2025-12-16
 
 ### Fixed
