@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2025-12-15
+
+### Changed
+- Upgrade project to require Node.js ≥ 22.0.0 (previously ≥ 20.0.0)
+- Update CI/CD workflows to use Node 22 consistently
+- Update documentation (README.md, TESTING.md) to reflect Node 22 requirement
+
 ## [0.1.4] - 2025-12-15
 
 ### Fixed
