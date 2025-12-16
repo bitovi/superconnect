@@ -103,7 +103,6 @@ figma.connect(Button, 'https://figma.com/test', {
         sourceContext: {},
         maxRetries: 2,
         maxTokens: 2048,
-        logDir: null,
         logDir: null
       });
 
