@@ -23,16 +23,38 @@ If source shows `export const DialogRoot`, use `DialogRoot` in `figma.connect()`
 
 **Map Figma Title Case values to code conventions** (e.g., `Primary` → `primary`).
 
+**Use variant restrictions when variant controls structure.**
+If a variant changes which sub-components appear (not just styling), create separate `figma.connect()` calls:
+```tsx
+figma.connect(FileUpload, 'url', {
+  variant: { type: 'dropzone' },
+  example: () => <FileUploadDropzone>...</FileUploadDropzone>
+})
+figma.connect(FileUpload, 'url', {
+  variant: { type: 'button' },
+  example: () => <FileUploadTrigger>Button</FileUploadTrigger>
+})
+```
+Don't use conditionals (`{type === 'x' && ...}`) to handle structural variants.
+
 ## No JS Expressions in JSX
 
 Code Connect treats snippets as strings—ternaries/operators appear literally, breaking output.
 
-❌ `{hasIcon && <Icon />}` or `icon={x ? y : z}`
-✅ Compute in props, reference in example:
+**NEVER use `&&`, `||`, or ternaries in example JSX.**
+
+❌ `{hasIcon && <Icon />}` 
+❌ `{icon || <Fallback />}`
+❌ `{footer && <Footer>{footer}</Footer>}`
+❌ `icon={x ? y : z}`
+
+✅ Compute in props with `figma.boolean()` or `figma.enum()`, reference directly in example:
 ```tsx
 props: { icon: figma.boolean('Has Icon', { true: <Icon />, false: undefined }) }
-example: ({ icon }) => <Button>{icon}</Button>
+example: ({ icon }) => <Button>{icon}</Button>  // React handles undefined → renders nothing
 ```
+
+When `figma.boolean()` maps `false` to `undefined`, just use `{prop}` directly—no `&&` check needed.
 
 Arrow must directly return JSX—no function body, no statements.
 

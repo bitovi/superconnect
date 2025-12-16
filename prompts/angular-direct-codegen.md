@@ -22,12 +22,31 @@ Don't invent properties that aren't in the data.
 
 **Use Angular binding syntax**: `[prop]` for inputs, `(event)` for outputs.
 
+**Use variant restrictions when variant controls structure.**
+If a variant changes which elements appear (not just styling), create separate `figma.connect()` calls:
+```typescript
+figma.connect('url', {
+  variant: { type: 'dropzone' },
+  example: () => html`<file-upload-dropzone>...</file-upload-dropzone>`
+})
+figma.connect('url', {
+  variant: { type: 'button' },
+  example: () => html`<file-upload-button>...</file-upload-button>`
+})
+```
+Don't use conditionals (`${type === 'x' && ...}`) to handle structural variants.
+
 ## No JS Expressions in Templates
 
 Code Connect treats snippets as strings—ternaries/operators appear literally, breaking output.
 
-❌ `${disabled ? 'disabled' : ''}` or `${!value}`
-✅ Compute in props, reference in template:
+**NEVER use `&&`, `||`, or ternaries in example templates.**
+
+❌ `${disabled ? 'disabled' : ''}`
+❌ `${!value}`
+❌ `${hasIcon && '<icon />'}`
+
+✅ Compute in props with `figma.boolean()` or `figma.enum()`, reference directly in template:
 ```typescript
 props: { disabled: figma.enum('State', { 'Disabled': true, 'Default': false }) }
 example: ({ disabled }) => html`<input [disabled]="${disabled}">`
