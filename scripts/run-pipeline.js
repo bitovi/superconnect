@@ -200,7 +200,7 @@ function runCommand(label, command, options = {}) {
   const { env: extraEnv, allowInterrupt = false, ...rest } = options || {};
   const mergedEnv = { ...process.env, ...(extraEnv || {}) };
   const shouldCapture = ['1', 'true', 'yes', 'on'].includes(String(process.env.SUPERCONNECT_E2E_VERBOSE || '').toLowerCase());
-  const result = spawnSync(command, {
+  const result = spawnSync(command, [], {
     stdio: shouldCapture ? 'pipe' : 'inherit',
     shell: true,
     env: mergedEnv,
@@ -290,7 +290,7 @@ function resolvePaths(config) {
   const repoSummary = path.join(superconnectDir, 'repo-summary.json');
   const orientation = path.join(superconnectDir, 'orientation.jsonl');
   const agentLogDir = path.join(superconnectDir, 'orienter-agent.log');
-  const codegenLogDir = path.join(superconnectDir, 'mapping-agent-logs');
+  const codegenTranscriptDir = path.join(superconnectDir, 'codegen-agent-transcripts');
   const codeConnectDir = path.join(target, 'codeConnect');
   const summaryFile = path.join(config.target, 'SUPERCONNECT_SUMMARY.md');
 
@@ -303,7 +303,7 @@ function resolvePaths(config) {
     repoSummary,
     orientation,
     agentLogDir,
-    codegenLogDir,
+    codegenTranscriptDir,
     codeConnectDir,
     summaryFile
   };

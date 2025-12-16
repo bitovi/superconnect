@@ -13,10 +13,12 @@ pnpm-debug.log*
 tmp/
 superconnect/
 codeConnect/
-*/superconnect/codegen-logs/
+*/superconnect/codegen-summaries/
+*/superconnect/codegen-agent-transcripts/
 !fixtures/**/superconnect/
 !fixtures/**/superconnect/**
-fixtures/**/superconnect/codegen-logs/
+fixtures/**/superconnect/codegen-summaries/
+fixtures/**/superconnect/codegen-agent-transcripts/
 
 # Env/config (keep sample)
 .env

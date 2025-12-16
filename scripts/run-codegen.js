@@ -894,7 +894,7 @@ const writeCodeConnectFile = async (repoRoot, dir, fileName, contents) => {
 
 const writeLog = async (logDir, name, entry) => {
   await fs.ensureDir(logDir);
-  const file = path.join(logDir, `${sanitizeSlug(name)}-codegen-result.json`);
+  const file = path.join(logDir, `${sanitizeSlug(name)}-codegen-summary.json`);
   await fs.writeJson(file, entry, { spaces: 2 });
   return file;
 };
@@ -953,8 +953,8 @@ const parseArgs = (argv) => {
     orienter: path.resolve(opts.orienter),
     repoSummary: opts.repoSummary ? path.resolve(opts.repoSummary) : path.join(superconnectDir, 'repo-summary.json'),
     codeConnectDir: DEFAULT_CODECONNECT_DIR,
-    logDir: path.join(superconnectDir, 'codegen-logs'),
-    agentLogDir: path.join(superconnectDir, 'mapping-agent-logs'),
+    logDir: path.join(superconnectDir, 'codegen-summaries'),
+    agentTranscriptDir: path.join(superconnectDir, 'codegen-agent-transcripts'),
     force: Boolean(opts.force),
     agentBackend: (opts.agentBackend || 'claude').toLowerCase(),
     agentModel: opts.agentModel || undefined,
@@ -1069,7 +1069,7 @@ const findAngularMatch = (angularComponents, orienterFile) =>
 async function main() {
   const config = parseArgs(process.argv);
   if (config.force) {
-    [config.logDir, config.agentLogDir].forEach((dir) => {
+    [config.logDir, config.agentTranscriptDir].forEach((dir) => {
       if (fs.existsSync(dir)) {
         fs.rmSync(dir, { recursive: true, force: true });
       }
@@ -1110,7 +1110,7 @@ async function main() {
     figmaComponents,
     codeConnectDir: config.codeConnectDir,
     logDir: config.logDir,
-    agentLogDir: config.agentLogDir,
+    agentTranscriptDir: config.agentTranscriptDir,
     force: config.force,
     angularComponents: Array.isArray(repoSummary?.angular_components) ? repoSummary.angular_components : [],
     targetFramework: config.targetFramework || null,
@@ -1205,7 +1205,8 @@ async function main() {
         figmaUrl,
         sourceContext,
         maxRetries: 2,
-        maxTokens: config.agentMaxTokens || 4096
+        maxTokens: config.agentMaxTokens || 4096,
+        logDir: ctx.agentTranscriptDir
       });
 
       if (result.success && result.code) {
@@ -1325,7 +1326,7 @@ async function main() {
 
   const built = ctx.summaries.filter((s) => s.status === 'built');
   const skipped = ctx.summaries.filter((s) => s.status !== 'built');
-  console.log(`Done. Built ${built.length}, skipped ${skipped.length}. Logs → ${config.logDir}`);
+  console.log(`Done. Built ${built.length}, skipped ${skipped.length}. Summaries → ${config.logDir}`);
 }
 
 main().catch((err) => {

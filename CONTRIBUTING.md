@@ -40,7 +40,7 @@ The `scripts/` directory contains the executable pieces of the pipeline:
   Reads Figma metadata, orientation output, repo summary, and prompts, then asks the LLM to produce mappings and renders:
   - React `.figma.tsx` files
   - Angular `.figma.ts` files (using `lit-html` templates)
-  Also writes per‑component logs in `superconnect/codegen-logs/`
+  Also writes per‑component summaries in `superconnect/codegen-summaries/`
 
 - `scripts/finalize.js`  
   Stage 5: finalizer  
@@ -94,7 +94,7 @@ Prompts live in `prompts/` and define how the agents should behave:
 To understand why the agent produced a particular mapping, look at:
 
 - The relevant prompt in `prompts/`
-- The agent logs in `superconnect/orienter-agent.log` and `superconnect/codegen-logs/*.json`
+- The agent logs in `superconnect/orienter-agent.log`, `superconnect/codegen-summaries/*.json`, and `superconnect/codegen-agent-transcripts/*.log`
 
 ## Tests and fixtures
 

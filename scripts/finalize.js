@@ -4,7 +4,7 @@
  * Finalizer: summarize a Superconnect run.
  *
  * Inputs:
- *  - superconnect directory (figma-components-index.json, codegen-logs, mapping-agent-logs, orientation.jsonl)
+ *  - superconnect directory (figma-components-index.json, codegen-summaries, codegen-agent-transcripts, orientation.jsonl)
  *  - codeConnect directory (generated *.figma.tsx)
  *
  * Outputs:
@@ -247,7 +247,7 @@ const parseArgs = (argv) => {
     figmaIndex,
     orientation: path.join(superconnectDir, 'orientation.jsonl'),
     codeConnectDir: path.resolve(baseCwd, opts.codeConnect),
-    componentLogsDir: path.join(superconnectDir, 'codegen-logs'),
+    componentLogsDir: path.join(superconnectDir, 'codegen-summaries'),
     superconnectDir,
     baseCwd,
     targetFramework: opts.targetFramework || null
@@ -294,7 +294,7 @@ async function main() {
   if (builtDetails.length === 0 && componentLogs.length > 0) {
     console.warn('\n⚠️  No Code Connect files were generated');
     console.warn('💡 Common reasons:');
-    console.warn('   - All components failed code generation (check codegen-logs/)');
+    console.warn('   - All components failed code generation (check codegen-summaries/)');
     console.warn('   - Components were skipped due to errors in orienter stage');
     console.warn('   - API rate limits or authentication issues');
     console.warn('   Run with SUPERCONNECT_E2E_VERBOSE=1 for detailed logs\n');

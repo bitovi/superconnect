@@ -125,6 +125,12 @@ function buildRetryPrompt(previousCode, errors) {
   sections.push(previousCode);
   sections.push('```\n');
 
+  sections.push('**CRITICAL**: Review the "Figma Component Data" section above to see the ACTUAL available properties.');
+  sections.push('Only use properties that are explicitly listed in:');
+  sections.push('- `componentProperties[]` for figma.boolean(), figma.string(), figma.instance()');
+  sections.push('- `variantProperties{}` for figma.enum()');
+  sections.push('- `textLayers[]` for figma.textContent()');
+  sections.push('- `slotLayers[]` for figma.children()\n');
   sections.push('Please output the corrected .figma.ts file. Output ONLY the code, no markdown blocks.');
 
   return sections.join('\n');
@@ -167,7 +173,8 @@ async function processComponent({
   figmaUrl,
   sourceContext,
   maxRetries,
-  maxTokens
+  maxTokens,
+  logDir
 }) {
   // Build initial messages
   const messages = buildStatelessMessages({
@@ -203,7 +210,8 @@ async function processComponent({
         system: messagesForCall.system,
         user: messagesForCall.user,
         maxTokens,
-        logLabel
+        logLabel,
+        logDir
       });
 
       // Extract code from response (strip markdown if present)

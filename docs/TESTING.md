@@ -346,7 +346,8 @@ fixtures/{name}/
    ```
    {tempDir}/superconnect/
    ├── orienter-agent.log          # Orientation LLM calls
-   ├── codegen-logs/*.json         # Codegen LLM calls and per-component results
+   ├── codegen-summaries/*.json    # Per-component codegen results
+   ├── codegen-agent-transcripts/*.log  # Full agent I/O transcripts
    └── orientation.jsonl           # Orienter decisions
    ```
 

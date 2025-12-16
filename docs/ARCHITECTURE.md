@@ -146,14 +146,15 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 
 - Output:
   - `codeConnect/<Component>.figma.tsx` or `.figma.ts` (unless skipped or blocked by existing file and no `--force`)
-  - `superconnect/codegen-logs/*-codegen-result.json` (per‑component summary)
+  - `superconnect/codegen-summaries/*-codegen-summary.json` (per‑component results)
+  - `superconnect/codegen-agent-transcripts/*-attempt*.log` (full agent I/O transcripts)
 - Codegen respects:
   - `--only` / `--exclude` filters (names/IDs/globs)
   - `--force` for overwriting existing mapping files
 
   - `superconnect/figma-components-index.json`
   - `superconnect/orientation.jsonl`
-  - `superconnect/codegen-logs/*.json`
+  - `superconnect/codegen-summaries/*.json`
   - `codeConnect/*.figma.tsx` / `*.figma.ts`
 - Behavior:
   - Correlates Figma components with codegen results

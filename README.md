@@ -160,7 +160,7 @@ You can choose your AI backends by editing `superconnect.toml`:
     - Requires OPENAI_API_KEY
     - sdk_model must be an OpenAI model (e.g., gpt-5.1-codex-mini)
 
-Code gen agents log to superconnect/orienter-agent.log and superconnect/codegen-logs/
+Code gen agents log to superconnect/orienter-agent.log, superconnect/codegen-summaries/, and superconnect/codegen-agent-transcripts/
 
 # Outputs
 
@@ -172,7 +172,8 @@ Code gen agents log to superconnect/orienter-agent.log and superconnect/codegen-
     - repo-summary.json: lightweight summary of the repo (framework detection, Angular component metadata, exports)
     - orientation.jsonl: agent suggestions for which files to read for each Figma component
     - orienter-agent.log: orientation agent interaction logs
-    - codegen-logs/*.json: per-component codegen agent interaction logs, decisions and metadata
+    - codegen-summaries/*.json: per-component codegen results (status, attempts, errors)
+    - codegen-agent-transcripts/*.log: full agent I/O transcripts for debugging
 - In codeConnect/
     - *.figma.tsx or *.figma.ts files for each successfully mapped component, ready for Code Connect
 - At repo root:
@@ -185,7 +186,7 @@ The pipeline is designed for graceful partial runs:
 
 - Ctrl+C during codegen
     - Codegen finishes the current component, then stops processing more
-    - superconnect/codegen-logs/ and codeConnect/ contain whatever was completed so far
+    - superconnect/codegen-summaries/, codegen-agent-transcripts/, and codeConnect/ contain whatever was completed so far
     - The pipeline still runs the finalizer, so you get an accurate summary of what was built versus skipped
 - Rerunning without --force
     - Repo summary, Figma scan, and orienter are skipped if their outputs already exist

@@ -358,39 +358,67 @@ class ClaudeAgentAdapter {
    * @param {string} params.user - User message (component payload)
    * @param {number} params.maxTokens - Max tokens for this call (overrides default)
    * @param {string} params.logLabel - Label for logging
+   * @param {string} params.logDir - Directory for I/O logs
    * @returns {Promise<{text: string, usage: object}>} - Response text and usage info
    */
-  async chatStateless({ system, user, maxTokens, logLabel = 'stateless' } = {}) {
+  async chatStateless({ system, user, maxTokens, logLabel = 'stateless', logDir } = {}) {
     if (!this.client) {
       throw new Error('ANTHROPIC_API_KEY is required for ClaudeAgentAdapter');
     }
 
-    // System message with cache control
-    // Haiku 4.5 requires 4096 tokens minimum for caching to activate
-    const systemContent = [
-      {
-        type: 'text',
-        text: system,
-        cache_control: { type: 'ephemeral' }
+    const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
+    const writeLog = (text) => {
+      if (logStream?.stream) logStream.stream.write(text);
+    };
+
+    try {
+      writeLog('=== AGENT INPUT ===\n');
+      writeLog('## System\n');
+      writeLog(system);
+      writeLog('\n\n## User\n');
+      writeLog(user);
+      writeLog('\n\n=== AGENT OUTPUT ===\n');
+
+      // System message with cache control
+      // Haiku 4.5 requires 4096 tokens minimum for caching to activate
+      const systemContent = [
+        {
+          type: 'text',
+          text: system,
+          cache_control: { type: 'ephemeral' }
+        }
+      ];
+
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: maxTokens || this.maxTokens,
+        system: systemContent,
+        messages: [{ role: 'user', content: user }]
+      });
+
+      // Capture token usage
+      const usage = response.usage ? {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        cacheWriteTokens: response.usage.cache_creation_input_tokens || 0,
+        cacheReadTokens: response.usage.cache_read_input_tokens || 0
+      } : null;
+
+      const text = extractClaudeText(response) || '';
+      writeLog(text);
+      
+      if (usage) {
+        const usageMsg = `\n\n[Usage: in=${usage.inputTokens} out=${usage.outputTokens} cacheWrite=${usage.cacheWriteTokens} cacheRead=${usage.cacheReadTokens}]\n`;
+        writeLog(usageMsg);
       }
-    ];
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: maxTokens || this.maxTokens,
-      system: systemContent,
-      messages: [{ role: 'user', content: user }]
-    });
-
-    // Capture token usage
-    const usage = response.usage ? {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-      cacheWriteTokens: response.usage.cache_creation_input_tokens || 0,
-      cacheReadTokens: response.usage.cache_read_input_tokens || 0
-    } : null;
-
-    return { text: extractClaudeText(response) || '', usage };
+      if (logStream?.stream) logStream.stream.end();
+      return { text, usage };
+    } catch (err) {
+      writeLog(`\nError: ${err.message}\n`);
+      if (logStream?.stream) logStream.stream.end();
+      throw err;
+    }
   }
 }
 
