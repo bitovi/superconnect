@@ -106,7 +106,8 @@ figma.connect('https://figma.com/test', {
         figmaUrl: 'https://figma.com/test',
         sourceContext: {},
         maxRetries: 2,
-        maxTokens: 2048
+        maxTokens: 2048,
+        logDir: null
       });
 
       expect(result.success).toBe(true);
@@ -151,7 +152,8 @@ figma.connect('url', {
         figmaUrl: 'https://figma.com/test',
         sourceContext: {},
         maxRetries: 2,
-        maxTokens: 2048
+        maxTokens: 2048,
+        logDir: null
       });
 
       // Should succeed on second attempt
