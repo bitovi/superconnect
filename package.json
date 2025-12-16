@@ -1,6 +1,6 @@
 {
   "name": "@bitovi/superconnect",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "CLI that turns a Figma design system file and a React/Angular component repo into publishable Figma Code Connect mappings",
   "bin": {
     "superconnect": "scripts/run-pipeline.js"
