@@ -1,6 +1,6 @@
 {
   "name": "@bitovi/superconnect",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "CLI that turns a Figma design system file and a React/Angular component repo into publishable Figma Code Connect mappings",
   "bin": {
     "superconnect": "scripts/run-pipeline.js"
@@ -35,7 +35,7 @@
   "author": "Bitovi",
   "license": "MIT",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.18.0",
@@ -50,9 +50,6 @@
     "openai": "^4.104.0",
     "p-limit": "^3.1.0",
     "undici": "^6.18.1"
-  },
-  "engines": {
-    "node": ">=22.0.0"
   },
   "repository": {
     "type": "git",
