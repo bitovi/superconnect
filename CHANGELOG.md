@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2025-12-15
+
+### Fixed
+- Fix test failures in CI by adding missing logDir parameter to processComponent calls
+- Suppress Anthropic SDK --localstorage-file warnings in tests with NODE_NO_WARNINGS=1
+
 ## [0.1.3] - 2025-12-15
 
 ### Fixed
@@ -47,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for monorepo path aliases
 - Document URL substitutions for Figma node links
 
+[0.1.4]: https://github.com/bitovi/superconnect/releases/tag/v0.1.4
 [0.1.3]: https://github.com/bitovi/superconnect/releases/tag/v0.1.3
 [0.1.1]: https://github.com/bitovi/superconnect/releases/tag/v0.1.1
 [0.1.0]: https://github.com/bitovi/superconnect/releases/tag/v0.1.0
