@@ -293,7 +293,11 @@ class ClaudeAgentAdapter {
       );
     }
     
-    this.client = new Anthropic({ apiKey });
+    // Set a longer timeout (20 minutes) for large orientation tasks
+    this.client = new Anthropic({ 
+      apiKey,
+      timeout: 20 * 60 * 1000 // 20 minutes in milliseconds
+    });
   }
 
   orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
@@ -332,7 +336,8 @@ class ClaudeAgentAdapter {
       const response = await this.client.messages.create({
         model: this.model,
         max_tokens: this.maxTokens,
-        messages: [{ role: 'user', content: payload }]
+        messages: [{ role: 'user', content: payload }],
+        stream: false
       });
       
       // Log token usage if available
@@ -512,7 +517,8 @@ class ClaudeAgentAdapter {
         model: this.model,
         max_tokens: maxTokens || this.maxTokens,
         system: systemContent,
-        messages: [{ role: 'user', content: user }]
+        messages: [{ role: 'user', content: user }],
+        stream: false
       });
 
       // Capture token usage
