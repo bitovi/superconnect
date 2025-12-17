@@ -6,11 +6,11 @@
     "superconnect": "scripts/run-pipeline.js"
   },
   "scripts": {
-    "test": "NODE_NO_WARNINGS=1 jest",
-    "test:e2e:chakra": "RUN_CHAKRA_E2E=1 jest test/chakra-e2e.test.js",
-    "test:e2e:chakra:small": "RUN_CHAKRA_E2E=1 CHAKRA_E2E_ONLY=Button jest test/chakra-e2e.test.js",
-    "test:e2e:zapui": "RUN_ZAPUI_E2E=1 jest test/zapui-e2e.test.js",
-    "test:e2e:zapui:small": "RUN_ZAPUI_E2E=1 ZAPUI_E2E_ONLY=Button jest test/zapui-e2e.test.js",
+    "test": "cross-env NODE_NO_WARNINGS=1 jest",
+    "test:e2e:chakra": "cross-env RUN_CHAKRA_E2E=1 jest test/chakra-e2e.test.js",
+    "test:e2e:chakra:small": "cross-env RUN_CHAKRA_E2E=1 CHAKRA_E2E_ONLY=Button jest test/chakra-e2e.test.js",
+    "test:e2e:zapui": "cross-env RUN_ZAPUI_E2E=1 jest test/zapui-e2e.test.js",
+    "test:e2e:zapui:small": "cross-env RUN_ZAPUI_E2E=1 ZAPUI_E2E_ONLY=Button jest test/zapui-e2e.test.js",
     "test:watch": "jest --watch",
     "prepublishOnly": "node scripts/capture-version-sha.js"
   },
@@ -61,6 +61,7 @@
   },
   "homepage": "https://github.com/bitovi/superconnect",
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "jest": "^30.2.0"
   },
   "files": [
