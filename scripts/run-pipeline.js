@@ -93,6 +93,15 @@ function normalizeAgentConfig(agentSection = {}) {
     );
   }
   
+  // Warn if using custom base_url without explicitly setting model
+  if (baseUrl && !agentSection.model && !agentSection.sdk_model) {
+    console.warn(
+      `${chalk.yellow('⚠️  Using custom base_url but no model specified.')}\n` +
+      `   ${chalk.yellow(`Default model "${DEFAULT_OPENAI_MODEL}" may not exist on your endpoint.`)}\n` +
+      `   ${chalk.dim('Add to superconnect.toml: model = "your-model-name"')}`
+    );
+  }
+  
   return { api, model, maxTokens: resolvedMaxTokens, baseUrl, apiKey };
 }
 
