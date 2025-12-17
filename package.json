@@ -70,6 +70,7 @@
     "prompts",
     "LICENSE",
     "README.md",
+    "CHANGELOG.md",
     ".version-sha"
   ]
 }

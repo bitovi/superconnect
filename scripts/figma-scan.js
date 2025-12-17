@@ -17,7 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { fetch } = require('undici');
+// Use Node's native fetch (Node 22+) instead of undici for better Windows compatibility
 const { Command } = require('commander');
 const chalk = require('chalk');
 const stringifyCompact = (value) => {
