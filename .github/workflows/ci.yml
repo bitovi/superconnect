@@ -9,9 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -31,40 +28,47 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      - name: Run Chakra E2E tests
-        if: github.ref == 'refs/heads/main' && env.FIGMA_ACCESS_TOKEN != '' && env.ANTHROPIC_API_KEY != ''
+  e2e:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: [chakra, zapui]
+    env:
+      FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run ${{ matrix.fixture }} E2E tests
+        if: env.FIGMA_ACCESS_TOKEN != '' && env.ANTHROPIC_API_KEY != ''
         run: |
-          if [ ! -f fixtures/chakra-ui/package.json ]; then
-            echo "Skipping Chakra E2E: fixtures/chakra-ui not present after checkout"
+          FIXTURE_PATH="fixtures/${{ matrix.fixture == 'chakra' && 'chakra-ui' || 'zapui' }}/package.json"
+          if [ ! -f "$FIXTURE_PATH" ]; then
+            echo "Skipping ${{ matrix.fixture }} E2E: fixture not present after checkout"
             exit 0
           fi
-          SUPERCONNECT_E2E_VERBOSE=1 CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra
+          ENV_VAR="${{ matrix.fixture == 'chakra' && 'CHAKRA_E2E_KEEP' || 'ZAPUI_E2E_KEEP' }}"
+          eval "$ENV_VAR=1 SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:${{ matrix.fixture }}"
 
-      - name: Run ZapUI E2E tests
-        if: github.ref == 'refs/heads/main' && env.FIGMA_ACCESS_TOKEN != '' && env.ANTHROPIC_API_KEY != ''
-        run: |
-          if [ ! -f fixtures/zapui/package.json ]; then
-            echo "Skipping ZapUI E2E: fixtures/zapui not present after checkout"
-            exit 0
-          fi
-          SUPERCONNECT_E2E_VERBOSE=1 ZAPUI_E2E_KEEP=1 npm run test:e2e:zapui
-
-      - name: Upload Chakra E2E artifacts
-        if: github.ref == 'refs/heads/main'
+      - name: Upload ${{ matrix.fixture }} E2E artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: chakra-e2e-artifacts
-          path: |
-            /tmp/chakra-e2e-*
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - name: Upload ZapUI E2E artifacts
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: zapui-e2e-artifacts
-          path: |
-            /tmp/zapui-e2e-*
+          name: ${{ matrix.fixture }}-e2e-artifacts
+          path: /tmp/${{ matrix.fixture }}*-e2e-*
           if-no-files-found: ignore
           retention-days: 14
