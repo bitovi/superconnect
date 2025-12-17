@@ -106,9 +106,6 @@ figma.connect(Button, 'https://figma.com/test', {
         logDir: null
       });
 
-      if (!result.success) {
-        console.error('Validation failed with errors:', result.errors);
-      }
       expect(result.success).toBe(true);
       expect(result.code).toContain('figma.connect');
       expect(result.errors).toHaveLength(0);

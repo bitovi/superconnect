@@ -86,8 +86,13 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
       }
     );
 
-    // Clean up temp directory
-    fs.removeSync(tempDir);
+    // Clean up temp directory - use try/catch to handle Windows file locking issues
+    // Windows may hold locks on files briefly after the process exits
+    try {
+      fs.removeSync(tempDir);
+    } catch {
+      // Ignore cleanup errors - temp dir will be cleaned up by OS eventually
+    }
 
     // Check for success
     if (result.status === 0 && !result.stderr?.includes('ParserError')) {
