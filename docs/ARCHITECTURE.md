@@ -102,7 +102,6 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - `files`: array of repo‑relative file paths
 
 ### 4. Codegen (`scripts/run-codegen.js`)
-### 4. Codegen (`scripts/run-codegen.js`)
 
 Uses direct codegen approach where agents generate complete Code Connect files with built-in validation and retry logic.
 
@@ -152,6 +151,9 @@ Uses direct codegen approach where agents generate complete Code Connect files w
   - `--only` / `--exclude` filters (names/IDs/globs)
   - `--force` for overwriting existing mapping files
 
+### 5. Finalizer (`scripts/finalize.js`)
+
+- Inputs:
   - `superconnect/figma-components-index.json`
   - `superconnect/orientation.jsonl`
   - `superconnect/codegen-summaries/*.json`
