@@ -16,6 +16,9 @@ const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
 
+// Windows requires npx.cmd instead of npx
+const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+
 /**
  * Validate Code Connect code using the Figma CLI's parse command.
  *
@@ -26,7 +29,7 @@ const os = require('os');
  */
 function validateWithFigmaCLI({ code, parser = 'react' }) {
   // Check if @figma/code-connect CLI is available
-  const cliCheck = spawnSync('npx', ['@figma/code-connect', '--version'], {
+  const cliCheck = spawnSync(NPX, ['@figma/code-connect', '--version'], {
     encoding: 'utf8',
     timeout: 10000,
     stdio: 'pipe'
@@ -71,7 +74,7 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
 
     // Run figma connect parse with --exit-on-unreadable-files to get exit code 1 on errors
     const result = spawnSync(
-      'npx',
+      NPX,
       ['@figma/code-connect', 'connect', 'parse', '-c', tempConfig, '--exit-on-unreadable-files'],
       {
         cwd: tempDir, // Run from temp directory so relative glob works
@@ -175,7 +178,7 @@ function extractErrors(stdout = '', stderr = '') {
  */
 function isFigmaCLIAvailable() {
   try {
-    const result = spawnSync('npx', ['@figma/code-connect', '--version'], {
+    const result = spawnSync(NPX, ['@figma/code-connect', '--version'], {
       encoding: 'utf8',
       shell: true,
       timeout: 10000
