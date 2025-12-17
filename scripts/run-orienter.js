@@ -120,8 +120,8 @@ async function main() {
     await fs.writeFile(config.payloadPreviewFile, payload, 'utf8');
     await fs.copyFile(config.fakeOrienterOutput, config.output);
     outputStream.end();
-    console.log(`Using fake orienter output from ${config.fakeOrienterOutput}`);
-    console.log(`Orientation written to ${config.output}`);
+    console.log(`   Using fake orienter output from ${config.fakeOrienterOutput}`);
+    console.log(`   Orientation written to ${config.output}`);
     return;
   }
 
@@ -144,22 +144,16 @@ async function main() {
   if (result.code !== 0) {
     console.error(`❌ Orienter agent failed with code ${result.code}`);
     if (result.stderr) {
-      console.error(`Error: ${result.stderr}`);
-      // Check for common API errors and provide helpful guidance
-      if (result.stderr.includes('API usage limits') || result.stderr.includes('rate limit')) {
-        console.error('\n💡 Tip: You have hit your API rate limit.');
-        console.error('   - Check your API provider dashboard for quota details');
-        console.error('   - Consider switching to a different API provider in superconnect.toml');
-      } else if (result.stderr.includes('authentication') || result.stderr.includes('API key')) {
-        console.error('\n💡 Tip: API authentication failed.');
-        console.error('   - Verify your API key is set correctly (ANTHROPIC_API_KEY or OPENAI_API_KEY)');
-        console.error('   - Check that your .env file is in the correct location');
-      }
+      console.error(`\n${result.stderr}`);
+    }
+    if (result.logFile) {
+      console.error(`\n📝 Full error details written to: ${result.logFile}`);
+      console.error('   Check this log file for complete diagnostic information.');
     }
     process.exit(result.code);
   }
 
-  console.log(`Orientation written to ${config.output}`);
+  console.log(`   Orientation written to ${config.output}`);
 }
 
 main().catch((err) => {

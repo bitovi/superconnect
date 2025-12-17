@@ -68,10 +68,62 @@ async function figmaRequest(pathname, token) {
       headers: { 'X-Figma-Token': token }
     });
   } catch (err) {
+    // Enhanced network error handling for corporate environments
+    const isNetworkError = err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || 
+                           err?.code === 'ETIMEDOUT' || err?.code === 'ECONNRESET' ||
+                           err?.message?.includes('fetch failed') || 
+                           err?.message?.includes('certificate') || 
+                           err?.message?.includes('self-signed') ||
+                           err?.message?.includes('SSL') || err?.message?.includes('TLS');
+    
+    if (isNetworkError) {
+      const networkTips = [
+        '💡 Network/Certificate Error - Common in corporate environments:',
+        '',
+        'Quick diagnostics:',
+        '  1. Test Figma API: curl -v https://api.figma.com/v1/me -H "X-Figma-Token: YOUR_TOKEN"',
+        '  2. Verify you can reach api.figma.com from your network',
+        '',
+        'Possible solutions:',
+        '  • Corporate proxy: Set HTTP_PROXY and HTTPS_PROXY environment variables',
+        '  • Certificate issues: Your IT may need to add Figma\'s certs to the trust store',
+        '  • Firewall: Ensure api.figma.com (port 443) is allowed',
+        '  • VPN: Try connecting/disconnecting from corporate VPN',
+        '',
+        'As a last resort (INSECURE - only for testing):',
+        '  export NODE_TLS_REJECT_UNAUTHORIZED=0',
+        '',
+        `Raw error: ${err.message}`,
+        `Error code: ${err.code || 'none'}`
+      ];
+      throw new Error(networkTips.join('\n'));
+    }
+    
     throw new Error(`Network request failed: ${err.message}. Check your internet connection and firewall/proxy settings.`);
   }
   const text = await res.text();
   if (!res.ok) {
+    // Enhanced error messages for common Figma API errors
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Figma API authentication failed (${res.status})\n\n` +
+        `💡 Troubleshooting:\n` +
+        `  - Verify FIGMA_ACCESS_TOKEN is set correctly\n` +
+        `  - Get a token from https://www.figma.com/developers/api#access-tokens\n` +
+        `  - Ensure token has file_content:read permission\n` +
+        `  - Check token hasn't expired\n\n` +
+        `Response: ${text}`
+      );
+    } else if (res.status === 404) {
+      throw new Error(
+        `Figma file not found (404)\n\n` +
+        `💡 Troubleshooting:\n` +
+        `  - Verify the file key/URL is correct\n` +
+        `  - Ensure you have access to this file\n` +
+        `  - Check if file has been deleted or moved\n\n` +
+        `Response: ${text}`
+      );
+    }
     throw new Error(`Figma API error: ${res.status} - ${text}`);
   }
   try {
@@ -442,7 +494,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(chalk.bold('Fetching Figma file...'));
+  console.log(chalk.bold('   Fetching Figma file...'));
   console.log(`File Key: ${figmaColor(config.fileKey)}`);
 
   try {
@@ -547,7 +599,21 @@ async function main() {
 
     console.log(`\n${chalk.green('✓')} Complete! Processed ${processedCount} component(s)`);
   } catch (error) {
-    console.error(`\n${chalk.red('❌ Error:')} ${error.message}`);
+    console.error(`\n${chalk.red('❌ Figma scan failed:')} ${error.message}`);
+    
+    // Provide context-specific guidance
+    if (error.message.includes('Network') || error.message.includes('certificate') || error.message.includes('TLS')) {
+      console.error('\n📝 See docs/NETWORK-TROUBLESHOOTING.md for detailed help with corporate network issues');
+    } else if (error.message.includes('authentication') || error.message.includes('401') || error.message.includes('403')) {
+      console.error('\n💡 Token issue - verify FIGMA_ACCESS_TOKEN and permissions');
+    } else if (error.message.includes('not found') || error.message.includes('404')) {
+      console.error('\n💡 File not found - verify the Figma file key/URL');
+    }
+    
+    if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
+      console.error(`\nStack trace:\n${error.stack}`);
+    }
+    
     process.exit(1);
   }
 }

@@ -117,6 +117,18 @@ class OpenAIAgentAdapter {
     } catch (err) {
       let message = err?.message || 'Unknown OpenAI error';
       
+      // Log detailed error info for debugging
+      const errorDetails = [
+        `Error type: ${err?.constructor?.name || 'Unknown'}`,
+        `Error code: ${err?.code || 'none'}`,
+        `Status: ${err?.status || 'none'}`,
+        `Message: ${message}`
+      ];
+      if (err?.cause) {
+        errorDetails.push(`Cause: ${err.cause}`);
+      }
+      writeLog(`\n=== ERROR DETAILS ===\n${errorDetails.join('\n')}\n`);
+      
       // Provide helpful context for common errors
       if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
         message = `OpenAI API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify OPENAI_API_KEY is set correctly in your environment or .env file\n  - Check that your API key is valid at https://platform.openai.com/api-keys\n  - Ensure your .env file is in the project root directory`;
@@ -124,8 +136,30 @@ class OpenAIAgentAdapter {
         message = `OpenAI API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://platform.openai.com/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes`;
       } else if (err?.status === 403) {
         message = `OpenAI API access denied: ${message}\n\n💡 Troubleshooting:\n  - Your API key may not have access to the requested model\n  - Check your organization settings at https://platform.openai.com/account/organization`;
-      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || message.includes('fetch failed')) {
-        message = `Network error connecting to OpenAI API: ${message}\n\n💡 Troubleshooting:\n  - Check your internet connection\n  - Verify firewall/proxy settings allow access to api.openai.com\n  - If behind a corporate proxy, you may need to configure proxy settings`;
+      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' || 
+                 err?.code === 'ECONNRESET' || message.includes('fetch failed') || 
+                 message.includes('certificate') || message.includes('self-signed') || 
+                 message.includes('SSL') || message.includes('TLS')) {
+        // Enhanced network error handling for corporate environments
+        const networkTips = [
+          '💡 Network/Certificate Error - Common in corporate environments:',
+          '',
+          'Quick diagnostics:',
+          `  1. Test API connectivity: curl -v https://api.openai.com/v1/models`,
+          '  2. Check if you can reach the API from your network',
+          '',
+          'Possible solutions:',
+          '  • Corporate proxy: Set HTTP_PROXY and HTTPS_PROXY environment variables',
+          '  • Certificate issues: Your IT may need to add OpenAI\'s certs to the trust store',
+          '  • Firewall: Ensure api.openai.com (port 443) is allowed',
+          '  • VPN: Try connecting/disconnecting from corporate VPN',
+          '',
+          'As a last resort (INSECURE - only for testing):',
+          '  export NODE_TLS_REJECT_UNAUTHORIZED=0',
+          '',
+          `Raw error: ${message}`
+        ];
+        message = networkTips.join('\n');
       }
       
       writeLog(`${message}\n`);
@@ -295,6 +329,18 @@ class ClaudeAgentAdapter {
         }
       }
       
+      // Log detailed error info for debugging
+      const errorDetails = [
+        `Error type: ${err?.constructor?.name || 'Unknown'}`,
+        `Error code: ${err?.code || 'none'}`,
+        `Status: ${err?.status || 'none'}`,
+        `Message: ${message}`
+      ];
+      if (err?.cause) {
+        errorDetails.push(`Cause: ${err.cause}`);
+      }
+      writeLog(`\n=== ERROR DETAILS ===\n${errorDetails.join('\n')}\n`);
+      
       // Provide helpful context for common errors
       if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
         message = `Claude API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify ANTHROPIC_API_KEY is set correctly in your environment or .env file\n  - Get your API key from https://console.anthropic.com/settings/keys\n  - Ensure your .env file is in the project root directory`;
@@ -302,8 +348,30 @@ class ClaudeAgentAdapter {
         message = `Claude API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://console.anthropic.com/settings/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes or reduce concurrency`;
       } else if (err?.status === 403) {
         message = `Claude API access denied: ${message}\n\n💡 Troubleshooting:\n  - Your API key may not have access to the requested model\n  - Verify your account status at https://console.anthropic.com`;
-      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || message.includes('fetch failed')) {
-        message = `Network error connecting to Claude API: ${message}\n\n💡 Troubleshooting:\n  - Check your internet connection\n  - Verify firewall/proxy settings allow access to api.anthropic.com\n  - If behind a corporate proxy, you may need to configure proxy settings`;
+      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' || 
+                 err?.code === 'ECONNRESET' || message.includes('fetch failed') || 
+                 message.includes('certificate') || message.includes('self-signed') || 
+                 message.includes('SSL') || message.includes('TLS')) {
+        // Enhanced network error handling for corporate environments
+        const networkTips = [
+          '💡 Network/Certificate Error - Common in corporate environments:',
+          '',
+          'Quick diagnostics:',
+          `  1. Test API connectivity: curl -v https://api.anthropic.com/v1/messages`,
+          '  2. Check if you can reach the API from your network',
+          '',
+          'Possible solutions:',
+          '  • Corporate proxy: Set HTTP_PROXY and HTTPS_PROXY environment variables',
+          '  • Certificate issues: Your IT may need to add Anthropic\'s certs to the trust store',
+          '  • Firewall: Ensure api.anthropic.com (port 443) is allowed',
+          '  • VPN: Try connecting/disconnecting from corporate VPN',
+          '',
+          'As a last resort (INSECURE - only for testing):',
+          '  export NODE_TLS_REJECT_UNAUTHORIZED=0',
+          '',
+          `Raw error: ${message}`
+        ];
+        message = networkTips.join('\n');
       }
       
       writeLog(`${message}\n`);

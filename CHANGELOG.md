@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Enhance error diagnostics for network and certificate issues in corporate environments across all pipeline stages
+- Add detailed error logging to agent adapters (error type, code, status, cause) to help diagnose connection failures
+- Improve error messages for TLS/SSL certificate errors with specific troubleshooting steps for locked-down networks
+- Add network error detection and corporate environment guidance to Figma scan stage
+- Add enhanced authentication and file-not-found error messages to Figma API requests
+- Preserve network error details in React/Angular codegen (no longer wrapped as generic "Agent error")
+- Flag network vs agent errors in codegen attempt logs for better diagnostics
+- Always display log file locations when stages fail so users can access complete diagnostic information
+- Point users to docs/NETWORK-TROUBLESHOOTING.md for detailed corporate network help
+
 ## [0.1.10] - 2025-12-16
 
 ### Changed

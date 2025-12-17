@@ -1093,7 +1093,7 @@ async function main() {
   }
 
   if (config.targetFramework) {
-    console.log(`${highlight('Target framework')}: ${config.targetFramework}`);
+    console.log(`   ${highlight('Target framework')}: ${config.targetFramework}`);
   }
 
   const orienterRecords = await parseJsonLines(config.orienter);
@@ -1190,7 +1190,7 @@ async function main() {
       }
     });
 
-    console.log(`Generating Code Connect for ${generatedColor(logBaseName)}`);
+    console.log(`   Generating Code Connect for ${generatedColor(logBaseName)}`);
 
     try {
       // Call the appropriate direct codegen processor
@@ -1326,7 +1326,7 @@ async function main() {
 
   const built = ctx.summaries.filter((s) => s.status === 'built');
   const skipped = ctx.summaries.filter((s) => s.status !== 'built');
-  console.log(`Done. Built ${built.length}, skipped ${skipped.length}. Summaries → ${config.logDir}`);
+  console.log(`   Done. Built ${built.length}, skipped ${skipped.length}. Summaries → ${config.logDir}`);
 }
 
 main().catch((err) => {
@@ -1338,6 +1338,11 @@ main().catch((err) => {
     console.error('   - superconnect/figma-components-index.json');
     console.error('   - superconnect/repo-summary.json');
     console.error('   - superconnect/orientation.jsonl');
+  } else if (err.message.includes('Network') || err.message.includes('certificate') || 
+             err.message.includes('TLS') || err.message.includes('SSL')) {
+    console.error('\n💡 Network/certificate error detected');
+    console.error('   See docs/NETWORK-TROUBLESHOOTING.md for detailed help');
+    console.error('   Check component log files in superconnect/codegen-agent-transcripts/ for specifics');
   } else if (err.message.includes('API') || err.message.includes('authentication')) {
     console.error('\n💡 API error - verify your ANTHROPIC_API_KEY or OPENAI_API_KEY');
   } else if (err.message.includes('JSON')) {

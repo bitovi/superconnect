@@ -245,8 +245,27 @@ async function processComponent({
       // Validation failed - errors captured in attempts array
       lastErrors = validationResult.errors;
     } catch (err) {
-      lastErrors = [`Agent error: ${err.message}`];
-      attempts.push({ attempt, usage: null, valid: false, errors: lastErrors });
+      // Preserve detailed error information for network issues
+      const errorMsg = err.message || String(err);
+      const isNetworkError = err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' ||
+                             err?.code === 'ETIMEDOUT' || err?.code === 'ECONNRESET' ||
+                             errorMsg.includes('Network') || errorMsg.includes('certificate') ||
+                             errorMsg.includes('TLS') || errorMsg.includes('SSL');
+      
+      if (isNetworkError) {
+        lastErrors = [errorMsg]; // Preserve full network error details
+      } else {
+        lastErrors = [`Agent error: ${errorMsg}`];
+      }
+      
+      attempts.push({ 
+        attempt, 
+        usage: null, 
+        valid: false, 
+        errors: lastErrors,
+        errorType: isNetworkError ? 'network' : 'agent'
+      });
+      
       if (attempt > maxRetries) break;
     }
   }
