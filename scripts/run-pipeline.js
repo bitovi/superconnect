@@ -176,31 +176,26 @@ async function promptForConfig() {
   const maxTokens = DEFAULT_MAX_TOKENS;
 
   const agentSection = [];
-  const pushActive = (header, lines) => {
-    agentSection.push(header);
-    lines.forEach((line) => agentSection.push(line));
-    agentSection.push('');
-  };
   
   if (active === 'anthropic') {
-    pushActive(
-      '# Using Anthropic API (requires ANTHROPIC_API_KEY environment var)',
-      [
-        'api = "anthropic"                 # options: openai, anthropic',
-        `model = "${model}"`
-      ]
-    );
-    pushActive(
-      '# Using OpenAI API (requires OPENAI_API_KEY environment var)',
-      [
-        '# api = "openai"',
-        `# model = "${DEFAULT_OPENAI_MODEL}"`,
-        '# base_url = "http://localhost:4000/v1"  # optional: LiteLLM, Azure, etc.',
-        '# api_key = "sk-..."                     # optional: override env var'
-      ]
+    agentSection.push(
+      '# AI provider: "anthropic" (default) or "openai"',
+      '# Anthropic requires ANTHROPIC_API_KEY env var',
+      '# OpenAI requires OPENAI_API_KEY env var (or use base_url for LiteLLM, Azure, etc.)',
+      'api = "anthropic"',
+      `model = "${model}"`,
+      '',
+      '# To use OpenAI or a compatible service instead, comment out the above and uncomment:',
+      `# api = "openai"`,
+      `# model = "${DEFAULT_OPENAI_MODEL}"`,
+      '# base_url = "http://localhost:4000/v1"  # custom endpoint (LiteLLM, Azure, vLLM, LocalAI)',
+      '# api_key = "your-key-here"              # if your endpoint needs a different key'
     );
   } else if (active === 'openai') {
     const lines = [
+      '# AI provider: "anthropic" (default) or "openai"',
+      '# Anthropic requires ANTHROPIC_API_KEY env var',
+      '# OpenAI requires OPENAI_API_KEY env var (or use base_url for LiteLLM, Azure, etc.)',
       'api = "openai"',
       `model = "${model}"`
     ];
@@ -210,58 +205,36 @@ async function promptForConfig() {
     if (apiKey) {
       lines.push(`api_key = "${apiKey}"`);
     }
-    pushActive(
-      '# Using OpenAI API (requires OPENAI_API_KEY environment var unless base_url is set)',
-      lines
+    lines.push(
+      '',
+      '# To use Anthropic instead, comment out the above and uncomment:',
+      '# api = "anthropic"',
+      `# model = "${DEFAULT_ANTHROPIC_MODEL}"`
     );
-    pushActive(
-      '# Using Anthropic API (requires ANTHROPIC_API_KEY environment var)',
-      [
-        '# api = "anthropic"',
-        `# model = "${DEFAULT_ANTHROPIC_MODEL}"`
-      ]
-    );
-  } else {
-    pushActive(
-      '# Using Anthropic API (requires ANTHROPIC_API_KEY environment var)',
-      [
-        'api = "anthropic"',
-        `model = "${model}"`
-      ]
-    );
-    pushActive(
-      '# Using OpenAI API (requires OPENAI_API_KEY environment var)',
-      [
-        '# api = "openai"',
-        `# model = "${DEFAULT_OPENAI_MODEL}"`,
-        '# base_url = "http://localhost:4000/v1"  # optional: LiteLLM, Azure, etc.',
-        '# api_key = "sk-..."                     # optional: override env var'
-      ]
-    );
+    agentSection.push(...lines);
   }
 
   const tomlContent = [
-    '[inputs]',
-    '# Figma file URL or key (requires FIGMA_ACCESS_TOKEN environment var)',
-    `figma_url = "${figmaUrl}"`,
+    '# Superconnect configuration',
+    '# Docs: https://github.com/bitovi/superconnect#readme',
     '',
-    '# Path to your component repo (relative or absolute)',
+    '[inputs]',
+    `figma_url = "${figmaUrl}"`,
     `component_repo_path = "${repoPath}"`,
+    '# Also requires FIGMA_ACCESS_TOKEN env var',
     '',
     '[agent]',
-    '# Maximum tokens for LLM responses',
-    `max_tokens = ${maxTokens}`,
-    '',
     ...agentSection,
+    '',
     '[codegen]',
-    '# Retry attempts on validation failure',
+    '# How many times to retry if generated code fails validation (0-10)',
     'max_retries = 4',
     '',
-    '# Max parallel LLM requests during code generation',
+    '# Parallel LLM requests during code generation (1-16, higher = faster but more API load)',
     'concurrency = 8',
     '',
     '[figma]',
-    '# Layer depth to scan in Figma component hierarchy (default: 3)',
+    "# How deep to scan Figma's component tree. Increase if nested variants aren't detected.",
     '# layer_depth = 3',
     ''
   ].join('\n');

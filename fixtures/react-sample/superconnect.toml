@@ -1,31 +1,31 @@
-[inputs]
-# Figma file URL or key (requires FIGMA_ACCESS_TOKEN environment var)
-figma_url = "https://example.com/figma/react-sample"
+# Superconnect configuration
+# Docs: https://github.com/bitovi/superconnect#readme
 
-# Path to your component repo (relative or absolute)
+[inputs]
+figma_url = "https://example.com/figma/react-sample"
 component_repo_path = "."
+# Also requires FIGMA_ACCESS_TOKEN env var
 
 [agent]
-# Maximum tokens for LLM responses
-max_tokens = 4000
-
-# Using Anthropic API (requires ANTHROPIC_API_KEY environment var)
-api = "anthropic"                 # options: openai, anthropic
+# AI provider: "anthropic" (default) or "openai"
+# Anthropic requires ANTHROPIC_API_KEY env var
+# OpenAI requires OPENAI_API_KEY env var (or use base_url for LiteLLM, Azure, etc.)
+api = "anthropic"
 model = "claude-haiku-4-5"
 
-# Using OpenAI API (requires OPENAI_API_KEY environment var)
+# To use OpenAI or a compatible service instead, comment out the above and uncomment:
 # api = "openai"
 # model = "gpt-4"
-# base_url = "http://localhost:4000/v1"  # optional: LiteLLM, Azure, etc.
-# api_key = "sk-..."                     # optional: override env var
+# base_url = "http://localhost:4000/v1"  # custom endpoint (LiteLLM, Azure, vLLM, LocalAI)
+# api_key = "your-key-here"              # if your endpoint needs a different key
 
 [codegen]
-# Retry attempts on validation failure
+# How many times to retry if generated code fails validation (0-10)
 max_retries = 4
 
-# Max parallel LLM requests during code generation
+# Parallel LLM requests during code generation (1-16, higher = faster but more API load)
 concurrency = 8
 
 [figma]
-# Layer depth to scan in Figma component hierarchy (default: 3)
+# How deep to scan Figma's component tree. Increase if nested variants aren't detected.
 # layer_depth = 3
