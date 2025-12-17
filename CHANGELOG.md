@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2025-12-17
+
+### Fixed
+- **CRITICAL:** Windows npx compatibility - use npx.cmd on Windows to prevent ENOENT errors
+  - Previously caused 100% validation failure on Windows with "spawnSync npx ENOENT"
+  - Affects all Code Connect file validation attempts
+  - Now correctly detects Windows platform and uses npx.cmd
+
+### Changed
+- Streamline agent documentation for clarity and reduced token usage
+
 ## [0.2.5] - 2025-12-17
 
 ### Fixed
