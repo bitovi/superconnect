@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7] - 2025-12-17
+
+### Fixed
+- **CRITICAL:** Windows compatibility for validation - add `shell: true` to all npx spawn calls
+  - v0.2.6 used `npx.cmd` but still failed with EINVAL on Windows
+  - Now uses `shell: true` which is the Node.js recommended approach for cross-platform compatibility
+  - Removes platform-specific npx.cmd detection in favor of simpler, more robust solution
+
 ## [0.2.6] - 2025-12-17
 
 ### Fixed
