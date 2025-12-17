@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING:** Rename `[agent]` config keys for semantic clarity:
+  - `backend` → `api` (values: `"anthropic"` or `"openai"`)
+  - `sdk_model` → `model`
+  - Value `"claude"` → `"anthropic"` (reflects API format, not model)
+- **BREAKING:** Rename CLI flags: `--agent-backend` → `--agent-api`
+- Old config keys still work with deprecation warnings; update recommended
+
 ### Added
-- LiteLLM and OpenAI-compatible endpoint support for agent backends
+- LiteLLM and OpenAI-compatible endpoint support for agent APIs
 - New `base_url` and `api_key` fields in `[agent]` section of superconnect.toml for custom endpoints
 - Support for OPENAI_BASE_URL environment variable
 - CLI flags `--agent-base-url` and `--agent-api-key` for run-orienter.js and run-codegen.js
+- Deprecation warnings when old config keys (`backend`, `sdk_model`) are detected
 - Comprehensive unit tests for custom endpoint support
 - Documentation for using LiteLLM, Azure OpenAI, vLLM, and other OpenAI-compatible servers
 

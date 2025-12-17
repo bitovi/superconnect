@@ -101,10 +101,10 @@ To configure a custom OpenAI-compatible endpoint in `superconnect.toml`:
 
 ```toml
 [agent]
-backend = "openai"
+api = "openai"
 base_url = "http://localhost:4000/v1"  # LiteLLM proxy
 api_key = "sk-your-key"  # optional, overrides OPENAI_API_KEY
-sdk_model = "gpt-4"  # or your model name
+model = "gpt-4"  # or your model name
 ```
 
 Or via environment variables:
@@ -160,12 +160,12 @@ If one API provider is blocked, try switching:
 In `superconnect.toml`:
 ```toml
 [agent]
-backend = "openai"  # or "claude"
+api = "openai"  # or "anthropic"
 ```
 
 Or via command-line flag:
 ```bash
-npx superconnect --agent-backend openai
+npx superconnect --agent-api openai
 ```
 
 Different providers may have different network accessibility in your environment.

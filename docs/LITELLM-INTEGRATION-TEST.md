@@ -44,8 +44,8 @@ figma_url = "YOUR_FIGMA_URL"
 component_repo_path = "."
 
 [agent]
-backend = "openai"
-sdk_model = "gpt-4"  # or claude-3-sonnet
+api = "openai"
+model = "gpt-4"  # or claude-3-sonnet
 base_url = "http://localhost:4000/v1"
 api_key = "sk-1234"  # LiteLLM doesn't validate keys by default
 max_tokens = 2048
@@ -70,7 +70,7 @@ node ../../scripts/run-orienter.js \
   --figma-index superconnect/figma-components-index.json \
   --repo-summary superconnect/repo-summary.json \
   --output superconnect/orientation.jsonl \
-  --agent-backend openai \
+  --agent-api openai \
   --agent-model gpt-4 \
   --agent-base-url http://localhost:4000/v1 \
   --agent-api-key sk-1234
@@ -102,8 +102,8 @@ Remove `base_url` and `api_key` from `superconnect.toml`, set `OPENAI_API_KEY`:
 
 ```toml
 [agent]
-backend = "openai"
-sdk_model = "gpt-4"
+api = "openai"
+model = "gpt-4"
 ```
 
 ```bash

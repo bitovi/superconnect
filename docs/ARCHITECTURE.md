@@ -174,9 +174,9 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 
 - **Config file**: `superconnect.toml`
   - `[inputs]` – `figma_url`, `component_repo_path`
-  - `[agent]` – `backend`, `sdk_model`, `max_tokens`, `base_url`, `api_key`
-    - `backend` – `"openai"` or `"claude"` (default: claude)
-    - `sdk_model` – model name (e.g., `"gpt-4"`, `"claude-haiku-4-5"`)
+  - `[agent]` – `api`, `model`, `max_tokens`, `base_url`, `api_key`
+    - `api` – `"openai"` or `"anthropic"` (default: anthropic)
+    - `model` – model name (e.g., `"gpt-4"`, `"claude-haiku-4-5"`)
     - `max_tokens` – max output tokens (default: 2048 for codegen, 32768 for orientation)
     - `base_url` – (optional) base URL for OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
     - `api_key` – (optional) API key override (takes precedence over environment variables)
@@ -188,8 +188,8 @@ Uses direct codegen approach where agents generate complete Code Connect files w
   - `FIGMA_ACCESS_TOKEN` – required for Figma scan (or `--figma-token`), read from the process environment or `.env` in the target repo. At minimum this token must allow:
     - Files: `file_content:read`
     - Development: `file_code_connect:write`, `file_dev_resources:read`, `file_dev_resources:write`
-  - `ANTHROPIC_API_KEY` – for Claude backend, read from the process environment or `.env` in the target repo
-  - `OPENAI_API_KEY` – for OpenAI backend, read from the process environment or `.env` in the target repo
+  - `ANTHROPIC_API_KEY` – for Anthropic API, read from the process environment or `.env` in the target repo
+  - `OPENAI_API_KEY` – for OpenAI API, read from the process environment or `.env` in the target repo
   - `OPENAI_BASE_URL` – (optional) base URL for OpenAI-compatible endpoints, can be overridden by `base_url` in TOML
 
 Assumptions:

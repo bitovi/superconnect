@@ -22,9 +22,9 @@ const toml = require('@iarna/toml');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
-const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
+const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5';
 const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codex-mini';
-const DEFAULT_BACKEND = 'claude';
+const DEFAULT_API = 'anthropic';
 const DEFAULT_MAX_TOKENS = 2048;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
 const DEFAULT_MAX_RETRIES = 2;
@@ -53,29 +53,47 @@ function loadSuperconnectConfig(filePath = 'superconnect.toml') {
 }
 
 function normalizeAgentConfig(agentSection = {}) {
-  const backendRaw = (agentSection.backend || DEFAULT_BACKEND).toLowerCase();
-  const backend = backendRaw === 'openai' || backendRaw === 'claude' ? backendRaw : DEFAULT_BACKEND;
+  // Check for deprecated config keys and warn
+  if (agentSection.backend) {
+    const suggestion = agentSection.backend === 'claude' ? 'anthropic' : agentSection.backend;
+    console.warn(
+      `${chalk.yellow('⚠️  Deprecated config:')} backend = "${agentSection.backend}" → api = "${suggestion}"\n` +
+      `   ${chalk.dim('Update your superconnect.toml to use the new "api" key.')}`
+    );
+  }
+  if (agentSection.sdk_model) {
+    console.warn(
+      `${chalk.yellow('⚠️  Deprecated config:')} sdk_model → model\n` +
+      `   ${chalk.dim('Update your superconnect.toml to use the new "model" key.')}`
+    );
+  }
+  
+  // Support both old and new keys (with new keys taking precedence)
+  const rawApi = agentSection.api || agentSection.backend || DEFAULT_API;
+  // Normalize 'claude' → 'anthropic' for backward compatibility
+  const apiRaw = (rawApi === 'claude' ? 'anthropic' : rawApi).toLowerCase();
+  const api = apiRaw === 'openai' || apiRaw === 'anthropic' ? apiRaw : DEFAULT_API;
   const model =
-    agentSection.sdk_model ||
-    (backend === 'openai'
+    agentSection.model || agentSection.sdk_model ||
+    (api === 'openai'
       ? DEFAULT_OPENAI_MODEL
-      : DEFAULT_CLAUDE_MODEL);
+      : DEFAULT_ANTHROPIC_MODEL);
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
-  const resolvedMaxTokens = backend === 'claude' ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
+  const resolvedMaxTokens = api === 'anthropic' ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
   
   // Support for custom OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
   const baseUrl = agentSection.base_url || null;
   const apiKey = agentSection.api_key || null;  // Optional override
   
-  // Warn if base_url is set with non-OpenAI backend
-  if (baseUrl && backend !== 'openai') {
+  // Warn if base_url is set with non-OpenAI api
+  if (baseUrl && api !== 'openai') {
     console.warn(
-      `${chalk.yellow('⚠️  base_url is set but backend is "')}${backend}${chalk.yellow('". base_url is only used with backend = "openai".')}\n` +
-      `   ${chalk.yellow('Did you mean to set backend = "openai"?')}`
+      `${chalk.yellow('⚠️  base_url is set but api is "')}${api}${chalk.yellow('". base_url is only used with api = "openai".')}\n` +
+      `   ${chalk.yellow('Did you mean to set api = "openai"?')}`
     );
   }
   
-  return { backend, model, maxTokens: resolvedMaxTokens, baseUrl, apiKey };
+  return { api, model, maxTokens: resolvedMaxTokens, baseUrl, apiKey };
 }
 
 /**
@@ -359,8 +377,8 @@ async function main() {
   const agentConfig = normalizeAgentConfig(cfg.agent || {});
   const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
   const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
-  const agentEnvVar = agentConfig.backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  const agentToken = loadAgentToken(agentConfig.backend);
+  const agentEnvVar = agentConfig.api === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+  const agentToken = loadAgentToken(agentConfig.api);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
@@ -368,10 +386,10 @@ async function main() {
   const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken });
 
   const agentLabel =
-    agentConfig.backend === 'openai'
+    agentConfig.api === 'openai'
       ? `openai${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : `claude${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
-  console.log(`${chalk.dim('•')} ${highlight('Agent backend')}: ${highlight(agentLabel)}`);
+      : `anthropic${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
+  console.log(`${chalk.dim('•')} ${highlight('Agent API')}: ${highlight(agentLabel)}`);
 
   fs.ensureDirSync(paths.superconnectDir);
   fs.ensureDirSync(paths.figmaDir);
@@ -383,7 +401,7 @@ async function main() {
 
   const needsAgent = !args.dryRun;
   if (needsAgent && !agentToken) {
-    console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.backend}).`);
+    console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.api}).`);
     console.error(`   Set ${agentEnvVar} in your environment or .env, or switch to --dry-run.`);
     process.exit(1);
   }
@@ -449,7 +467,7 @@ async function main() {
       `--figma-index "${paths.figmaIndex}"`,
       `--repo-summary "${paths.repoSummary}"`,
       `--output "${paths.orientation}"`,
-      `--agent-backend "${agentConfig.backend}"`,
+      `--agent-api "${agentConfig.api}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       `--agent-max-tokens "${orientationMaxTokens}"`,
       agentConfig.baseUrl ? `--agent-base-url "${agentConfig.baseUrl}"` : '',
@@ -477,7 +495,7 @@ async function main() {
       `--figma-index "${paths.figmaIndex}"`,
       `--orienter "${paths.orientation}"`,
       `--repo-summary "${paths.repoSummary}"`,
-      `--agent-backend "${agentConfig.backend}"`,
+      `--agent-api "${agentConfig.api}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
       agentConfig.baseUrl ? `--agent-base-url "${agentConfig.baseUrl}"` : '',

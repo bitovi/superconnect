@@ -28,8 +28,8 @@ Figma Code Connect [also offers an interactive setup to help create Code Connect
 - Requires Node.js >= 22.0.0
 - Environment variables (set in your shell or in a `.env` file in your repo)
   - `FIGMA_ACCESS_TOKEN` – Figma personal access token (see [Figma access token](#1-figma-access-token) below)
-  - One AI provider key (depending on which backend you choose):
-    - `ANTHROPIC_API_KEY` – for Claude (the default)
+  - One AI provider key (depending on which API you choose):
+    - `ANTHROPIC_API_KEY` – for Anthropic Claude (the default)
     - `OPENAI_API_KEY` – for OpenAI or OpenAI-compatible endpoints
 
 - superconnect.toml
@@ -153,34 +153,38 @@ Superconnect runs five logical stages:
       - Output: A human-friendly run summary printed to stdout (no file), with colored sections and stats, plus figma.config.json written at the repo root (parser/label and include globs set for React or Angular)
 
 
-# Agent Backends
+# Agent Configuration
 
-Superconnect uses AI to generate your Code Connect mappings. By default it uses Claude, but you can switch to OpenAI or any OpenAI-compatible service.
+Superconnect uses AI to generate your Code Connect mappings. By default it uses Anthropic's Claude, but you can switch to OpenAI or any OpenAI-compatible service.
 
-## Choosing a Backend
+## Choosing an API
+
+The `api` setting determines which API format Superconnect uses to communicate with AI services.
 
 Edit the `[agent]` section in `superconnect.toml`:
 
 ```toml
 [agent]
-backend = "claude"           # or "openai"
-sdk_model = "claude-haiku-4-5"  # model to use
+api = "anthropic"             # or "openai"
+model = "claude-haiku-4-5"    # model to use
 ```
 
-| Backend | Environment Variable | Example Models |
-|---------|---------------------|----------------|
-| `claude` (default) | `ANTHROPIC_API_KEY` | claude-haiku-4-5, claude-sonnet-4-20250514 |
-| `openai` | `OPENAI_API_KEY` | gpt-4, gpt-5.1-codex-mini |
+| API | Environment Variable | Example Models | Notes |
+|-----|---------------------|----------------|-------|
+| `anthropic` (default) | `ANTHROPIC_API_KEY` | claude-haiku-4-5, claude-sonnet-4-20250514 | Anthropic Claude only |
+| `openai` | `OPENAI_API_KEY` | gpt-4, gpt-5.1-codex-mini | OpenAI + any compatible service |
+
+**Note:** Setting `api = "openai"` doesn't mean you're using OpenAI's service—it means you're using the OpenAI-compatible API format. You can route to any provider using `base_url`.
 
 ## Custom OpenAI-Compatible Endpoints (Advanced)
 
-Many services implement the OpenAI API format. You can use them by setting `backend = "openai"` and adding a custom `base_url`:
+Many services implement the OpenAI API format. You can use them by setting `api = "openai"` and adding a custom `base_url`:
 
 ```toml
 [agent]
-backend = "openai"
+api = "openai"
 base_url = "http://localhost:4000/v1"  # your proxy endpoint
-sdk_model = "gpt-5.1-codex-mini"
+model = "gpt-4"
 ```
 
 Common use cases:

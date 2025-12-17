@@ -32,8 +32,8 @@ const parseArgs = (argv) => {
     .requiredOption('--figma-index <file>', 'Path to figma-components-index.json')
     .requiredOption('--repo-summary <file>', 'Path to repo-summary.json')
     .option('--output <file>', 'Orientation JSONL output path', defaultOutput)
-    .option('--agent-backend <value>', 'Agent backend (openai|claude)', 'claude')
-    .option('--agent-model <value>', 'Agent model for SDK backends')
+    .option('--agent-api <value>', 'Agent API format (openai|anthropic)', 'anthropic')
+    .option('--agent-model <value>', 'Model name (e.g., gpt-4, claude-haiku-4-5)')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
     .option('--agent-base-url <value>', 'Base URL for OpenAI-compatible API (e.g., LiteLLM, Azure, vLLM)')
     .option('--agent-api-key <value>', 'API key for custom endpoint (overrides OPENAI_API_KEY env var)')
@@ -51,7 +51,7 @@ const parseArgs = (argv) => {
     output: outputPath,
     agentLogFile: path.join(superconnectDir, 'orienter-agent.log'),
     payloadPreviewFile: path.join(superconnectDir, 'orienter-agent-payload.txt'),
-    agentBackend: (opts.agentBackend || 'claude').toLowerCase(),
+    agentApi: (opts.agentApi || 'anthropic').toLowerCase(),
     agentModel: opts.agentModel || undefined,
     agentMaxTokens: parseMaxTokens(opts.agentMaxTokens),
     agentBaseUrl: opts.agentBaseUrl || undefined,
@@ -83,9 +83,9 @@ const parseMaxTokens = (value) => {
 };
 
 const buildAdapter = (config) => {
-  const backend = config.agentBackend;
+  const api = config.agentApi;
   const maxTokens = config.agentMaxTokens || undefined;
-  if (backend === 'openai') {
+  if (api === 'openai') {
     return new OpenAIAgentAdapter({
       model: config.agentModel || undefined,
       logDir: config.agentLogFile,
