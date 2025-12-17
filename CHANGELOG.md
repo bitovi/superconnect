@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2025-12-17
+
+### Fixed
+- **CRITICAL:** Move @figma/code-connect from devDependencies to dependencies
+  - Previously, global npm installs (`npm install -g @bitovi/superconnect`) did not include the Figma CLI
+  - This caused 100% validation failure on all Code Connect files with "unknown error"
+  - Now the CLI is always installed with superconnect
+- Add upfront check for Figma CLI availability with clear troubleshooting steps
+- Improve validation error messages to show exit code, stdout, and stderr for debugging
+- Fix Anthropic SDK 0.71.2 compatibility:
+  - Add explicit `stream: false` for non-streaming requests
+  - Increase timeout to 20 minutes for long-running orientation tasks (SDK default was 10 minutes)
+
+### Changed
+- Update dependencies to latest compatible versions:
+  - @anthropic-ai/sdk: 0.18.0 → 0.71.2
+  - commander: 12.1.0 → 14.0.2
+  - openai: 4.104.0 → 6.14.0
+  - undici: 6.18.1 → 7.16.0
+  - @figma/code-connect: 1.3.12 (already current)
+- Keep chalk at 4.1.2 and p-limit at 3.1.0 (newer versions are ESM-only, incompatible with CommonJS)
+
 ## [0.2.4] - 2025-12-17
 
 ### Fixed
