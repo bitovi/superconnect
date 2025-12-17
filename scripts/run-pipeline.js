@@ -423,7 +423,7 @@ async function main() {
   const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
   const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
   const agentEnvVar = agentConfig.api === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  const agentToken = loadAgentToken(agentConfig.api);
+  const agentToken = agentConfig.apiKey || loadAgentToken(agentConfig.api);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
@@ -446,8 +446,13 @@ async function main() {
 
   const needsAgent = !args.dryRun;
   if (needsAgent && !agentToken) {
-    console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.api}).`);
-    console.error(`   Set ${agentEnvVar} in your environment or .env, or switch to --dry-run.`);
+    if (agentConfig.apiKey) {
+      console.error(`❌ API key from superconnect.toml appears to be empty or invalid.`);
+      console.error(`   Check the api_key field in [agent] section, or set ${agentEnvVar} in your environment.`);
+    } else {
+      console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.api}).`);
+      console.error(`   Set ${agentEnvVar} in your environment or .env, add api_key to superconnect.toml, or switch to --dry-run.`);
+    }
     process.exit(1);
   }
 
