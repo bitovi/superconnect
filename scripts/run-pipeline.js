@@ -292,6 +292,17 @@ function runCommand(label, command, options = {}) {
  */
 function getVersionString() {
   const semver = require('../package.json').version;
+  
+  // First try reading from baked-in SHA file (for npm installs)
+  try {
+    const shaFile = path.join(__dirname, '..', '.version-sha');
+    if (fs.existsSync(shaFile)) {
+      const sha = fs.readFileSync(shaFile, 'utf8').trim();
+      if (sha) return `${semver} (${sha})`;
+    }
+  } catch {}
+  
+  // Fall back to git command (for dev environments)
   try {
     const { execSync } = require('child_process');
     const sha = execSync('git rev-parse --short HEAD', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();

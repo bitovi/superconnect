@@ -25,6 +25,7 @@ fixtures/**/superconnect/codegen-agent-transcripts/
 
 # Generated artifacts
 artifacts/
+.version-sha
 
 # Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
