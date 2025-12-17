@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-12-17
+
+### Added
+- Include git SHA in npm package version output via prepublishOnly script
+- E2E tests now run in parallel using GitHub Actions matrix strategy
+
+### Fixed
+- Read api_key from superconnect.toml when validating agent token (interactive setup bug where custom API keys were written to TOML but not read during validation)
+
 ## [0.2.0] - 2025-12-17
 
 ### Changed
