@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2025-12-17
+
+### Fixed
+- Include .version-sha in npm package files array (was being generated but not included in published package)
+
 ## [0.2.1] - 2025-12-17
 
 ### Added
