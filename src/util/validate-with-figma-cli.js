@@ -26,11 +26,12 @@ const os = require('os');
  */
 function validateWithFigmaCLI({ code, parser = 'react' }) {
   // Check if @figma/code-connect CLI is available
-  const cliCheck = spawnSync('npx', ['@figma/code-connect', '--version'], {
+  // Use single command string with shell:true to avoid DEP0190 and Windows issues
+  const cliCheck = spawnSync('npx @figma/code-connect --version', {
     encoding: 'utf8',
     timeout: 10000,
     stdio: 'pipe',
-    shell: true // Required for Windows compatibility
+    shell: true
   });
 
   if (cliCheck.error || cliCheck.status !== 0) {
@@ -71,14 +72,14 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
     fs.writeJsonSync(tempConfig, config);
 
     // Run figma connect parse with --exit-on-unreadable-files to get exit code 1 on errors
+    // Use single command string with shell:true to avoid DEP0190 and Windows issues
     const result = spawnSync(
-      'npx',
-      ['@figma/code-connect', 'connect', 'parse', '-c', tempConfig, '--exit-on-unreadable-files'],
+      `npx @figma/code-connect connect parse -c "${tempConfig}" --exit-on-unreadable-files`,
       {
         cwd: tempDir, // Run from temp directory so relative glob works
         encoding: 'utf8',
         timeout: 30000, // 30 second timeout
-        shell: true, // Required for Windows compatibility
+        shell: true,
         env: { ...process.env, FORCE_COLOR: '0' } // Disable colors for easier parsing
       }
     );
@@ -177,9 +178,9 @@ function extractErrors(stdout = '', stderr = '') {
  */
 function isFigmaCLIAvailable() {
   try {
-    const result = spawnSync('npx', ['@figma/code-connect', '--version'], {
+    const result = spawnSync('npx @figma/code-connect --version', {
       encoding: 'utf8',
-      shell: true, // Required for Windows compatibility
+      shell: true,
       timeout: 10000
     });
     return result.status === 0;
