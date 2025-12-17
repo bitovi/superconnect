@@ -25,6 +25,29 @@ const os = require('os');
  * @returns {{ valid: boolean, errors: string[] }}
  */
 function validateWithFigmaCLI({ code, parser = 'react' }) {
+  // Check if @figma/code-connect CLI is available
+  const cliCheck = spawnSync('npx', ['@figma/code-connect', '--version'], {
+    encoding: 'utf8',
+    timeout: 10000,
+    stdio: 'pipe'
+  });
+
+  if (cliCheck.error || cliCheck.status !== 0) {
+    return {
+      valid: false,
+      errors: [
+        'Figma Code Connect CLI not found or not working properly.',
+        '',
+        'This is required for validation. To fix:',
+        '  1. Ensure @figma/code-connect is installed: npm install -g @figma/code-connect',
+        '  2. Or it should be in node_modules if you installed @bitovi/superconnect',
+        '  3. Check that npx is available in your PATH',
+        '',
+        `Error details: ${cliCheck.error?.message || cliCheck.stderr || 'Unknown error'}`
+      ]
+    };
+  }
+
   const ext = parser === 'react' ? '.figma.tsx' : '.figma.ts';
 
   // Create a temporary directory with the file and config
@@ -69,9 +92,21 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
     // Parse errors from output
     const errors = extractErrors(result.stdout, result.stderr);
 
+    // If we couldn't extract specific errors, include raw output for debugging
+    if (errors.length === 0) {
+      const debugInfo = [];
+      debugInfo.push('Figma CLI validation failed with no parseable errors.');
+      debugInfo.push('');
+      debugInfo.push(`Exit code: ${result.status}`);
+      if (result.stdout) debugInfo.push(`stdout: ${result.stdout.substring(0, 500)}`);
+      if (result.stderr) debugInfo.push(`stderr: ${result.stderr.substring(0, 500)}`);
+      if (result.error) debugInfo.push(`error: ${result.error.message}`);
+      return { valid: false, errors: debugInfo };
+    }
+
     return {
       valid: false,
-      errors: errors.length > 0 ? errors : ['Figma CLI validation failed (unknown error)']
+      errors
     };
   } catch (err) {
     // Clean up on error
