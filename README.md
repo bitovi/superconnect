@@ -172,7 +172,7 @@ model = "claude-haiku-4-5"    # model to use
 | API | Environment Variable | Example Models | Notes |
 |-----|---------------------|----------------|-------|
 | `anthropic` (default) | `ANTHROPIC_API_KEY` | claude-haiku-4-5, claude-sonnet-4-20250514 | Anthropic Claude only |
-| `openai` | `OPENAI_API_KEY` | gpt-4, gpt-5.1-codex-mini | OpenAI + any compatible service |
+| `openai` | `OPENAI_API_KEY` | gpt-5.1-codex-mini | OpenAI + any compatible service |
 
 **Note:** Setting `api = "openai"` doesn't mean you're using OpenAI's service—it means you're using the OpenAI-compatible API format. You can route to any provider using `base_url`.
 
@@ -184,7 +184,7 @@ Many services implement the OpenAI API format. You can use them by setting `api 
 [agent]
 api = "openai"
 base_url = "http://localhost:4000/v1"  # your proxy endpoint
-model = "gpt-4"
+model = "gpt-5.1-codex-mini"
 ```
 
 Common use cases:

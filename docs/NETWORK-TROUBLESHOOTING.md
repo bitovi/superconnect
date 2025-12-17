@@ -104,7 +104,7 @@ To configure a custom OpenAI-compatible endpoint in `superconnect.toml`:
 api = "openai"
 base_url = "http://localhost:4000/v1"  # LiteLLM proxy
 api_key = "sk-your-key"  # optional, overrides OPENAI_API_KEY
-model = "gpt-4"  # or your model name
+model = "gpt-5.1-codex-mini"  # or your model name
 ```
 
 Or via environment variables:

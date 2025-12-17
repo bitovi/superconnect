@@ -176,7 +176,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
   - `[inputs]` – `figma_url`, `component_repo_path`
   - `[agent]` – `api`, `model`, `max_tokens`, `base_url`, `api_key`
     - `api` – `"openai"` or `"anthropic"` (default: anthropic)
-    - `model` – model name (e.g., `"gpt-4"`, `"claude-haiku-4-5"`)
+    - `model` – model name (e.g., `"gpt-5.1-codex-mini"`, `"claude-haiku-4-5"`)
     - `max_tokens` – max output tokens (default: 2048 for codegen, 32768 for orientation)
     - `base_url` – (optional) base URL for OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
     - `api_key` – (optional) API key override (takes precedence over environment variables)

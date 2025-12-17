@@ -22,7 +22,7 @@ describe('LiteLLM Support', () => {
   describe('OpenAIAgentAdapter baseURL support', () => {
     it('should accept baseUrl option', () => {
       const adapter = new OpenAIAgentAdapter({
-        model: 'gpt-4',
+        model: 'gpt-5.1-codex-mini',
         logDir: testLogDir,
         baseUrl: 'http://localhost:4000/v1',
         apiKey: 'test-key'
@@ -36,7 +36,7 @@ describe('LiteLLM Support', () => {
       process.env.OPENAI_BASE_URL = 'http://localhost:5000/v1';
       
       const adapter = new OpenAIAgentAdapter({
-        model: 'gpt-4',
+        model: 'gpt-5.1-codex-mini',
         logDir: testLogDir,
         apiKey: 'test-key'
       });
@@ -54,7 +54,7 @@ describe('LiteLLM Support', () => {
 
     it('should accept apiKey option', () => {
       const adapter = new OpenAIAgentAdapter({
-        model: 'gpt-4',
+        model: 'gpt-5.1-codex-mini',
         logDir: testLogDir,
         baseUrl: 'http://localhost:4000/v1',
         apiKey: 'custom-api-key'
@@ -68,7 +68,7 @@ describe('LiteLLM Support', () => {
       process.env.OPENAI_API_KEY = 'env-api-key';
       
       const adapter = new OpenAIAgentAdapter({
-        model: 'gpt-4',
+        model: 'gpt-5.1-codex-mini',
         logDir: testLogDir,
         baseUrl: 'http://localhost:4000/v1'
       });
@@ -85,7 +85,7 @@ describe('LiteLLM Support', () => {
 
     it('should allow placeholder API key when baseURL is set', () => {
       const adapter = new OpenAIAgentAdapter({
-        model: 'gpt-4',
+        model: 'gpt-5.1-codex-mini',
         logDir: testLogDir,
         baseUrl: 'http://localhost:4000/v1',
         apiKey: 'unused'
@@ -98,7 +98,7 @@ describe('LiteLLM Support', () => {
       process.env.OPENAI_API_KEY = 'test-key';
       
       const adapter = new OpenAIAgentAdapter({
-        model: 'gpt-4',
+        model: 'gpt-5.1-codex-mini',
         logDir: testLogDir
       });
       

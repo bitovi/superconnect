@@ -17,9 +17,9 @@ Create a LiteLLM config file `litellm_config.yaml`:
 
 ```yaml
 model_list:
-  - model_name: gpt-4
+  - model_name: gpt-5.1-codex-mini
     litellm_params:
-      model: gpt-4
+      model: gpt-5.1-codex-mini
       api_key: YOUR_OPENAI_API_KEY
   - model_name: claude-3-sonnet
     litellm_params:
@@ -45,7 +45,7 @@ component_repo_path = "."
 
 [agent]
 api = "openai"
-model = "gpt-4"  # or claude-3-sonnet
+model = "gpt-5.1-codex-mini"  # or claude-3-sonnet
 base_url = "http://localhost:4000/v1"
 api_key = "sk-1234"  # LiteLLM doesn't validate keys by default
 max_tokens = 2048
@@ -71,7 +71,7 @@ node ../../scripts/run-orienter.js \
   --repo-summary superconnect/repo-summary.json \
   --output superconnect/orientation.jsonl \
   --agent-api openai \
-  --agent-model gpt-4 \
+  --agent-model gpt-5.1-codex-mini \
   --agent-base-url http://localhost:4000/v1 \
   --agent-api-key sk-1234
 ```
@@ -103,7 +103,7 @@ Remove `base_url` and `api_key` from `superconnect.toml`, set `OPENAI_API_KEY`:
 ```toml
 [agent]
 api = "openai"
-model = "gpt-4"
+model = "gpt-5.1-codex-mini"
 ```
 
 ```bash
