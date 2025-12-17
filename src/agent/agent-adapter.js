@@ -139,7 +139,27 @@ class OpenAIAgentAdapter {
       writeLog(`\n=== ERROR DETAILS ===\n${errorDetails.join('\n')}\n`);
       
       // Provide helpful context for common errors
-      if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
+      if (err?.status === 400 && (message.includes('Invalid model') || message.includes('model name'))) {
+        const modelSuggestions = [
+          '💡 Invalid Model Name:',
+          '',
+          `  Current model: ${this.model}`,
+          `  ${message}`,
+          '',
+          'How to fix:',
+          '  1. Set a different model in superconnect.toml:',
+          '     [agent]',
+          '     model = "gpt-4o"  # or gpt-4-turbo, gpt-3.5-turbo',
+          '',
+          '  2. Or use CLI flag: --agent-model gpt-4o',
+          '',
+          '  3. Check available models: curl https://api.openai.com/v1/models \\',
+          '       -H "Authorization: Bearer $OPENAI_API_KEY"',
+          '',
+          'Note: Model availability depends on your API key tier and account.'
+        ];
+        message = modelSuggestions.join('\n');
+      } else if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
         message = `OpenAI API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify OPENAI_API_KEY is set correctly in your environment or .env file\n  - Check that your API key is valid at https://platform.openai.com/api-keys\n  - Ensure your .env file is in the project root directory`;
       } else if (err?.status === 429 || message.includes('rate limit')) {
         message = `OpenAI API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://platform.openai.com/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes`;
@@ -354,7 +374,26 @@ class ClaudeAgentAdapter {
       writeLog(`\n=== ERROR DETAILS ===\n${errorDetails.join('\n')}\n`);
       
       // Provide helpful context for common errors
-      if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
+      if (err?.status === 400 && (message.includes('Invalid model') || message.includes('model') || message.includes('invalid_model_requested'))) {
+        const modelSuggestions = [
+          '💡 Invalid Model Name:',
+          '',
+          `  Current model: ${this.model}`,
+          `  ${message}`,
+          '',
+          'How to fix:',
+          '  1. Set a different model in superconnect.toml:',
+          '     [agent]',
+          '     model = "claude-opus-4-5"  # or claude-sonnet-4-5, claude-haiku-4-5',
+          '',
+          '  2. Or use CLI flag: --agent-model claude-sonnet-4-5',
+          '',
+          '  3. Check available models at: https://docs.anthropic.com/en/docs/about-claude/models',
+          '',
+          'Note: Model availability depends on your API key tier and account.'
+        ];
+        message = modelSuggestions.join('\n');
+      } else if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
         message = `Claude API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify ANTHROPIC_API_KEY is set correctly in your environment or .env file\n  - Get your API key from https://console.anthropic.com/settings/keys\n  - Ensure your .env file is in the project root directory`;
       } else if (err?.status === 429 || message.includes('rate limit')) {
         message = `Claude API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://console.anthropic.com/settings/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes or reduce concurrency`;
