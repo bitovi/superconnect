@@ -110,9 +110,6 @@ figma.connect('https://figma.com/test', {
         logDir: null
       });
 
-      if (!result.success) {
-        console.error('DEBUG: Angular validation failed with errors:', JSON.stringify(result.errors, null, 2));
-      }
       expect(result.success).toBe(true);
       expect(result.code).toContain('figma.connect');
       expect(result.code).toContain('html');
@@ -160,9 +157,6 @@ figma.connect('url', {
       });
 
       // Should succeed on second attempt
-      if (!result.success) {
-        console.error('DEBUG: Angular retry test failed with errors:', JSON.stringify(result.errors, null, 2));
-      }
       expect(result.success).toBe(true);
       expect(mockAgent.chatStateless).toHaveBeenCalledTimes(2);
     });

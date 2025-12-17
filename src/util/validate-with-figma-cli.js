@@ -80,7 +80,7 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
       {
         cwd: tempDir, // Run from temp directory so relative glob and config work
         encoding: 'utf8',
-        timeout: 30000, // 30 second timeout
+        timeout: 120000, // 2 minute timeout (Windows CI + npx package download can be slow)
         shell: true,
         env: { ...process.env, FORCE_COLOR: '0' } // Disable colors for easier parsing
       }
