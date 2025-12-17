@@ -287,11 +287,25 @@ function runCommand(label, command, options = {}) {
   }
 }
 
+/**
+ * Get version string with git SHA if available
+ */
+function getVersionString() {
+  const semver = require('../package.json').version;
+  try {
+    const { execSync } = require('child_process');
+    const sha = execSync('git rev-parse --short HEAD', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    return `${semver} (${sha})`;
+  } catch {
+    return semver;
+  }
+}
+
 function parseArgv(argv) {
   const program = new Command();
   program
     .name('run-pipeline')
-    .version(require('../package.json').version)
+    .version(getVersionString())
     .usage('[options]')
     .option('--figma-url <value>', 'Figma file URL or key (needed for figma scan when not cached)')
     .option('--figma-token <token>', 'Figma API token (or FIGMA_ACCESS_TOKEN/.env)')
