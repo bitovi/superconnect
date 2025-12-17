@@ -69,6 +69,7 @@
     "docs",
     "prompts",
     "LICENSE",
-    "README.md"
+    "README.md",
+    ".version-sha"
   ]
 }
