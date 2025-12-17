@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `base_url` and `api_key` fields in `[agent]` section of superconnect.toml for custom endpoints
 - Support for OPENAI_BASE_URL environment variable
 - CLI flags `--agent-base-url` and `--agent-api-key` for run-orienter.js and run-codegen.js
+- `--version` flag to display version number
+- Interactive prompting for custom endpoint configuration (base_url/api_key) when choosing OpenAI API on first run
 - Deprecation warnings when old config keys (`backend`, `sdk_model`) are detected
 - Comprehensive unit tests for custom endpoint support
 - Documentation for using LiteLLM, Azure OpenAI, vLLM, and other OpenAI-compatible servers

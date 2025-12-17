@@ -135,20 +135,44 @@ async function promptForConfig() {
   );
   const repoPath = repoPathInput || '.';
 
-  const backendInput = await question(
-    `${chalk.cyan('Agent backend')} (default ${chalk.dim(DEFAULT_BACKEND)}): `
+  console.log(`\n${chalk.bold('Agent API Configuration')}`);
+  console.log(`${chalk.dim('Choose which AI service to use for code generation')}`);
+  
+  const apiInput = await question(
+    `${chalk.cyan('Agent API')} (${chalk.dim('anthropic')} or openai) [${chalk.dim(DEFAULT_API)}]: `
   );
-  const backend = (backendInput || DEFAULT_BACKEND).toLowerCase();
-  const normalizedBackend = backend === 'openai' || backend === 'claude' ? backend : 'claude';
+  const api = (apiInput || DEFAULT_API).toLowerCase();
+  const normalizedApi = api === 'openai' || api === 'anthropic' ? api : DEFAULT_API;
+
+  let baseUrl = null;
+  let apiKey = null;
+  
+  if (normalizedApi === 'openai') {
+    console.log(`\n${chalk.dim('OpenAI-compatible endpoints: LiteLLM, Azure OpenAI, vLLM, LocalAI, etc.')}`);
+    const baseUrlInput = await question(
+      `${chalk.cyan('Custom base URL')} (optional, press Enter to use api.openai.com): `
+    );
+    if (baseUrlInput) {
+      baseUrl = baseUrlInput;
+      console.log(`${chalk.dim('Using custom endpoint:')} ${baseUrl}`);
+      
+      const apiKeyInput = await question(
+        `${chalk.cyan('Custom API key')} (optional, press Enter to use OPENAI_API_KEY env var): `
+      );
+      if (apiKeyInput) {
+        apiKey = apiKeyInput;
+      }
+    }
+  }
 
   rl.close();
 
-  const active = normalizedBackend;
-  const chooseModel = (b) => {
-    if (b === 'openai') return DEFAULT_OPENAI_MODEL;
-    return DEFAULT_CLAUDE_MODEL;
+  const active = normalizedApi;
+  const chooseModel = (a) => {
+    if (a === 'openai') return DEFAULT_OPENAI_MODEL;
+    return DEFAULT_ANTHROPIC_MODEL;
   };
-  const sdkModel = chooseModel(active);
+  const model = chooseModel(active);
   const maxTokens = DEFAULT_MAX_TOKENS;
 
   const agentSection = [];
@@ -157,49 +181,61 @@ async function promptForConfig() {
     lines.forEach((line) => agentSection.push(line));
     agentSection.push('');
   };
-  if (active === 'claude') {
+  
+  if (active === 'anthropic') {
     pushActive(
-      '# Using Claude SDK (requires ANTHROPIC_API_KEY environment var)',
+      '# Using Anthropic API (requires ANTHROPIC_API_KEY environment var)',
       [
-        'backend = "claude"                  # options: openai, claude',
-        `sdk_model = "${sdkModel}"`
+        'api = "anthropic"                 # options: openai, anthropic',
+        `model = "${model}"`
       ]
     );
     pushActive(
-      '# Using OpenAI SDK (requires OPENAI_API_KEY environment var)',
+      '# Using OpenAI API (requires OPENAI_API_KEY environment var)',
       [
-        '# backend = "openai"',
-        `# sdk_model = "${DEFAULT_OPENAI_MODEL}"`
+        '# api = "openai"',
+        `# model = "${DEFAULT_OPENAI_MODEL}"`,
+        '# base_url = "http://localhost:4000/v1"  # optional: LiteLLM, Azure, etc.',
+        '# api_key = "sk-..."                     # optional: override env var'
       ]
     );
   } else if (active === 'openai') {
+    const lines = [
+      'api = "openai"',
+      `model = "${model}"`
+    ];
+    if (baseUrl) {
+      lines.push(`base_url = "${baseUrl}"`);
+    }
+    if (apiKey) {
+      lines.push(`api_key = "${apiKey}"`);
+    }
     pushActive(
-      '# Using OpenAI SDK (requires OPENAI_API_KEY environment var)',
-      [
-        'backend = "openai"',
-        `sdk_model = "${sdkModel}"`
-      ]
+      '# Using OpenAI API (requires OPENAI_API_KEY environment var unless base_url is set)',
+      lines
     );
     pushActive(
-      '# Using Claude SDK (requires ANTHROPIC_API_KEY environment var)',
+      '# Using Anthropic API (requires ANTHROPIC_API_KEY environment var)',
       [
-        '# backend = "claude"',
-        `# sdk_model = "${DEFAULT_CLAUDE_MODEL}"`
+        '# api = "anthropic"',
+        `# model = "${DEFAULT_ANTHROPIC_MODEL}"`
       ]
     );
   } else {
     pushActive(
-      '# Using Claude SDK (requires ANTHROPIC_API_KEY environment var)',
+      '# Using Anthropic API (requires ANTHROPIC_API_KEY environment var)',
       [
-        'backend = "claude"',
-        `sdk_model = "${sdkModel}"`
+        'api = "anthropic"',
+        `model = "${model}"`
       ]
     );
     pushActive(
-      '# Using OpenAI SDK (requires OPENAI_API_KEY environment var)',
+      '# Using OpenAI API (requires OPENAI_API_KEY environment var)',
       [
-        '# backend = "openai"',
-        `# sdk_model = "${DEFAULT_OPENAI_MODEL}"`
+        '# api = "openai"',
+        `# model = "${DEFAULT_OPENAI_MODEL}"`,
+        '# base_url = "http://localhost:4000/v1"  # optional: LiteLLM, Azure, etc.',
+        '# api_key = "sk-..."                     # optional: override env var'
       ]
     );
   }
@@ -272,6 +308,7 @@ function parseArgv(argv) {
   const program = new Command();
   program
     .name('run-pipeline')
+    .version(require('../package.json').version)
     .usage('[options]')
     .option('--figma-url <value>', 'Figma file URL or key (needed for figma scan when not cached)')
     .option('--figma-token <token>', 'Figma API token (or FIGMA_ACCESS_TOKEN/.env)')
