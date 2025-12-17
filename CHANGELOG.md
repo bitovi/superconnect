@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2025-12-17
+
+### Fixed
+- Add helpful error messages when API returns "Invalid model name" errors (400 status)
+  - Shows current model being used
+  - Suggests common alternatives (gpt-4o, claude-sonnet-4-5, etc.)
+  - Explains how to set model via superconnect.toml or CLI flag
+  - Links to model documentation
+- Warn users when using custom `base_url` without explicitly setting a `model`
+  - Prevents confusion when default model doesn't exist on custom endpoints
+  - Applies to LiteLLM, Azure OpenAI, vLLM, and other OpenAI-compatible proxies
+
 ## [0.2.3] - 2025-12-17
 
 ### Fixed
