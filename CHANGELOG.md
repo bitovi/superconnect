@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2025-12-17
+
+### Fixed
+- **Windows compatibility**: Use Node's native fetch instead of undici to fix "fetch failed" errors on Windows PowerShell with corporate networks
+- Include CHANGELOG.md in npm package files array so users can see release notes
+- Change CI workflow to use `npm ci` instead of `npm install` for consistency with publish workflow
+- Add .npmrc with engine-strict=true to enforce Node >=22 requirement (was only advisory before)
+- Remove redundant .npmignore file (files[] array in package.json already controls what's published)
+
 ## [0.2.2] - 2025-12-17
 
 ### Fixed
