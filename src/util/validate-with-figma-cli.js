@@ -41,7 +41,7 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
         'Figma Code Connect CLI not found or not working properly.',
         '',
         'This is required for validation. To fix:',
-        '  1. Ensure @figma/code-connect is installed: npm install -g @figma/code-connect',
+        '  1. Ensure @figma/code-connect is installed: pnpm add -g @figma/code-connect',
         '  2. Or it should be in node_modules if you installed @bitovi/superconnect',
         '  3. Check that npx is available in your PATH',
         '',

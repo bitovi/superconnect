@@ -51,7 +51,7 @@ const ensurePrerequisites = () => {
     throw new Error('Chakra UI submodule missing. Run: git submodule update --init fixtures/chakra-ui');
   }
   if (!fs.existsSync(figmaCli)) {
-    throw new Error('Figma CLI missing. Run npm install in the superconnect repo');
+    throw new Error('Figma CLI missing. Run pnpm install in the superconnect repo');
   }
 };
 

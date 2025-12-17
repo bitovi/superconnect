@@ -1,5 +1,7 @@
 # Release Process
 
+**To Coding agents**: only make releases when explicitly told to by the user.
+
 ## Quick Reference
 
 ```bash

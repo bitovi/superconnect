@@ -6,24 +6,24 @@ This repo has fast unit tests and optional end-to-end (E2E) validations against 
 
 ```bash
 # Run all unit tests (fast, no network required)
-npm test
+pnpm test
 
 # Watch mode for TDD
-npm run test:watch
+pnpm run test:watch
 
 # Run specific test file
-npm test -- test/react-direct-codegen.test.js
+pnpm test test/react-direct-codegen.test.js
 
 # E2E tests (requires tokens, see Prerequisites)
-npm run test:e2e:chakra:small      # Chakra React (Button only)
-npm run test:e2e:zapui:small       # ZapUI Angular (Button only)
+pnpm run test:e2e:chakra:small      # Chakra React (Button only)
+pnpm run test:e2e:zapui:small       # ZapUI Angular (Button only)
 ```
 
 ## Prerequisites
 
 **Required:**
-- Node.js ≥ 20.0.0
-- Dependencies installed: `npm install`
+- Node.js ≥ 22.0.0
+- Dependencies installed: `pnpm install`
 
 **For E2E tests only:**
 - `FIGMA_ACCESS_TOKEN` with scopes:
@@ -95,88 +95,88 @@ Superconnect sits between two live systems (Figma + component repos) and relies 
 ### All Unit Tests
 
 ```bash
-npm test
+pnpm test
 ```
 
 ### Watch Mode (TDD)
 
 ```bash
-npm run test:watch
+pnpm run test:watch
 ```
 
 ### Single Test File
 
 ```bash
-npm test -- test/framework-detection.test.js
+pnpm test test/framework-detection.test.js
 ```
 
 ### Filter by Test Name
 
 ```bash
-npm test -- -t "validates react component"
+pnpm test -t "validates react component"
 ```
 
 ### E2E: Chakra UI (React)
 
 **⚠️ Important for Coding Agents:**
-- **ALWAYS use the npm scripts** (`npm run test:e2e:chakra:small`), not `npm test -- chakra-e2e`
-- **DO NOT** try to run Jest directly with environment variables like `RUN_CHAKRA_E2E=1 npm test chakra-e2e`
+- **ALWAYS use the pnpm scripts** (`pnpm run test:e2e:chakra:small`), not `pnpm test chakra-e2e`
+- **DO NOT** try to run Jest directly with environment variables like `RUN_CHAKRA_E2E=1 pnpm test chakra-e2e`
 - **DO NOT** run tests in background with `&` or `nohup` - they take 2-3 minutes, just wait
 - The tests will automatically load `.env` from the repo root
 - Check test results in Jest's final output, not intermediate "RUNS" messages
 
 ```bash
 # Small subset (Button only, ~2 min)
-npm run test:e2e:chakra:small
+pnpm run test:e2e:chakra:small
 
 # Full suite (all components, ~2.5 min)
-npm run test:e2e:chakra
+pnpm run test:e2e:chakra
 
 # Keep artifacts for inspection (prints temp dir path)
-CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra:small
+CHAKRA_E2E_KEEP=1 pnpm run test:e2e:chakra:small
 
 # Verbose output (shows all child commands)
-SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra:small
+SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:chakra:small
 
 # Combine flags as needed
-CHAKRA_E2E_KEEP=1 SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra
+CHAKRA_E2E_KEEP=1 SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:chakra
 ```
 
 **Subset control:**
 ```bash
 # Custom component list
-CHAKRA_E2E_ONLY="Button,Alert,Badge" npm run test:e2e:chakra
+CHAKRA_E2E_ONLY="Button,Alert,Badge" pnpm run test:e2e:chakra
 ```
 
 ### E2E: ZapUI (Angular)
 
 **⚠️ Important for Coding Agents:**
-- **ALWAYS use the npm scripts** (`npm run test:e2e:zapui:small`), not `npm test -- zapui-e2e`
+- **ALWAYS use the pnpm scripts** (`pnpm run test:e2e:zapui:small`), not `pnpm test zapui-e2e`
 - **DO NOT** try to run Jest directly with environment variables
 - The tests will automatically load `.env` from the repo root
 - ZapUI tests are typically faster (~45 sec) than Chakra tests
 
 ```bash
 # Small subset (Button only, ~2 min)
-npm run test:e2e:zapui:small
+pnpm run test:e2e:zapui:small
 
 # Full suite (all components, ~45 sec)
-npm run test:e2e:zapui
+pnpm run test:e2e:zapui
 
 # Keep artifacts for inspection (prints temp dir path)
-ZAPUI_E2E_KEEP=1 npm run test:e2e:zapui:small
+ZAPUI_E2E_KEEP=1 pnpm run test:e2e:zapui:small
 
 # Verbose output (shows all child commands)
-SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui:small
+SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:zapui:small
 
 # Combine flags as needed
-ZAPUI_E2E_KEEP=1 SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui
+ZAPUI_E2E_KEEP=1 SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:zapui
 ```
 
 **Subset control:**
 ```bash
 # Custom component list
-ZAPUI_E2E_ONLY="Button,Alert" npm run test:e2e:zapui
+ZAPUI_E2E_ONLY="Button,Alert" pnpm run test:e2e:zapui
 ```
 
 ## Repository Conventions
@@ -248,7 +248,7 @@ fixtures/{name}/
 
 3. **Run your test:**
    ```bash
-   npm test -- test/my-feature.test.js
+   pnpm test test/my-feature.test.js
    ```
 
 ## Determinism and Reliability
@@ -297,7 +297,7 @@ fixtures/{name}/
 ## CI Policy
 
 **On every push:**
-- All unit tests (`npm test`)
+- All unit tests (`pnpm test`)
 - Fast (< 10 seconds), deterministic, no secrets required
 
 **On `main` branch commits with secrets:**
@@ -307,7 +307,7 @@ fixtures/{name}/
 - Requires `FIGMA_ACCESS_TOKEN` and `ANTHROPIC_API_KEY` secrets
 
 **Local development:**
-- Run small E2E subsets for fast iteration (`npm run test:e2e:chakra:small`)
+- Run small E2E subsets for fast iteration (`pnpm run test:e2e:chakra:small`)
 - Run full E2E before submitting PRs to validate changes
 
 ## Debugging Failed Tests
@@ -316,12 +316,12 @@ fixtures/{name}/
 
 1. **Run single test file:**
    ```bash
-   npm test -- test/failing-test.test.js
+   pnpm test test/failing-test.test.js
    ```
 
 2. **Run specific test by name:**
    ```bash
-   npm test -- -t "exact test name"
+   pnpm test -t "exact test name"
    ```
 
 3. **Add `console.log` and re-run** - Jest shows all output
@@ -332,13 +332,13 @@ fixtures/{name}/
 
 1. **Keep artifacts for inspection:**
    ```bash
-   CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra:small
+   CHAKRA_E2E_KEEP=1 pnpm run test:e2e:chakra:small
    ```
    Temp directory path printed in test output.
 
 2. **Enable verbose output:**
    ```bash
-   SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra:small
+   SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:chakra:small
    ```
    Shows all child commands and stdout/stderr.
 
@@ -365,7 +365,7 @@ fixtures/{name}/
 ## Unit tests
 
 - Test runner
-  - Jest, configured via `npm test`
+  - Jest, configured via `pnpm test`
 - Location
   - Test files live in `test/` alongside the pipeline and helper scripts they cover
 - Scope
@@ -373,13 +373,13 @@ fixtures/{name}/
   - Angular-specific behavior (component discovery, stubs, figma.config.json, fallback URLs)
   - React/Angular codegen filters (e.g., prop handling, `--only` filtering)
 - Running
-  - Run the full unit suite: `npm test`
-  - Watch mode for local development: `npm run test:watch`
+  - Run the full unit suite: `pnpm test`
+  - Watch mode for local development: `pnpm run test:watch`
 
 ## Unit tests
 
 - Test runner
-  - Jest, configured via `npm test`
+  - Jest, configured via `pnpm test`
 - Location
   - Test files live in `test/` alongside the pipeline and helper scripts they cover
 - Scope
@@ -387,8 +387,8 @@ fixtures/{name}/
   - Angular-specific behavior (component discovery, stubs, figma.config.json, fallback URLs)
   - React/Angular codegen filters (e.g., prop handling, `--only` filtering)
 - Running
-  - Run the full unit suite: `npm test`
-  - Watch mode for local development: `npm run test:watch`
+  - Run the full unit suite: `pnpm test`
+  - Watch mode for local development: `pnpm run test:watch`
 
 ## ZapUI E2E validation
 
@@ -422,11 +422,11 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 ### Running the E2E test
 
 - Standard run
-  - `npm run test:e2e:zapui`
+  - `pnpm run test:e2e:zapui`
 - Small run (fast subset)
-  - `npm run test:e2e:zapui:small`
+  - `pnpm run test:e2e:zapui:small`
 - This will
-  - Gate on `RUN_ZAPUI_E2E=1` via the npm script
+  - Gate on `RUN_ZAPUI_E2E=1` via the pnpm script
   - Use your FIGMA_ACCESS_TOKEN and ANTHROPIC_API_KEY from env or `.env`
   - Make live calls to the Figma API and the configured agent backend
 
@@ -435,17 +435,17 @@ The ZapUI E2E test runs the full Superconnect pipeline against the real ZapUI An
 The ZapUI E2E test can print each child command and its combined stdout/stderr
 
 - Verbose small run
-  - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui:small`
+  - `SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:zapui:small`
 - Verbose full run
-  - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:zapui`
+  - `SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:zapui`
 
 ### Inspecting artifacts
 
 By default the E2E test deletes its temp directory in a `finally` block
 
 - To inspect outputs (generated `codeConnect/*.figma.ts`, `superconnect/*`, logs)
-  - Full run: `ZAPUI_E2E_KEEP=1 npm run test:e2e:zapui`
-  - Small run: `ZAPUI_E2E_KEEP=1 npm run test:e2e:zapui:small`
+  - Full run: `ZAPUI_E2E_KEEP=1 pnpm run test:e2e:zapui`
+  - Small run: `ZAPUI_E2E_KEEP=1 pnpm run test:e2e:zapui:small`
   - The test prints the temp directory path when keep is enabled
 
 ## Chakra UI React E2E validation
@@ -485,15 +485,15 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
   - Do not set `CHAKRA_E2E_ONLY`
   - Generates for all Chakra components
 - Subset run (recommended for fast iteration)
-  - Run `npm run test:e2e:chakra:small` or set `CHAKRA_E2E_ONLY` to a comma separated list of Figma component names
-  - Example: `CHAKRA_E2E_ONLY="Button,Steps.Indicator" npm run test:e2e:chakra`
+  - Run `pnpm run test:e2e:chakra:small` or set `CHAKRA_E2E_ONLY` to a comma separated list of Figma component names
+  - Example: `CHAKRA_E2E_ONLY="Button,Steps.Indicator" pnpm run test:e2e:chakra`
 
 ### Running the E2E test
 
 - Standard run
-  - `npm run test:e2e:chakra`
+  - `pnpm run test:e2e:chakra`
 - This will
-  - Gate on `RUN_CHAKRA_E2E=1` via the npm script
+  - Gate on `RUN_CHAKRA_E2E=1` via the pnpm script
   - Use your FIGMA_ACCESS_TOKEN and ANTHROPIC_API_KEY from env or `.env`
   - Make live calls to the Figma API and the configured agent backend
 
@@ -502,15 +502,15 @@ The Chakra E2E test runs the full Superconnect pipeline against the Chakra UI Re
 The Chakra E2E test can print each child command and its combined stdout/stderr
 
 - Verbose small run
-  - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra:small`
+  - `SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:chakra:small`
 - Verbose full run
-  - `SUPERCONNECT_E2E_VERBOSE=1 npm run test:e2e:chakra`
+  - `SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:chakra`
 
 ### Inspecting artifacts
 
 By default the E2E test deletes its temp directory in a `finally` block
 
 - To inspect outputs (generated `codeConnect/*.figma.tsx`, `superconnect/*`, logs)
-  - Full run: `CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra`
-  - Small run: `CHAKRA_E2E_KEEP=1 npm run test:e2e:chakra:small`
+  - Full run: `CHAKRA_E2E_KEEP=1 pnpm run test:e2e:chakra`
+  - Small run: `CHAKRA_E2E_KEEP=1 pnpm run test:e2e:chakra:small`
   - The test prints the temp directory path when keep is enabled

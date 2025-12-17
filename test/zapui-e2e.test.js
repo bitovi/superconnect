@@ -51,7 +51,7 @@ const ensurePrerequisites = () => {
     throw new Error('ZapUI submodule missing. Run: git submodule update --init fixtures/zapui');
   }
   if (!fs.existsSync(figmaCli)) {
-    throw new Error('Figma CLI missing. Run npm install in the superconnect repo');
+    throw new Error('Figma CLI missing. Run pnpm install in the superconnect repo');
   }
 };
 

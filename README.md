@@ -17,11 +17,11 @@ Figma Code Connect [also offers an interactive setup to help create Code Connect
 # Installation
 
 - Install from npm
-  - `npm install -g @bitovi/superconnect`
+  - `pnpm add -g @bitovi/superconnect`
 
 - Install from git
   - clone this repo
-  - `npm install && npm link`
+  - `pnpm install && pnpm link`
 
 # Required environment and config
 

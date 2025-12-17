@@ -30,7 +30,7 @@ function buildSystemPrompt() {
     return `${guidance}\n\n---\n\n${apiDocs}`;
   } catch (err) {
     if (err.code === 'ENOENT') {
-      throw new Error(`Prompt file not found: ${err.path}\n  This is likely a package installation issue. Try reinstalling: npm install`);
+      throw new Error(`Prompt file not found: ${err.path}\n  This is likely a package installation issue. Try reinstalling: pnpm install`);
     }
     throw new Error(`Failed to read prompt files: ${err.message}`);
   }
