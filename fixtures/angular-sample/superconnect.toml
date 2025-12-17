@@ -1,11 +1,31 @@
 [inputs]
+# Figma file URL or key (requires FIGMA_ACCESS_TOKEN environment var)
 figma_url = "https://example.com/figma/angular-sample"
+
+# Path to your component repo (relative or absolute)
 component_repo_path = "."
 
 [agent]
-api = "anthropic"
+# Maximum tokens for LLM responses
 max_tokens = 4000
 
+# Using Anthropic API (requires ANTHROPIC_API_KEY environment var)
+api = "anthropic"                 # options: openai, anthropic
+model = "claude-haiku-4-5"
+
+# Using OpenAI API (requires OPENAI_API_KEY environment var)
+# api = "openai"
+# model = "gpt-4"
+# base_url = "http://localhost:4000/v1"  # optional: LiteLLM, Azure, etc.
+# api_key = "sk-..."                     # optional: override env var
+
 [codegen]
-max_retries = 4       # Retry attempts on validation failure
-concurrency = 8       # Max parallel LLM requests during code generation
+# Retry attempts on validation failure
+max_retries = 4
+
+# Max parallel LLM requests during code generation
+concurrency = 8
+
+[figma]
+# Layer depth to scan in Figma component hierarchy (default: 3)
+# layer_depth = 3

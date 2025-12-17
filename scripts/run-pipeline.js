@@ -242,17 +242,27 @@ async function promptForConfig() {
 
   const tomlContent = [
     '[inputs]',
-    '# (Requires FIGMA_ACCESS_TOKEN environment var)',
+    '# Figma file URL or key (requires FIGMA_ACCESS_TOKEN environment var)',
     `figma_url = "${figmaUrl}"`,
+    '',
+    '# Path to your component repo (relative or absolute)',
     `component_repo_path = "${repoPath}"`,
     '',
     '[agent]',
+    '# Maximum tokens for LLM responses',
     `max_tokens = ${maxTokens}`,
-    ...agentSection,
     '',
+    ...agentSection,
     '[codegen]',
-    'max_retries = 4       # Retry attempts on validation failure',
-    'concurrency = 8       # Max parallel LLM requests during code generation',
+    '# Retry attempts on validation failure',
+    'max_retries = 4',
+    '',
+    '# Max parallel LLM requests during code generation',
+    'concurrency = 8',
+    '',
+    '[figma]',
+    '# Layer depth to scan in Figma component hierarchy (default: 3)',
+    '# layer_depth = 3',
     ''
   ].join('\n');
 
