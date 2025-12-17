@@ -72,11 +72,13 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
     fs.writeJsonSync(tempConfig, config);
 
     // Run figma connect parse with --exit-on-unreadable-files to get exit code 1 on errors
-    // Use single command string with shell:true to avoid DEP0190 and Windows issues
+    // On Windows, npx is a batch file (npx.cmd) which requires shell:true
+    // With shell:true, we must pass a single command string, not separate args
+    const configBasename = path.basename(tempConfig);
     const result = spawnSync(
-      `npx @figma/code-connect connect parse -c "${tempConfig}" --exit-on-unreadable-files`,
+      `npx @figma/code-connect connect parse -c ${configBasename} --exit-on-unreadable-files`,
       {
-        cwd: tempDir, // Run from temp directory so relative glob works
+        cwd: tempDir, // Run from temp directory so relative glob and config work
         encoding: 'utf8',
         timeout: 30000, // 30 second timeout
         shell: true,
