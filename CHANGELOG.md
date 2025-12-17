@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- LiteLLM and OpenAI-compatible endpoint support for agent backends
+- New `base_url` and `api_key` fields in `[agent]` section of superconnect.toml for custom endpoints
+- Support for OPENAI_BASE_URL environment variable
+- CLI flags `--agent-base-url` and `--agent-api-key` for run-orienter.js and run-codegen.js
+- Comprehensive unit tests for custom endpoint support
+- Documentation for using LiteLLM, Azure OpenAI, vLLM, and other OpenAI-compatible servers
+
 ### Fixed
 - Enhance error diagnostics for network and certificate issues in corporate environments across all pipeline stages
 - Add detailed error logging to agent adapters (error type, code, status, cause) to help diagnose connection failures

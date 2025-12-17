@@ -29,6 +29,12 @@ For OpenAI:
 curl -v https://api.openai.com/v1/models
 ```
 
+For LiteLLM or custom endpoints:
+```bash
+# Replace with your actual endpoint URL
+curl -v http://localhost:4000/v1/models -H "Authorization: Bearer YOUR_API_KEY"
+```
+
 If these fail, you have a network connectivity issue.
 
 ### 2. Check Log Files
@@ -82,6 +88,36 @@ Ensure these domains and ports are allowed:
 - **Figma API:** `api.figma.com` port 443
 - **Claude (Anthropic):** `api.anthropic.com` port 443
 - **OpenAI:** `api.openai.com` port 443
+- **Custom endpoints:** Your configured `base_url` (e.g., `localhost:4000` for LiteLLM)
+
+### Using LiteLLM or Custom Endpoints
+
+LiteLLM provides a proxy/gateway that can help in corporate environments by:
+- Routing through a single internal endpoint
+- Supporting 100+ LLM providers
+- Providing unified API interface
+
+To configure a custom OpenAI-compatible endpoint in `superconnect.toml`:
+
+```toml
+[agent]
+backend = "openai"
+base_url = "http://localhost:4000/v1"  # LiteLLM proxy
+api_key = "sk-your-key"  # optional, overrides OPENAI_API_KEY
+sdk_model = "gpt-4"  # or your model name
+```
+
+Or via environment variables:
+```bash
+export OPENAI_BASE_URL=http://localhost:4000/v1
+export OPENAI_API_KEY=sk-your-key
+```
+
+This is useful when:
+- Your IT team runs an internal LiteLLM proxy
+- You need to route through Azure OpenAI
+- Corporate firewall blocks direct OpenAI/Claude access
+- You want to use vLLM or other OpenAI-compatible servers
 
 ### VPN Issues
 

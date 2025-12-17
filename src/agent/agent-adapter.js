@@ -53,20 +53,29 @@ class OpenAIAgentAdapter {
     this.maxTokens = parseMaxTokens(options.maxTokens, null);
     this.defaultLogDir = options.logDir || null;
     this.defaultCwd = options.cwd;
-    const apiKey = process.env.OPENAI_API_KEY;
     
-    if (!apiKey) {
+    // Allow base URL override for LiteLLM, Azure OpenAI, vLLM, or other OpenAI-compatible endpoints
+    const baseURL = options.baseUrl || process.env.OPENAI_BASE_URL || undefined;
+    const apiKey = options.apiKey || process.env.OPENAI_API_KEY;
+    
+    // When using custom base URL, allow placeholder API key (some proxies don't require it)
+    if (!apiKey && !baseURL) {
       throw new Error(
         'OPENAI_API_KEY environment variable is required\n\n' +
         '💡 How to fix:\n' +
         '  1. Get an API key from https://platform.openai.com/api-keys\n' +
         '  2. Add to your .env file: OPENAI_API_KEY=sk-...\n' +
         '  3. Or export in your shell: export OPENAI_API_KEY=sk-...\n' +
-        '  4. Ensure .env file is in your project root directory'
+        '  4. Ensure .env file is in your project root directory\n' +
+        '  5. Or set base_url in superconnect.toml for custom endpoints (LiteLLM, etc.)'
       );
     }
     
-    this.client = new OpenAI({ apiKey });
+    this.client = new OpenAI({ 
+      apiKey: apiKey || 'unused',  // Some proxies accept any value
+      baseURL 
+    });
+    this.baseURL = baseURL;  // Store for error messages
   }
 
   orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
@@ -141,17 +150,20 @@ class OpenAIAgentAdapter {
                  message.includes('certificate') || message.includes('self-signed') || 
                  message.includes('SSL') || message.includes('TLS')) {
         // Enhanced network error handling for corporate environments
+        const endpoint = this.baseURL || 'api.openai.com';
         const networkTips = [
           '💡 Network/Certificate Error - Common in corporate environments:',
           '',
           'Quick diagnostics:',
-          `  1. Test API connectivity: curl -v https://api.openai.com/v1/models`,
+          `  1. Test API connectivity: curl -v ${this.baseURL ? this.baseURL + '/v1/models' : 'https://api.openai.com/v1/models'}`,
           '  2. Check if you can reach the API from your network',
           '',
           'Possible solutions:',
           '  • Corporate proxy: Set HTTP_PROXY and HTTPS_PROXY environment variables',
-          '  • Certificate issues: Your IT may need to add OpenAI\'s certs to the trust store',
-          '  • Firewall: Ensure api.openai.com (port 443) is allowed',
+          this.baseURL 
+            ? `  • Check LiteLLM/proxy status: Ensure ${this.baseURL} is running and accessible`
+            : '  • Certificate issues: Your IT may need to add OpenAI\'s certs to the trust store',
+          `  • Firewall: Ensure ${endpoint} (port 443) is allowed`,
           '  • VPN: Try connecting/disconnecting from corporate VPN',
           '',
           'As a last resort (INSECURE - only for testing):',

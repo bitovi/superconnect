@@ -62,7 +62,20 @@ function normalizeAgentConfig(agentSection = {}) {
       : DEFAULT_CLAUDE_MODEL);
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
   const resolvedMaxTokens = backend === 'claude' ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
-  return { backend, model, maxTokens: resolvedMaxTokens };
+  
+  // Support for custom OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
+  const baseUrl = agentSection.base_url || null;
+  const apiKey = agentSection.api_key || null;  // Optional override
+  
+  // Warn if base_url is set with non-OpenAI backend
+  if (baseUrl && backend !== 'openai') {
+    console.warn(
+      `${chalk.yellow('⚠️  base_url is set but backend is "')}${backend}${chalk.yellow('". base_url is only used with backend = "openai".')}\n` +
+      `   ${chalk.yellow('Did you mean to set backend = "openai"?')}`
+    );
+  }
+  
+  return { backend, model, maxTokens: resolvedMaxTokens, baseUrl, apiKey };
 }
 
 /**
@@ -439,6 +452,8 @@ async function main() {
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       `--agent-max-tokens "${orientationMaxTokens}"`,
+      agentConfig.baseUrl ? `--agent-base-url "${agentConfig.baseUrl}"` : '',
+      agentConfig.apiKey ? `--agent-api-key "${agentConfig.apiKey}"` : '',
       inferredFramework ? `--target-framework "${inferredFramework}"` : '',
       args.dryRun ? '--dry-run' : ''
     ].join(' ');
@@ -465,6 +480,8 @@ async function main() {
       `--agent-backend "${agentConfig.backend}"`,
       agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
       agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
+      agentConfig.baseUrl ? `--agent-base-url "${agentConfig.baseUrl}"` : '',
+      agentConfig.apiKey ? `--agent-api-key "${agentConfig.apiKey}"` : '',
       `--concurrency "${codegenConfig.concurrency}"`,
       args.only && args.only.length ? `--only "${args.only.join(',')}"` : '',
       args.exclude && args.exclude.length ? `--exclude "${args.exclude.join(',')}"` : '',

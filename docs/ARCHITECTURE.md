@@ -174,7 +174,12 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 
 - **Config file**: `superconnect.toml`
   - `[inputs]` – `figma_url`, `component_repo_path`
-  - `[agent]` – `backend`, `sdk_model`, `max_tokens` (default: 2048 for codegen, 32768 for orientation)
+  - `[agent]` – `backend`, `sdk_model`, `max_tokens`, `base_url`, `api_key`
+    - `backend` – `"openai"` or `"claude"` (default: claude)
+    - `sdk_model` – model name (e.g., `"gpt-4"`, `"claude-haiku-4-5"`)
+    - `max_tokens` – max output tokens (default: 2048 for codegen, 32768 for orientation)
+    - `base_url` – (optional) base URL for OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
+    - `api_key` – (optional) API key override (takes precedence over environment variables)
   - Parsed via a lightweight TOML parser that supports:
     - Top‑level keys
     - Single‑level sections
@@ -185,6 +190,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
     - Development: `file_code_connect:write`, `file_dev_resources:read`, `file_dev_resources:write`
   - `ANTHROPIC_API_KEY` – for Claude backend, read from the process environment or `.env` in the target repo
   - `OPENAI_API_KEY` – for OpenAI backend, read from the process environment or `.env` in the target repo
+  - `OPENAI_BASE_URL` – (optional) base URL for OpenAI-compatible endpoints, can be overridden by `base_url` in TOML
 
 Assumptions:
 - Target repos are React/TypeScript or Angular projects with components under conventional roots (`src/components`, `packages/*/src/components`, `src/app/**/*.component.ts`, etc.)
@@ -207,5 +213,10 @@ Assumptions:
   - OpenAI Responses API and Anthropic Claude SDK provide:
     - Repository orientation (Stage 3)
     - Mapping schemas (Stage 4)
+  - OpenAI-compatible endpoints supported via `base_url` config:
+    - LiteLLM (proxy for 100+ LLM providers)
+    - Azure OpenAI
+    - vLLM (high-performance inference server)
+    - LocalAI and other OpenAI-compatible servers
 
 Secret symbol: ✠

@@ -26,15 +26,15 @@ Figma Code Connect [also offers an interactive setup to help create Code Connect
 # Required environment and config
 
 - Requires Node.js >= 22.0.0
-- Environment variables
-  - `FIGMA_ACCESS_TOKEN` – Figma personal access token used to access Figma file
-  - `ANTHROPIC_API_KEY` – required when `backend = "claude"` (default)
-  - `OPENAI_API_KEY` – required when `backend = "openai"`
-  - these can be set in your shell or in an `.env` file in your React or Angular repo
+- Environment variables (set in your shell or in a `.env` file in your repo)
+  - `FIGMA_ACCESS_TOKEN` – Figma personal access token (see [Figma access token](#1-figma-access-token) below)
+  - One AI provider key (depending on which backend you choose):
+    - `ANTHROPIC_API_KEY` – for Claude (the default)
+    - `OPENAI_API_KEY` – for OpenAI or OpenAI-compatible endpoints
 
 - superconnect.toml
-  - Superconnect seeks `superconnect.toml` config file in the current working directory
-  - If missing, the tool will prompt you on first run and then write the config file for you
+  - Superconnect looks for this config file in the current working directory
+  - If missing, the tool will prompt you on first run and create it for you
 
 # Workflow
 
@@ -155,16 +155,43 @@ Superconnect runs five logical stages:
 
 # Agent Backends
 
-You can choose your AI backends by editing `superconnect.toml`:
+Superconnect uses AI to generate your Code Connect mappings. By default it uses Claude, but you can switch to OpenAI or any OpenAI-compatible service.
 
-- Claude SDK (backend = "claude")
-    - Uses @anthropic-ai/sdk
-    - Requires ANTHROPIC_API_KEY
-    - sdk_model must be a Claude model (e.g., claude-haiku-4-5)
-- OpenAI SDK (backend = "openai")
-    - Uses the openai Responses API
-    - Requires OPENAI_API_KEY
-    - sdk_model must be an OpenAI model (e.g., gpt-5.1-codex-mini)
+## Choosing a Backend
+
+Edit the `[agent]` section in `superconnect.toml`:
+
+```toml
+[agent]
+backend = "claude"           # or "openai"
+sdk_model = "claude-haiku-4-5"  # model to use
+```
+
+| Backend | Environment Variable | Example Models |
+|---------|---------------------|----------------|
+| `claude` (default) | `ANTHROPIC_API_KEY` | claude-haiku-4-5, claude-sonnet-4-20250514 |
+| `openai` | `OPENAI_API_KEY` | gpt-4, gpt-5.1-codex-mini |
+
+## Custom OpenAI-Compatible Endpoints (Advanced)
+
+Many services implement the OpenAI API format. You can use them by setting `backend = "openai"` and adding a custom `base_url`:
+
+```toml
+[agent]
+backend = "openai"
+base_url = "http://localhost:4000/v1"  # your proxy endpoint
+sdk_model = "gpt-5.1-codex-mini"
+```
+
+Common use cases:
+- **LiteLLM** - proxy/gateway for 100+ LLM providers
+- **Azure OpenAI** - Microsoft's hosted OpenAI with enterprise security
+- **vLLM** - self-hosted inference server
+- **LocalAI** - run models offline
+
+When using a custom endpoint, the API key comes from `OPENAI_API_KEY` (or set `api_key` in TOML if your proxy needs a different key).
+
+For connection issues with custom endpoints, see [docs/NETWORK-TROUBLESHOOTING.md](docs/NETWORK-TROUBLESHOOTING.md).
 
 Code gen agents log to superconnect/orienter-agent.log, superconnect/codegen-summaries/, and superconnect/codegen-agent-transcripts/
 

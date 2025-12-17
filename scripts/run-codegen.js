@@ -907,7 +907,9 @@ const buildAdapter = (config) => {
       model: config.agentModel || undefined,
       logDir: config.agentLogDir,
       cwd: config.repo,
-      maxTokens
+      maxTokens,
+      baseUrl: config.agentBaseUrl || undefined,
+      apiKey: config.agentApiKey || undefined
     });
   }
   return new ClaudeAgentAdapter({
@@ -929,6 +931,8 @@ const parseArgs = (argv) => {
     .option('--agent-backend <value>', 'Agent backend (openai|claude)', 'claude')
     .option('--agent-model <value>', 'Agent model for SDK backends')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
+    .option('--agent-base-url <value>', 'Base URL for OpenAI-compatible API (e.g., LiteLLM, Azure, vLLM)')
+    .option('--agent-api-key <value>', 'API key for custom endpoint (overrides OPENAI_API_KEY env var)')
     .option('--concurrency <number>', 'Max concurrent LLM requests', parseInt, 5)
     .option('--only <list...>', 'Component names/IDs (globs allowed); accepts comma or space separated values')
     .option('--exclude <list...>', 'Component names/IDs to skip (globs allowed)')
@@ -959,6 +963,8 @@ const parseArgs = (argv) => {
     agentBackend: (opts.agentBackend || 'claude').toLowerCase(),
     agentModel: opts.agentModel || undefined,
     agentMaxTokens: parseInt(opts.agentMaxTokens, 10) || undefined,
+    agentBaseUrl: opts.agentBaseUrl || undefined,
+    agentApiKey: opts.agentApiKey || undefined,
     concurrency: opts.concurrency || 5,
     only: parseList(opts.only),
     exclude: parseList(opts.exclude),

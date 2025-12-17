@@ -35,6 +35,8 @@ const parseArgs = (argv) => {
     .option('--agent-backend <value>', 'Agent backend (openai|claude)', 'claude')
     .option('--agent-model <value>', 'Agent model for SDK backends')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
+    .option('--agent-base-url <value>', 'Base URL for OpenAI-compatible API (e.g., LiteLLM, Azure, vLLM)')
+    .option('--agent-api-key <value>', 'API key for custom endpoint (overrides OPENAI_API_KEY env var)')
     .option('--target-framework <value>', 'Target framework hint (react|angular)')
     .option('--dry-run', 'Skip agent call and write payload preview only', false)
     .option('--fake-orienter-output <file>', 'Path to a JSONL file to use instead of calling an agent (testing only)')
@@ -52,6 +54,8 @@ const parseArgs = (argv) => {
     agentBackend: (opts.agentBackend || 'claude').toLowerCase(),
     agentModel: opts.agentModel || undefined,
     agentMaxTokens: parseMaxTokens(opts.agentMaxTokens),
+    agentBaseUrl: opts.agentBaseUrl || undefined,
+    agentApiKey: opts.agentApiKey || undefined,
     targetFramework: opts.targetFramework || null,
     dryRun: Boolean(opts.dryRun),
     fakeOrienterOutput: opts.fakeOrienterOutput ? path.resolve(opts.fakeOrienterOutput) : null
@@ -85,7 +89,9 @@ const buildAdapter = (config) => {
     return new OpenAIAgentAdapter({
       model: config.agentModel || undefined,
       logDir: config.agentLogFile,
-      maxTokens
+      maxTokens,
+      baseUrl: config.agentBaseUrl || undefined,
+      apiKey: config.agentApiKey || undefined
     });
   }
   return new ClaudeAgentAdapter({
