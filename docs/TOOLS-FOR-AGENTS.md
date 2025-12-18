@@ -4,6 +4,7 @@
 
 - You can write small ephemeral scripts to accomplish tasks rather than brute-forcing them
 - When looking at git status, use `git status` (not `git status -sb`) so your view matches the user's
+- Use tmp/ in the repo for temporary experiments and artifacts, instead of /tmp
 - Only git commit if explicitly told to
 
 ## ast-grep

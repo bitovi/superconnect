@@ -4,13 +4,14 @@
  * Two-tier validation approach:
  *
  * 1. FAST PRE-CHECK (validateCodeConnect):
- *    - Quick regex-based checks for basic structure
- *    - Validates figma.*() calls against Figma evidence
+ *    - Hybrid validation: AST for figma.*() calls, regex for template expressions
+ *    - Validates figma.*() calls against Figma evidence using ts-morph AST
+ *    - Validates template/JSX expressions using regex patterns
  *    - Catches obvious errors before spawning CLI
  *
  * 2. CLI VALIDATION (validateCodeConnectWithCLI):
  *    - Uses the official Figma CLI as authoritative validator
- *    - Catches all errors that Figma will reject
+ *    - Catches Code Connect API errors (e.g., non-literal objects)
  *    - Runs fast pre-check first, then CLI if pre-check passes
  *
  * Pre-check validates:
@@ -23,35 +24,61 @@
  *
  * CLI validation catches:
  * - Props used in example() but not defined in props object
- * - Invalid TypeScript/JSX syntax
- * - All Code Connect API errors
+ * - Code Connect API structure violations
+ *
+ * Note: Neither layer validates TypeScript/JSX syntax. The Figma CLI uses
+ * a tolerant parser. See docs/FIGMA-CLI-VALIDATION.md for details.
  */
 
 const { validateWithFigmaCLI } = require('./validate-with-figma-cli');
+const { Project, SyntaxKind, Node } = require('ts-morph');
 
 /**
- * Extract all figma.*() calls from generated code using regex.
+ * Extract all figma.*() calls from generated code using AST traversal.
  * @param {string} code - The generated Code Connect file content
  * @returns {Array<{helper: string, key: string, line: number}>}
  */
 function extractFigmaCalls(code) {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const sourceFile = project.createSourceFile('temp.tsx', code, { scriptKind: 2 }); // TSX
+  
   const calls = [];
-  const lines = code.split('\n');
-
-  // Pattern to match figma.helper('key') or figma.helper("key")
-  const helperPattern = /figma\.(string|boolean|enum|instance|textContent|children|nestedProps|className)\s*\(\s*['"]([^'"]+)['"]/g;
-
-  lines.forEach((line, index) => {
-    let match;
-    while ((match = helperPattern.exec(line)) !== null) {
-      calls.push({
-        helper: match[1],
-        key: match[2],
-        line: index + 1
-      });
+  
+  // Find all call expressions
+  sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(callExpr => {
+    const expr = callExpr.getExpression();
+    
+    // Check if it's a property access (figma.something)
+    if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
+      const propAccess = expr;
+      const object = propAccess.getExpression().getText();
+      const property = propAccess.getName();
+      
+      if (object === 'figma') {
+        // Skip figma.connect()
+        if (property === 'connect') {
+          return;
+        }
+        
+        // Get the first argument (the key)
+        const args = callExpr.getArguments();
+        if (args.length > 0) {
+          const firstArg = args[0];
+          
+          // Check if it's a string literal
+          if (firstArg.getKind() === SyntaxKind.StringLiteral) {
+            const key = firstArg.getText().replace(/['"]/g, '');
+            calls.push({
+              helper: property,
+              key: key,
+              line: firstArg.getStartLineNumber()
+            });
+          }
+        }
+      }
     }
   });
-
+  
   return calls;
 }
 
@@ -299,8 +326,9 @@ function validateCodeConnect({ generatedCode, figmaEvidence, orienterOutput = nu
 }
 
 /**
- * Check for invalid JavaScript expressions in template interpolations (HTML) and JSX expressions (React).
+ * Check for invalid JavaScript expressions using AST (ternaries, logical ops, etc.)
  * Code Connect doesn't allow ternaries (?:), logical operators (&&, ||), or binary expressions.
+ * Also checks for syntax errors (e.g. bare expressions in JSX not wrapped in braces).
  * @param {string} code - The generated code
  * @returns {string[]} - Array of error messages
  */
@@ -317,19 +345,14 @@ function checkTemplateInterpolations(code) {
     }
 
     // Check for ternary expressions inside ${} (template literals)
-    // Pattern: ${ ... ? ... : ... }
     if (/\$\{[^}]*\?[^}]*:[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Ternary expression in template interpolation - Code Connect doesn't allow conditionals. Compute value in props instead.`);
     }
 
     // Check for ternary expressions in JSX context (both inside {} and bare)
-    // Matches: {x ? y : z}, prop={x ? y : z}, or bare "x ? <Component /> : null"
-    // Look for ternary pattern with ? and : that appears in JSX context
     const hasTernary = line.includes('?') && line.includes(':');
     if (hasTernary) {
-      // Check if it's in JSX context (has < or > nearby, or inside {})
       const inJsxContext = /</.test(line) || /\{[^}]*\?/.test(line);
-      // Exclude URL query params (http:// or https://)
       const isUrl = /https?:\/\//.test(line);
       
       if (inJsxContext && !isUrl) {
@@ -338,25 +361,19 @@ function checkTemplateInterpolations(code) {
     }
 
     // Check for logical AND/OR inside ${} (template literals)
-    // Pattern: ${ ... && ... } or ${ ... || ... }
     if (/\$\{[^}]*(?:&&|\|\|)[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Logical operator in template interpolation - Code Connect doesn't allow &&/||. Compute value in props instead.`);
     }
 
     // Check for prefix unary operators inside ${} (template literals)
-    // Figma Code Connect parsing expects placeholders to be simple mapped values,
-    // not unary expressions like ${!disabled}
     if (/\$\{\s*(?:!|~|\+|-|typeof\b|void\b|delete\b)/.test(line)) {
       errors.push(`Line ${lineNum}: Prefix unary operator in template interpolation - Code Connect doesn't allow !/~/+/-/typeof/void/delete in \${} placeholders. Compute the value in props instead.`);
     }
 
     // Check for logical operators in JSX context (both inside {} and bare)
-    // Matches: {x && y}, prop={x || y}, or bare "iconStart && <Icon />"
     const hasLogicalOp = /(?:&&|\|\|)/.test(line);
     if (hasLogicalOp) {
-      // Check if it's in JSX context (has < or > nearby, or inside {})
       const inJsxContext = /</.test(line) || /\{[^}]*(?:&&|\|\|)/.test(line);
-      // Exclude logical operators in regular JS (like if statements, function declarations)
       const isRegularJs = /^\s*(?:if|while|for|function|const|let|var|return)\s/.test(line);
       
       if (inJsxContext && !isRegularJs) {
@@ -364,14 +381,12 @@ function checkTemplateInterpolations(code) {
       }
     }
 
-    // Check for backtick nesting inside ${} (common error pattern)
-    // Pattern: ${ ... `...` ... }
+    // Check for backtick nesting inside ${} (nested template literals)
     if (/\$\{[^}]*`[^`]*`[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Nested template literal in interpolation - Code Connect doesn't allow this. Compute string in props instead.`);
     }
 
-    // Check for comparison operators inside ${} or {} (e.g., === !== < > <= >=)
-    // Pattern: ${ ... === ... } or [prop]="${value === 'something'}"
+    // Check for comparison operators inside ${} or {}
     if (/\$\{[^}]*(?:===|!==|==|!=|<=|>=)[^}]*\}/.test(line)) {
       errors.push(`Line ${lineNum}: Comparison operator in template interpolation - Code Connect doesn't allow binary expressions. Compute value in props instead.`);
     }
@@ -379,10 +394,9 @@ function checkTemplateInterpolations(code) {
       errors.push(`Line ${lineNum}: Comparison operator in attribute - Code Connect doesn't allow binary expressions. Compute boolean value in props instead.`);
     }
 
-    // Check for comparison operators in JSX context (both inside {} and bare)
+    // Check for comparison operators in JSX context
     const hasComparison = /(?:===|!==|==|!=|<=|>=)/.test(line);
     if (hasComparison) {
-      // Check if it's in JSX context (not in figma.connect URL or node-id)
       const inJsxContext = (/</.test(line) || /\{[^}]*(?:===|!==)/.test(line)) && 
                            !line.includes('node-id=') && 
                            !line.includes('figma.connect');
@@ -394,8 +408,6 @@ function checkTemplateInterpolations(code) {
   });
 
   // Check for function bodies with statements before return (HTML templates only)
-  // Pattern: example: (...) => { ... return html`...` }
-  // Code Connect requires: example: (...) => html`...`
   const exampleFnMatch = code.match(/example:\s*\([^)]*\)\s*=>\s*\{/);
   if (exampleFnMatch) {
     errors.push(`Example function has a body with statements - Code Connect requires arrow function to directly return template: example: (props) => html\`...\` not example: (props) => { ... return html\`...\` }`);

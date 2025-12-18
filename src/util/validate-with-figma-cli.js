@@ -2,11 +2,14 @@
  * Validate Code Connect files using the official Figma CLI.
  *
  * This provides authoritative validation - if the Figma CLI accepts a file,
- * it will work with `figma connect publish`. The CLI catches errors that
- * our regex-based validation cannot detect, such as:
+ * it will work with `figma connect publish`. The CLI validates:
+ *   - Code Connect API structure (e.g., object literal requirement)
  *   - Props used in example() but not defined in the props object
- *   - Invalid TypeScript/JSX syntax
  *   - Incorrect figma.* helper usage
+ *
+ * Note: The CLI does NOT validate TypeScript/JSX syntax errors - it uses
+ * a tolerant parser that may auto-correct or ignore syntax issues.
+ * See docs/FIGMA-CLI-VALIDATION.md for details.
  *
  * @module validate-with-figma-cli
  */
