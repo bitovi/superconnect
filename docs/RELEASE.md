@@ -6,15 +6,21 @@
 
 ```bash
 # 1. Edit CHANGELOG.md and package.json with new version
-# 2. Commit and push tag (triggers E2E tests):
+
+# 2. (Optional) Pre-flight check - run E2E locally to catch issues early:
+pnpm test:e2e:chakra  # ~5min
+pnpm test:e2e:zapui   # ~2min
+
+# 3. Commit and push tag (triggers CI + E2E):
 git add -A && git commit -m "Release v0.X.Y"
 git tag v0.X.Y
 git push origin main --tags
 
-# 3. Wait for E2E tests to pass:
-gh run watch --exit-status  # Watches most recent run, exits non-zero on failure
+# 4. Wait for CI + E2E to pass:
+echo "⏳ Waiting for CI (unit tests: 3 OS) and E2E (chakra, zapui) to complete..."
+gh run watch --exit-status || (gh run view --log | grep -E "FAIL|ERROR|✕" | tail -20)
 
-# 4. Create GitHub release (triggers npm publish):
+# 5. Create GitHub release (triggers npm publish):
 gh release create v0.X.Y --title "v0.X.Y - Brief description" --notes "Paste CHANGELOG section"
 ```
 
@@ -47,7 +53,18 @@ git commit -m "Release v0.2.7"
 git tag v0.2.7
 ```
 
-### 3. Push (triggers E2E tests)
+### 3. (Optional) Pre-flight check
+
+Before pushing the tag, optionally run E2E tests locally to catch issues early:
+
+```bash
+pnpm test:e2e:chakra  # Takes ~5 minutes
+pnpm test:e2e:zapui   # Takes ~2 minutes
+```
+
+**Note:** If E2E fails, check whether it's a pre-existing fixture issue or a new regression from your changes. The fixtures (chakra-ui, zapui) may have data quality issues unrelated to your code.
+
+### 4. Push (triggers CI + E2E tests)
 
 ```bash
 git push origin main --tags
@@ -57,24 +74,34 @@ This triggers:
 - **CI workflow** - unit tests on Ubuntu, Windows, macOS
 - **E2E workflow** - integration tests with chakra-ui and zapui fixtures
 
-### 4. Wait for E2E tests
+### 5. Wait for tests
 
 ```bash
+echo "⏳ Waiting for CI (unit tests: 3 OS) and E2E (chakra, zapui) to complete..."
 gh run watch --exit-status
 ```
 
-This watches the most recent workflow run and exits with code 0 on success, non-zero on failure. If it fails, fix the issue and retry from step 2 (you'll need to delete and recreate the tag).
+This watches the most recent workflow run and exits with code 0 on success, non-zero on failure.
+
+**If tests fail**, get an error summary:
+```bash
+gh run view --log | grep -E "FAIL|ERROR|✕" | tail -20
+```
+
+Then fix the issue and retry from step 2 (you'll need to delete and recreate the tag).
 
 **To retry after failure:**
 ```bash
 git tag -d v0.2.7                    # Delete local tag
 git push origin :refs/tags/v0.2.7    # Delete remote tag
+git reset --hard HEAD~1              # Undo release commit
+git push --force origin main         # Force push
 # ... make fixes, commit ...
 git tag v0.2.7                       # Recreate tag
 git push origin main --tags          # Push again
 ```
 
-### 5. Create GitHub release (publishes to npm)
+### 6. Create GitHub release (publishes to npm)
 
 Only after E2E passes:
 
@@ -87,7 +114,7 @@ gh release create v0.2.7 \
 
 This triggers GitHub Actions to publish to npm.
 
-### 6. Verify
+### 7. Verify
 
 ```bash
 npm view @bitovi/superconnect@0.2.7
