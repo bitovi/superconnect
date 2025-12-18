@@ -44,6 +44,10 @@ You have:
 
 - a Figma file with components, an Enterprise Figma account, and write permissions to that file
 - a repo implementing those same components (React or Angular)
+- the Figma Code Connect CLI installed (`@figma/code-connect`)
+  - `npm install -g @figma/code-connect`
+  - `pnpm add -g @figma/code-connect`
+  - `yarn global add @figma/code-connect`
 
 ## 1. Figma access token
 
@@ -95,7 +99,10 @@ At this point you have local Code Connect mappings but Figma does not see them y
 Next you push the generated mappings back to Figma, using Figma's own CLI. You must have `@figma/code-connect` installed in the component repo or globally. Run:
 
 ```bash
-npx figma connect publish
+figma connect publish
+
+# or, without a global install
+npx --package @figma/code-connect figma connect publish
 ```
 
 This command reads `figma.config.json`, uploads your Code Connect files, and associates them with the Figma file.

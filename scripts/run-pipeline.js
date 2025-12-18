@@ -254,17 +254,29 @@ async function promptForConfig() {
   return toml.parse(tomlContent);
 }
 
-function runCommand(label, command, options = {}) {
+/**
+ * Run a Node.js script directly without spawning a shell.
+ * This avoids Windows PowerShell issues where cmd.exe as an intermediary
+ * can interfere with console output and ANSI color codes.
+ * 
+ * @param {string} label - Display label for the command
+ * @param {string} scriptPath - Absolute path to the Node.js script
+ * @param {string[]} args - Array of arguments to pass to the script
+ * @param {object} options - Options (env, cwd, allowInterrupt)
+ */
+function runNodeScript(label, scriptPath, args = [], options = {}) {
   console.log(`${chalk.dim('•')} ${label}`);
   const { env: extraEnv, allowInterrupt = false, ...rest } = options || {};
   const mergedEnv = { ...process.env, ...(extraEnv || {}) };
   const shouldCapture = ['1', 'true', 'yes', 'on'].includes(String(process.env.SUPERCONNECT_E2E_VERBOSE || '').toLowerCase());
-  const result = spawnSync(command, [], {
+  
+  // Call Node.js directly without shell - more reliable cross-platform
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
     stdio: shouldCapture ? 'pipe' : 'inherit',
-    shell: true,
     env: mergedEnv,
     ...rest
   });
+  
   if (result.signal === 'SIGINT' && allowInterrupt) {
     console.warn(`⚠️  ${label} interrupted by SIGINT; continuing to finalize...`);
     return;
@@ -275,7 +287,8 @@ function runCommand(label, command, options = {}) {
       const stdout = result.stdout ? result.stdout.toString().trim() : '';
       const stderr = result.stderr ? result.stderr.toString().trim() : '';
       console.error(`❌ ${label} failed with code ${status}`);
-      console.error(`Command: ${command}`);
+      console.error(`Script: ${scriptPath}`);
+      console.error(`Args: ${JSON.stringify(args)}`);
       if (stdout) {
         console.error(`stdout:\n${stdout}`);
       } else {
@@ -466,11 +479,11 @@ async function main() {
   }
 
   if (needRepoSummary) {
-    const cmd = [
-      `node ${path.join(paths.scriptDir, 'summarize-repo.js')}`,
-      `--root "${paths.target}"`
-    ].join(' ');
-    runCommand(`${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`, cmd);
+    runNodeScript(
+      `${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`,
+      path.join(paths.scriptDir, 'summarize-repo.js'),
+      ['--root', paths.target]
+    );
   } else {
     console.log(
       `${chalk.dim('•')} ${highlight('Repo overview')} (skipped, ${codeColor(
@@ -499,15 +512,18 @@ async function main() {
       console.error('❌ --figma-url is required for figma scan when no index exists.');
       process.exit(1);
     }
-    const cmd = [
-      `node ${path.join(paths.scriptDir, 'figma-scan.js')}`,
-      `"${paths.figmaUrl}"`,
-      `--token "${figmaToken || ''}"`,
-      `--output "${paths.figmaDir}"`,
-      `--index "${paths.figmaIndex}"`,
-      `--layer-depth ${figmaConfig.layerDepth}`
-    ].join(' ');
-    runCommand(`${highlight('Figma scan')} → ${figmaColor(rel(paths.figmaIndex))}`, cmd);
+    const figmaScanArgs = [
+      paths.figmaUrl,
+      '--token', figmaToken || '',
+      '--output', paths.figmaDir,
+      '--index', paths.figmaIndex,
+      '--layer-depth', String(figmaConfig.layerDepth)
+    ];
+    runNodeScript(
+      `${highlight('Figma scan')} → ${figmaColor(rel(paths.figmaIndex))}`,
+      path.join(paths.scriptDir, 'figma-scan.js'),
+      figmaScanArgs
+    );
   } else {
     console.log(
       `${chalk.dim('•')} ${highlight('Figma scan')} (skipped, ${figmaColor(
@@ -521,25 +537,29 @@ async function main() {
     // Use explicit user setting if provided, otherwise use orientation-specific default.
     const userMaxTokens = parseMaybeInt(cfg?.agent?.max_tokens);
     const orientationMaxTokens = userMaxTokens || DEFAULT_ORIENTATION_MAX_TOKENS;
-    const cmd = [
-      `node ${path.join(paths.scriptDir, 'run-orienter.js')}`,
-      `--figma-index "${paths.figmaIndex}"`,
-      `--repo-summary "${paths.repoSummary}"`,
-      `--output "${paths.orientation}"`,
-      `--agent-api "${agentConfig.api}"`,
-      agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
-      `--agent-max-tokens "${orientationMaxTokens}"`,
-      agentConfig.baseUrl ? `--agent-base-url "${agentConfig.baseUrl}"` : '',
-      agentConfig.apiKey ? `--agent-api-key "${agentConfig.apiKey}"` : '',
-      inferredFramework ? `--target-framework "${inferredFramework}"` : '',
-      args.dryRun ? '--dry-run' : ''
-    ].join(' ');
-    runCommand(`${highlight('Repo orientation')} → ${generatedColor(rel(paths.orientation))}`, cmd, {
-      env: {
-        FIGMA_ACCESS_TOKEN: figmaToken || process.env.FIGMA_ACCESS_TOKEN,
-        [agentEnvVar]: agentToken || process.env[agentEnvVar]
+    const orienterArgs = [
+      '--figma-index', paths.figmaIndex,
+      '--repo-summary', paths.repoSummary,
+      '--output', paths.orientation,
+      '--agent-api', agentConfig.api,
+      ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
+      '--agent-max-tokens', String(orientationMaxTokens),
+      ...(agentConfig.baseUrl ? ['--agent-base-url', agentConfig.baseUrl] : []),
+      ...(agentConfig.apiKey ? ['--agent-api-key', agentConfig.apiKey] : []),
+      ...(inferredFramework ? ['--target-framework', inferredFramework] : []),
+      ...(args.dryRun ? ['--dry-run'] : [])
+    ];
+    runNodeScript(
+      `${highlight('Repo orientation')} → ${generatedColor(rel(paths.orientation))}`,
+      path.join(paths.scriptDir, 'run-orienter.js'),
+      orienterArgs,
+      {
+        env: {
+          FIGMA_ACCESS_TOKEN: figmaToken || process.env.FIGMA_ACCESS_TOKEN,
+          [agentEnvVar]: agentToken || process.env[agentEnvVar]
+        }
       }
-    });
+    );
   } else {
     console.log(
       `${chalk.dim('•')} ${highlight('Repo orientation')} (skipped, ${generatedColor(
@@ -549,27 +569,25 @@ async function main() {
   }
 
   if (!args.dryRun) {
-    const codegenCmd = [
-      `node ${path.join(paths.scriptDir, 'run-codegen.js')}`,
-      `--figma-index "${paths.figmaIndex}"`,
-      `--orienter "${paths.orientation}"`,
-      `--repo-summary "${paths.repoSummary}"`,
-      `--agent-api "${agentConfig.api}"`,
-      agentConfig.model ? `--agent-model "${agentConfig.model}"` : '',
-      agentConfig.maxTokens ? `--agent-max-tokens "${agentConfig.maxTokens}"` : '',
-      agentConfig.baseUrl ? `--agent-base-url "${agentConfig.baseUrl}"` : '',
-      agentConfig.apiKey ? `--agent-api-key "${agentConfig.apiKey}"` : '',
-      `--concurrency "${codegenConfig.concurrency}"`,
-      args.only && args.only.length ? `--only "${args.only.join(',')}"` : '',
-      args.exclude && args.exclude.length ? `--exclude "${args.exclude.join(',')}"` : '',
-      inferredFramework ? `--target-framework "${inferredFramework}"` : '',
-      args.force ? '--force' : ''
-    ]
-      .filter(Boolean)
-      .join(' ');
-    runCommand(
+    const codegenArgs = [
+      '--figma-index', paths.figmaIndex,
+      '--orienter', paths.orientation,
+      '--repo-summary', paths.repoSummary,
+      '--agent-api', agentConfig.api,
+      ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
+      ...(agentConfig.maxTokens ? ['--agent-max-tokens', String(agentConfig.maxTokens)] : []),
+      ...(agentConfig.baseUrl ? ['--agent-base-url', agentConfig.baseUrl] : []),
+      ...(agentConfig.apiKey ? ['--agent-api-key', agentConfig.apiKey] : []),
+      '--concurrency', String(codegenConfig.concurrency),
+      ...(args.only && args.only.length ? ['--only', args.only.join(',')] : []),
+      ...(args.exclude && args.exclude.length ? ['--exclude', args.exclude.join(',')] : []),
+      ...(inferredFramework ? ['--target-framework', inferredFramework] : []),
+      ...(args.force ? ['--force'] : [])
+    ];
+    runNodeScript(
       `${highlight('Code generation')} (${codeColor(rel(paths.orientation))} → ${generatedColor(rel(paths.codeConnectDir))})`,
-      codegenCmd,
+      path.join(paths.scriptDir, 'run-codegen.js'),
+      codegenArgs,
       {
         cwd: paths.target,
         allowInterrupt: true,
@@ -584,19 +602,23 @@ async function main() {
   }
 
   {
-    const cmd = [
-      `node ${path.join(paths.scriptDir, 'finalize.js')}`,
-      `--superconnect "${paths.superconnectDir}"`,
-      `--codeConnect "${paths.codeConnectDir}"`,
-      `--cwd "${paths.target}"`,
-      inferredFramework ? `--target-framework "${inferredFramework}"` : ''
-    ].join(' ');
-    runCommand(`${highlight('Finalize')}`, cmd, {
-      env: {
-        FIGMA_ACCESS_TOKEN: figmaToken || process.env.FIGMA_ACCESS_TOKEN,
-        [agentEnvVar]: agentToken || process.env[agentEnvVar]
+    const finalizeArgs = [
+      '--superconnect', paths.superconnectDir,
+      '--codeConnect', paths.codeConnectDir,
+      '--cwd', paths.target,
+      ...(inferredFramework ? ['--target-framework', inferredFramework] : [])
+    ];
+    runNodeScript(
+      `${highlight('Finalize')}`,
+      path.join(paths.scriptDir, 'finalize.js'),
+      finalizeArgs,
+      {
+        env: {
+          FIGMA_ACCESS_TOKEN: figmaToken || process.env.FIGMA_ACCESS_TOKEN,
+          [agentEnvVar]: agentToken || process.env[agentEnvVar]
+        }
       }
-    });
+    );
   }
 
   console.log(`${chalk.green('✓')} Pipeline complete.`);

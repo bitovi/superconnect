@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Windows PowerShell output visibility**: Child process output (Figma scan details, code generation progress) now displays correctly on Windows
+  - Root cause: `spawnSync` with `shell: true` spawned cmd.exe as intermediary, which interfered with console output and ANSI color codes
+  - Solution: Call Node.js scripts directly via `process.execPath` with argument arrays instead of shell command strings
+  - Eliminates shell quoting/escaping issues and works identically across all platforms
+
 ## [0.2.9] - 2025-12-18
 
 ### Changed
