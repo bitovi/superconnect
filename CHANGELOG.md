@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.8] - 2025-12-17
+
+### Performance
+- Replace npx with direct CLI invocation for Figma validation (4x faster on Windows)
+  - Resolve @figma/code-connect binary path directly from node_modules
+  - Use process.execPath (node) to invoke CLI instead of npx
+  - Eliminates ~30s npx overhead per CLI call on Windows
+  - Windows CI improved from 64s to 16s for unit tests
+  - Reduce timeout from 120s to 30s (no package download overhead)
+
+### Changed
+- Trigger CI unit tests on version tags in addition to branch pushes
+- Improve release process documentation with pre-flight checks and error summaries
+- Remove global Figma CLI pre-install from CI workflow (no longer needed)
+
 ## [0.2.7] - 2025-12-17
 
 ### Fixed
