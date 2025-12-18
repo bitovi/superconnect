@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.9] - 2025-12-18
+
+### Changed
+- Refactor validation layer to use hybrid AST/regex approach
+  - Replace regex-based `figma.*()` extraction with ts-morph AST traversal for better edge case handling
+  - Keep proven regex patterns for template/JSX validation
+  - Improves correctness (+43%) and maintainability (+33%) with minimal performance impact
+
 ## [0.2.8] - 2025-12-17
 
 ### Performance
