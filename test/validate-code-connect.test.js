@@ -5,6 +5,7 @@ const {
   buildValidKeySets,
   normalizeKey
 } = require('../src/util/validate-code-connect');
+const { validateWithFigmaCLI } = require('../src/util/validate-with-figma-cli');
 
 describe('validate-code-connect', () => {
   describe('normalizeKey', () => {
@@ -450,6 +451,71 @@ export const Button = () => <button>Click</button>;`;
 
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('Missing figma.connect'))).toBe(true);
+    });
+  });
+
+  /**
+   * Windows Regression Test: Shell out to real Figma CLI
+   *
+   * This test actually spawns the Figma CLI to validate Code Connect files.
+   * It guards against regressions in cross-platform subprocess handling:
+   *
+   * - npx.cmd requires shell:true on Windows (batch files need a shell)
+   * - shell:true requires command string, not args array (DEP0190)
+   * - Windows may hold file locks after subprocess exits (EBUSY on cleanup)
+   * - Timeout must be generous for Windows CI (package download + slow spawn)
+   *
+   * See commits: 3960104, e1b9646, a6285af for the fixes this guards.
+   */
+  describe('validateWithFigmaCLI (real CLI)', () => {
+    it('successfully shells out to Figma CLI for validation', () => {
+      // This valid React Code Connect file should pass CLI validation
+      const validReactCode = `
+import figma from '@figma/code-connect/react';
+import { Button } from './Button';
+
+figma.connect(Button, 'https://figma.com/design/abc123/file?node-id=1-2', {
+  props: {
+    label: figma.string('Label'),
+  },
+  example: ({ label }) => <Button>{label}</Button>
+});
+`;
+
+      const result = validateWithFigmaCLI({
+        code: validReactCode,
+        parser: 'react'
+      });
+
+      // The CLI should successfully parse this file
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('detects invalid Code Connect via CLI', () => {
+      // This code references a prop in example() that isn't defined in props
+      // The Figma CLI validates that all props used in example() are defined
+      const invalidCode = `
+import figma from '@figma/code-connect/react';
+import { Button } from './Button';
+
+figma.connect(Button, 'https://figma.com/design/abc/file?node-id=1-2', {
+  props: {
+    label: figma.string('Label'),
+  },
+  example: (props) => <Button unknownProp={props.doesNotExist} />
+});
+`;
+
+      const result = validateWithFigmaCLI({
+        code: invalidCode,
+        parser: 'react'
+      });
+
+      // The CLI should detect the undefined prop reference
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0]).toContain('doesNotExist');
     });
   });
 });

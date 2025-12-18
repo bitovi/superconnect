@@ -1,6 +1,39 @@
 /**
  * Tests for React Direct Codegen
+ *
+ * Note: We mock validateCodeConnectWithCLI to avoid spawning the Figma CLI
+ * in every unit test. This dramatically improves test speed, especially on
+ * Windows where subprocess spawning is 5x slower.
+ *
+ * Real CLI validation is tested in:
+ *   - test/validate-code-connect.test.js (dedicated CLI shell-out test)
+ *   - E2E tests (chakra, zapui)
  */
+
+// Mock the validation module to avoid slow subprocess calls
+jest.mock('../src/util/validate-code-connect', () => {
+  const original = jest.requireActual('../src/util/validate-code-connect');
+  return {
+    ...original,
+    validateCodeConnectWithCLI: jest.fn((params) => {
+      // Simulate validation: check for obvious issues that would fail CLI
+      const code = params.generatedCode || '';
+      
+      // Check for figma.connect call
+      if (!code.includes('figma.connect')) {
+        return { valid: false, errors: ['Missing figma.connect call'] };
+      }
+      
+      // Check for references to non-existent Figma properties (simulates CLI error)
+      // This allows retry tests to work by detecting "NonExistent" prop references
+      if (code.includes('NonExistent')) {
+        return { valid: false, errors: ['Property "NonExistent" does not exist on this component'] };
+      }
+      
+      return { valid: true, errors: [] };
+    })
+  };
+});
 
 const {
   buildSystemPrompt,
