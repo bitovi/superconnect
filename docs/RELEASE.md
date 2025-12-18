@@ -6,10 +6,15 @@
 
 ```bash
 # 1. Edit CHANGELOG.md and package.json with new version
-# 2. Commit, tag, push, release:
+# 2. Commit and push tag (triggers E2E tests):
 git add -A && git commit -m "Release v0.X.Y"
 git tag v0.X.Y
 git push origin main --tags
+
+# 3. Wait for E2E tests to pass:
+gh run watch --exit-status  # Watches most recent run, exits non-zero on failure
+
+# 4. Create GitHub release (triggers npm publish):
 gh release create v0.X.Y --title "v0.X.Y - Brief description" --notes "Paste CHANGELOG section"
 ```
 
@@ -42,13 +47,36 @@ git commit -m "Release v0.2.7"
 git tag v0.2.7
 ```
 
-### 3. Push
+### 3. Push (triggers E2E tests)
 
 ```bash
 git push origin main --tags
 ```
 
-### 4. Create GitHub release
+This triggers:
+- **CI workflow** - unit tests on Ubuntu, Windows, macOS
+- **E2E workflow** - integration tests with chakra-ui and zapui fixtures
+
+### 4. Wait for E2E tests
+
+```bash
+gh run watch --exit-status
+```
+
+This watches the most recent workflow run and exits with code 0 on success, non-zero on failure. If it fails, fix the issue and retry from step 2 (you'll need to delete and recreate the tag).
+
+**To retry after failure:**
+```bash
+git tag -d v0.2.7                    # Delete local tag
+git push origin :refs/tags/v0.2.7    # Delete remote tag
+# ... make fixes, commit ...
+git tag v0.2.7                       # Recreate tag
+git push origin main --tags          # Push again
+```
+
+### 5. Create GitHub release (publishes to npm)
+
+Only after E2E passes:
 
 ```bash
 gh release create v0.2.7 \
@@ -57,9 +85,9 @@ gh release create v0.2.7 \
 - Description of fix"
 ```
 
-This triggers GitHub Actions to run tests and publish to npm.
+This triggers GitHub Actions to publish to npm.
 
-### 5. Verify
+### 6. Verify
 
 ```bash
 npm view @bitovi/superconnect@0.2.7
