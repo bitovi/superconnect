@@ -224,10 +224,13 @@ function extractErrors(stdout = '', stderr = '') {
  * @returns {boolean}
  */
 function isFigmaCLIAvailable() {
+  const cliPath = resolveFigmaCLI();
+  if (!cliPath) {
+    return false;
+  }
   try {
-    const result = spawnSync('npx @figma/code-connect --version', {
+    const result = spawnSync(process.execPath, [cliPath, '--version'], {
       encoding: 'utf8',
-      shell: true,
       timeout: 10000
     });
     return result.status === 0;
