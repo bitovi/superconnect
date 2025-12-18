@@ -10,6 +10,7 @@ on:
 
 jobs:
   test:
+    if: "!startsWith(github.event.head_commit.message, 'Release v')"
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
