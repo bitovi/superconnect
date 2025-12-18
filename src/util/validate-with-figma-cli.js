@@ -17,6 +17,33 @@ const path = require('path');
 const os = require('os');
 
 /**
+ * Resolve the path to the @figma/code-connect CLI binary.
+ * Works with pnpm, npm, and yarn by walking up from the resolved module.
+ *
+ * @returns {string|null} Absolute path to the CLI binary, or null if not found
+ */
+function resolveFigmaCLI() {
+  try {
+    // Resolve the main module entry point
+    const moduleEntry = require.resolve('@figma/code-connect');
+    // Walk up to find the package root (where package.json lives)
+    let dir = path.dirname(moduleEntry);
+    while (dir !== path.dirname(dir)) {
+      if (fs.existsSync(path.join(dir, 'package.json'))) {
+        const cliPath = path.join(dir, 'bin', 'figma');
+        if (fs.existsSync(cliPath)) {
+          return cliPath;
+        }
+      }
+      dir = path.dirname(dir);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Validate Code Connect code using the Figma CLI's parse command.
  *
  * @param {object} options
@@ -25,25 +52,39 @@ const os = require('os');
  * @returns {{ valid: boolean, errors: string[] }}
  */
 function validateWithFigmaCLI({ code, parser = 'react' }) {
-  // Check if @figma/code-connect CLI is available
-  // Use single command string with shell:true to avoid DEP0190 and Windows issues
-  const cliCheck = spawnSync('npx @figma/code-connect --version', {
+  // Resolve the CLI binary path from node_modules
+  const cliPath = resolveFigmaCLI();
+
+  if (!cliPath) {
+    return {
+      valid: false,
+      errors: [
+        'Figma Code Connect CLI not found.',
+        '',
+        'This is required for validation. To fix:',
+        '  1. Ensure @figma/code-connect is installed: pnpm install',
+        '  2. Or install globally: pnpm add -g @figma/code-connect',
+        ''
+      ]
+    };
+  }
+
+  // Verify the CLI works
+  const cliCheck = spawnSync(process.execPath, [cliPath, '--version'], {
     encoding: 'utf8',
     timeout: 10000,
-    stdio: 'pipe',
-    shell: true
+    stdio: 'pipe'
   });
 
   if (cliCheck.error || cliCheck.status !== 0) {
     return {
       valid: false,
       errors: [
-        'Figma Code Connect CLI not found or not working properly.',
+        'Figma Code Connect CLI not working properly.',
         '',
         'This is required for validation. To fix:',
-        '  1. Ensure @figma/code-connect is installed: pnpm add -g @figma/code-connect',
-        '  2. Or it should be in node_modules if you installed @bitovi/superconnect',
-        '  3. Check that npx is available in your PATH',
+        '  1. Ensure @figma/code-connect is installed: pnpm install',
+        '  2. Or install globally: pnpm add -g @figma/code-connect',
         '',
         `Error details: ${cliCheck.error?.message || cliCheck.stderr || 'Unknown error'}`
       ]
@@ -72,16 +113,15 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
     fs.writeJsonSync(tempConfig, config);
 
     // Run figma connect parse with --exit-on-unreadable-files to get exit code 1 on errors
-    // On Windows, npx is a batch file (npx.cmd) which requires shell:true
-    // With shell:true, we must pass a single command string, not separate args
+    // Use node to directly execute the CLI binary (no shell overhead, works cross-platform)
     const configBasename = path.basename(tempConfig);
     const result = spawnSync(
-      `npx @figma/code-connect connect parse -c ${configBasename} --exit-on-unreadable-files`,
+      process.execPath,
+      [cliPath, 'connect', 'parse', '-c', configBasename, '--exit-on-unreadable-files'],
       {
         cwd: tempDir, // Run from temp directory so relative glob and config work
         encoding: 'utf8',
-        timeout: 120000, // 2 minute timeout (Windows CI + npx package download can be slow)
-        shell: true,
+        timeout: 30000, // 30 second timeout
         env: { ...process.env, FORCE_COLOR: '0' } // Disable colors for easier parsing
       }
     );
