@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.10] - 2025-12-18
+
 ### Fixed
 - **Windows PowerShell output visibility**: Child process output (Figma scan details, code generation progress) now displays correctly on Windows
   - Root cause: `spawnSync` with `shell: true` spawned cmd.exe as intermediary, which interfered with console output and ANSI color codes
