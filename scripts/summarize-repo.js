@@ -131,6 +131,7 @@ const summarizeCodeConnect = async (root) => {
 
 const summarizeComponentRoots = async (root) => {
   const rootPatterns = [
+    'src/*/components',
     'src/components',
     'packages/*/src/components',
     'apps/*/src/components',
