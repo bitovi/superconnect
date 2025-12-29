@@ -342,6 +342,7 @@ const summarize = async (root) => {
 
   const frameworkInfo = await detectFrameworks({ root, packageJson: pkg, ignore: DEFAULT_IGNORES });
   const allFiles = await summarizeTsFiles(root, componentRoots, themes.recipes);
+
   const selectedFiles = allFiles;
   const angularComponents = await detectAngularComponents({ root, ignore: DEFAULT_IGNORES });
 
@@ -399,3 +400,9 @@ if (require.main === module) {
     process.exitCode = 1;
   });
 }
+
+// Export for use in other scripts
+module.exports = {
+  summarizeComponentRoots,
+  summarize
+};

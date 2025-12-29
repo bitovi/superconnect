@@ -462,7 +462,22 @@ async function main() {
   fs.ensureDirSync(paths.figmaDir);
 
   const needFigmaScan = args.force || !fs.existsSync(paths.figmaIndex);
-  const needRepoSummary = args.force || !fs.existsSync(paths.repoSummary);
+  
+  // Check if component roots have changed since last run
+  let needRepoSummary = args.force || !fs.existsSync(paths.repoSummary);
+  let componentMetadata = null;
+  if (!needRepoSummary && fs.existsSync(paths.repoSummary)) {
+    const { detectRepoChanges } = require('./detect-repo-changes.js');
+    const result = await detectRepoChanges({
+      targetPath: paths.target,
+      summaryPath: paths.repoSummary,
+      superconnectDir: paths.superconnectDir,
+      chalk
+    });
+    needRepoSummary = result.changed;
+    componentMetadata = result.currentMetadata;
+  }
+  
   const needOrientation = args.force || !fs.existsSync(paths.orientation);
   const rel = (p) => path.relative(process.cwd(), p) || p;
 
@@ -484,6 +499,42 @@ async function main() {
       path.join(paths.scriptDir, 'summarize-repo.js'),
       ['--root', paths.target]
     );
+    
+    // Save component metadata after successful repo summary generation
+    const { saveFileMetadata } = require('./detect-repo-changes.js');
+    const { summarizeComponentRoots } = require('./summarize-repo.js');
+    try {
+      const currentRoots = await summarizeComponentRoots(paths.target);
+      const fg = require('fast-glob');
+      const metadata = {};
+      
+      for (const root of currentRoots) {
+        const componentPath = path.join(paths.target, root.path);
+        const files = await fg(['**/*.{ts,tsx}'], {
+          cwd: componentPath,
+          ignore: ['**/node_modules/**', '**/*.d.ts'],
+          absolute: true
+        });
+        
+        for (const file of files) {
+          try {
+            const stats = fs.statSync(file);
+            const relFile = path.relative(paths.target, file);
+            metadata[relFile] = {
+              mtime: stats.mtimeMs,
+              size: stats.size
+            };
+          } catch {
+            // Skip files that can't be accessed
+          }
+        }
+      }
+      
+      const metadataPath = path.join(paths.superconnectDir, 'component-metadata.json');
+      await saveFileMetadata(metadataPath, metadata);
+    } catch (err) {
+      console.warn(`${chalk.yellow('⚠️  Could not save component metadata:')} ${err.message}`);
+    }
   } else {
     console.log(
       `${chalk.dim('•')} ${highlight('Repo overview')} (skipped, ${codeColor(
