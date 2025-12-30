@@ -69,14 +69,18 @@ Superconnect relies on a Figma personal access token, which you create through F
   - `file_code_connect:write`  (to write Code Connect content)
   - `file_dev_resources:read` + `write`  (to read and write Code Connect content)
 
-## 2. Publish Figma assets
+## 2. Publish Figma assets (if not already published)
 
-For Code Connect mappings to work, assets from the design system must first be "published" within Figma. (Reminder, your Figma design system file should be in an Enterprise org where you have edit rights.)
+For Code Connect mappings to work, assets from the design system must first be "published" within Figma. If you've already published your design system components, you can skip this step.
+
+To publish (or verify publication status):
 
 - Switch to the **Assets** tab in the left sidebar (not in dev mode)
 - Click the **Library** icon (looks like a book) to open the **Manage libraries** dialog
 - Under **This file**, you should see your design system file listed
-- Click **Publish…**
+- If not already published, click **Publish…**
+
+(Reminder: your Figma design system file should be in an Enterprise org where you have edit rights.)
 
 ## 3. Code Generation
 
@@ -94,7 +98,7 @@ From the root of your React or Angular component repo, run `superconnect`. It wi
 
 At this point you have local Code Connect mappings but Figma does not see them yet.
 
-## 4. Publish mappings to Figma
+## 4. Publish mappings to Figma 
 
 Next you push the generated mappings back to Figma, using Figma's own CLI. You must have `@figma/code-connect` installed in the component repo or globally. Run:
 
@@ -232,12 +236,12 @@ The pipeline is designed for graceful partial runs:
     - Codegen finishes the current component, then stops processing more
     - superconnect/codegen-summaries/, codegen-agent-transcripts/, and codeConnect/ contain whatever was completed so far
     - The pipeline still runs the finalizer, so you get an accurate summary of what was built versus skipped
-- Rerunning without --force
+- Rerunning without `--force`
     - Repo summary, Figma scan, and orienter are skipped if their outputs already exist
     - Codegen re-invokes the agent for each mapped component but:
-        - Does not overwrite existing .figma.tsx files unless --force is used
+        - Does not overwrite existing .figma.tsx files unless `--force` is used
         - Marks such components as “skipped” with an explanatory reason
-- Rerunning with --force
+- Rerunning with `--force`
     - Clears relevant logs and lets codegen overwrite existing .figma.tsx files
     - Upstream stages are re-run as needed (Figma scan, summary, orientation)
 
