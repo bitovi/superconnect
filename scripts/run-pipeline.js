@@ -23,7 +23,6 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5';
-const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codex-mini';
 const DEFAULT_API = 'anthropic';
 const DEFAULT_MAX_TOKENS = 2048;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
@@ -72,37 +71,17 @@ function normalizeAgentConfig(agentSection = {}) {
   const rawApi = agentSection.api || agentSection.backend || DEFAULT_API;
   // Normalize 'claude' → 'anthropic' for backward compatibility
   const apiRaw = (rawApi === 'claude' ? 'anthropic' : rawApi).toLowerCase();
-  const api = apiRaw === 'openai' || apiRaw === 'anthropic' ? apiRaw : DEFAULT_API;
-  const model =
-    agentSection.model || agentSection.sdk_model ||
-    (api === 'openai'
-      ? DEFAULT_OPENAI_MODEL
-      : DEFAULT_ANTHROPIC_MODEL);
+  if (apiRaw !== 'anthropic') {
+    console.error(`❌ Unsupported agent api: "${rawApi}". Only "anthropic" is supported in 0.3.x.`);
+    process.exit(1);
+  }
+  const api = 'anthropic';
+  const model = agentSection.model || agentSection.sdk_model || DEFAULT_ANTHROPIC_MODEL;
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
-  const resolvedMaxTokens = api === 'anthropic' ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
-  
-  // Support for custom OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
-  const baseUrl = agentSection.base_url || null;
-  const apiKey = agentSection.api_key || null;  // Optional override
-  
-  // Warn if base_url is set with non-OpenAI api
-  if (baseUrl && api !== 'openai') {
-    console.warn(
-      `${chalk.yellow('⚠️  base_url is set but api is "')}${api}${chalk.yellow('". base_url is only used with api = "openai".')}\n` +
-      `   ${chalk.yellow('Did you mean to set api = "openai"?')}`
-    );
-  }
-  
-  // Warn if using custom base_url without explicitly setting model
-  if (baseUrl && !agentSection.model && !agentSection.sdk_model) {
-    console.warn(
-      `${chalk.yellow('⚠️  Using custom base_url but no model specified.')}\n` +
-      `   ${chalk.yellow(`Default model "${DEFAULT_OPENAI_MODEL}" may not exist on your endpoint.`)}\n` +
-      `   ${chalk.dim('Add to superconnect.toml: model = "your-model-name"')}`
-    );
-  }
-  
-  return { api, model, maxTokens: resolvedMaxTokens, baseUrl, apiKey };
+  const resolvedMaxTokens = maxTokens || DEFAULT_MAX_TOKENS;
+  const apiKey = agentSection.api_key || null; // Optional override
+
+  return { api, model, maxTokens: resolvedMaxTokens, apiKey };
 }
 
 /**
@@ -145,83 +124,18 @@ async function promptForConfig() {
   const repoPath = repoPathInput || '.';
 
   console.log(`\n${chalk.bold('Agent API Configuration')}`);
-  console.log(`${chalk.dim('Choose which AI service to use for code generation')}`);
-  
-  const apiInput = await question(
-    `${chalk.cyan('Agent API')} (${chalk.dim('anthropic')} or openai) [${chalk.dim(DEFAULT_API)}]: `
-  );
-  const api = (apiInput || DEFAULT_API).toLowerCase();
-  const normalizedApi = api === 'openai' || api === 'anthropic' ? api : DEFAULT_API;
-
-  let baseUrl = null;
-  let apiKey = null;
-  
-  if (normalizedApi === 'openai') {
-    console.log(`\n${chalk.dim('OpenAI-compatible endpoints: LiteLLM, Azure OpenAI, vLLM, LocalAI, etc.')}`);
-    const baseUrlInput = await question(
-      `${chalk.cyan('Custom base URL')} (optional, press Enter to use api.openai.com): `
-    );
-    if (baseUrlInput) {
-      baseUrl = baseUrlInput;
-      console.log(`${chalk.dim('Using custom endpoint:')} ${baseUrl}`);
-      
-      const apiKeyInput = await question(
-        `${chalk.cyan('Custom API key')} (optional, press Enter to use OPENAI_API_KEY env var): `
-      );
-      if (apiKeyInput) {
-        apiKey = apiKeyInput;
-      }
-    }
-  }
+  console.log(`${chalk.dim('Using Anthropic Claude for code generation')}`);
 
   rl.close();
 
-  const active = normalizedApi;
-  const chooseModel = (a) => {
-    if (a === 'openai') return DEFAULT_OPENAI_MODEL;
-    return DEFAULT_ANTHROPIC_MODEL;
-  };
-  const model = chooseModel(active);
-  const maxTokens = DEFAULT_MAX_TOKENS;
+  const model = DEFAULT_ANTHROPIC_MODEL;
 
-  const agentSection = [];
-  
-  if (active === 'anthropic') {
-    agentSection.push(
-      '# AI provider: "anthropic" (default) or "openai"',
-      '# Anthropic requires ANTHROPIC_API_KEY env var',
-      '# OpenAI requires OPENAI_API_KEY env var (or use base_url for LiteLLM, Azure, etc.)',
-      'api = "anthropic"',
-      `model = "${model}"`,
-      '',
-      '# To use OpenAI or a compatible service instead, comment out the above and uncomment:',
-      `# api = "openai"`,
-      `# model = "${DEFAULT_OPENAI_MODEL}"`,
-      '# base_url = "http://localhost:4000/v1"  # custom endpoint (LiteLLM, Azure, vLLM, LocalAI)',
-      '# api_key = "your-key-here"              # if your endpoint needs a different key'
-    );
-  } else if (active === 'openai') {
-    const lines = [
-      '# AI provider: "anthropic" (default) or "openai"',
-      '# Anthropic requires ANTHROPIC_API_KEY env var',
-      '# OpenAI requires OPENAI_API_KEY env var (or use base_url for LiteLLM, Azure, etc.)',
-      'api = "openai"',
-      `model = "${model}"`
-    ];
-    if (baseUrl) {
-      lines.push(`base_url = "${baseUrl}"`);
-    }
-    if (apiKey) {
-      lines.push(`api_key = "${apiKey}"`);
-    }
-    lines.push(
-      '',
-      '# To use Anthropic instead, comment out the above and uncomment:',
-      '# api = "anthropic"',
-      `# model = "${DEFAULT_ANTHROPIC_MODEL}"`
-    );
-    agentSection.push(...lines);
-  }
+  const agentSection = [
+    '# AI provider: "anthropic"',
+    '# Requires ANTHROPIC_API_KEY env var',
+    'api = "anthropic"',
+    `model = "${model}"`
+  ];
 
   const tomlContent = [
     '# Superconnect configuration',
@@ -374,9 +288,8 @@ function loadEnvToken() {
   return process.env.FIGMA_ACCESS_TOKEN || null;
 }
 
-function loadAgentToken(backend) {
-  const envVar = backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  return process.env[envVar] || null;
+function loadAgentToken() {
+  return process.env.ANTHROPIC_API_KEY || null;
 }
 
 function resolvePaths(config) {
@@ -444,18 +357,15 @@ async function main() {
   const agentConfig = normalizeAgentConfig(cfg.agent || {});
   const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
   const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
-  const agentEnvVar = agentConfig.api === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  const agentToken = agentConfig.apiKey || loadAgentToken(agentConfig.api);
+  const agentEnvVar = 'ANTHROPIC_API_KEY';
+  const agentToken = agentConfig.apiKey || loadAgentToken();
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
   }
   const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken });
 
-  const agentLabel =
-    agentConfig.api === 'openai'
-      ? `openai${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : `anthropic${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
+  const agentLabel = `anthropic${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
   console.log(`${chalk.dim('•')} ${highlight('Agent API')}: ${highlight(agentLabel)}`);
 
   fs.ensureDirSync(paths.superconnectDir);
@@ -541,11 +451,8 @@ async function main() {
       '--figma-index', paths.figmaIndex,
       '--repo-summary', paths.repoSummary,
       '--output', paths.orientation,
-      '--agent-api', agentConfig.api,
       ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
       '--agent-max-tokens', String(orientationMaxTokens),
-      ...(agentConfig.baseUrl ? ['--agent-base-url', agentConfig.baseUrl] : []),
-      ...(agentConfig.apiKey ? ['--agent-api-key', agentConfig.apiKey] : []),
       ...(inferredFramework ? ['--target-framework', inferredFramework] : []),
       ...(args.dryRun ? ['--dry-run'] : [])
     ];
@@ -573,11 +480,8 @@ async function main() {
       '--figma-index', paths.figmaIndex,
       '--orienter', paths.orientation,
       '--repo-summary', paths.repoSummary,
-      '--agent-api', agentConfig.api,
       ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
       ...(agentConfig.maxTokens ? ['--agent-max-tokens', String(agentConfig.maxTokens)] : []),
-      ...(agentConfig.baseUrl ? ['--agent-base-url', agentConfig.baseUrl] : []),
-      ...(agentConfig.apiKey ? ['--agent-api-key', agentConfig.apiKey] : []),
       '--concurrency', String(codegenConfig.concurrency),
       ...(args.only && args.only.length ? ['--only', args.only.join(',')] : []),
       ...(args.exclude && args.exclude.length ? ['--exclude', args.exclude.join(',')] : []),

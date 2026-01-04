@@ -48,7 +48,6 @@
     "fast-glob": "^3.3.2",
     "fs-extra": "^11.3.2",
     "json-stringify-pretty-compact": "^4.0.0",
-    "openai": "^6.14.0",
     "p-limit": "^3.1.0",
     "undici": "^7.16.0"
   },

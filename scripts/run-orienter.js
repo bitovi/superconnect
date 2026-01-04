@@ -18,7 +18,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { Command } = require('commander');
-const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
+const { ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
 
 const promptPath = path.join(__dirname, '..', 'prompts', 'orienter.md');
 const defaultOutput = path.join(process.cwd(), 'superconnect', 'orientation.jsonl');
@@ -32,11 +32,8 @@ const parseArgs = (argv) => {
     .requiredOption('--figma-index <file>', 'Path to figma-components-index.json')
     .requiredOption('--repo-summary <file>', 'Path to repo-summary.json')
     .option('--output <file>', 'Orientation JSONL output path', defaultOutput)
-    .option('--agent-api <value>', 'Agent API format (openai|anthropic)', 'anthropic')
-    .option('--agent-model <value>', 'Model name (e.g., gpt-5.1-codex-mini, claude-haiku-4-5)')
+    .option('--agent-model <value>', 'Model name (e.g., claude-haiku-4-5)')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
-    .option('--agent-base-url <value>', 'Base URL for OpenAI-compatible API (e.g., LiteLLM, Azure, vLLM)')
-    .option('--agent-api-key <value>', 'API key for custom endpoint (overrides OPENAI_API_KEY env var)')
     .option('--target-framework <value>', 'Target framework hint (react|angular)')
     .option('--dry-run', 'Skip agent call and write payload preview only', false)
     .option('--fake-orienter-output <file>', 'Path to a JSONL file to use instead of calling an agent (testing only)')
@@ -51,11 +48,8 @@ const parseArgs = (argv) => {
     output: outputPath,
     agentLogFile: path.join(superconnectDir, 'orienter-agent.log'),
     payloadPreviewFile: path.join(superconnectDir, 'orienter-agent-payload.txt'),
-    agentApi: (opts.agentApi || 'anthropic').toLowerCase(),
     agentModel: opts.agentModel || undefined,
     agentMaxTokens: parseMaxTokens(opts.agentMaxTokens),
-    agentBaseUrl: opts.agentBaseUrl || undefined,
-    agentApiKey: opts.agentApiKey || undefined,
     targetFramework: opts.targetFramework || null,
     dryRun: Boolean(opts.dryRun),
     fakeOrienterOutput: opts.fakeOrienterOutput ? path.resolve(opts.fakeOrienterOutput) : null
@@ -83,17 +77,7 @@ const parseMaxTokens = (value) => {
 };
 
 const buildAdapter = (config) => {
-  const api = config.agentApi;
   const maxTokens = config.agentMaxTokens || undefined;
-  if (api === 'openai') {
-    return new OpenAIAgentAdapter({
-      model: config.agentModel || undefined,
-      logDir: config.agentLogFile,
-      maxTokens,
-      baseUrl: config.agentBaseUrl || undefined,
-      apiKey: config.agentApiKey || undefined
-    });
-  }
   return new ClaudeAgentAdapter({
     model: config.agentModel || undefined,
     logDir: config.agentLogFile,
@@ -171,7 +155,7 @@ main().catch((err) => {
     console.error('   - superconnect/repo-summary.json (from repo analysis)');
     console.error('   Run the full pipeline: npx superconnect');
   } else if (err.message.includes('API') || err.message.includes('authentication')) {
-    console.error('\n💡 API error - verify your ANTHROPIC_API_KEY or OPENAI_API_KEY');
+    console.error('\n💡 API error - verify your ANTHROPIC_API_KEY');
   } else if (err.message.includes('JSON')) {
     console.error('\n💡 JSON parse error - check input files contain valid JSON');
   }

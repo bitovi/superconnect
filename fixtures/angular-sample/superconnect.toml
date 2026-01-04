@@ -7,17 +7,10 @@ component_repo_path = "."
 # Also requires FIGMA_ACCESS_TOKEN env var
 
 [agent]
-# AI provider: "anthropic" (default) or "openai"
-# Anthropic requires ANTHROPIC_API_KEY env var
-# OpenAI requires OPENAI_API_KEY env var (or use base_url for LiteLLM, Azure, etc.)
+# AI provider: "anthropic"
+# Requires ANTHROPIC_API_KEY env var
 api = "anthropic"
 model = "claude-haiku-4-5"
-
-# To use OpenAI or a compatible service instead, comment out the above and uncomment:
-# api = "openai"
-# model = "gpt-5.1-codex-mini"
-# base_url = "http://localhost:4000/v1"  # custom endpoint (LiteLLM, Azure, vLLM, LocalAI)
-# api_key = "your-key-here"              # if your endpoint needs a different key
 
 [codegen]
 # How many times to retry if generated code fails validation (0-10)

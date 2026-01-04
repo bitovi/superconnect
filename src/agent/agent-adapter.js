@@ -1,7 +1,5 @@
 const fs = require('fs-extra');
 const path = require('path');
-const { spawn } = require('child_process');
-const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const sanitizeSlug = (value, fallback = 'component') =>
@@ -30,239 +28,6 @@ const parseMaxTokens = (value, fallback) => {
  *
  * Implementations abstract how we talk to an agent (CLI, SDK, etc.).
  */
-const extractResponseText = (response) => {
-  if (!response || !Array.isArray(response.output)) return '';
-  for (const item of response.output) {
-    if (Array.isArray(item.content)) {
-      for (const content of item.content) {
-        if (typeof content.text === 'string') return content.text;
-        if (typeof content.output_text === 'string') return content.output_text;
-      }
-    }
-    if (typeof item.text === 'string') return item.text;
-  }
-  return '';
-};
-
-/**
- * OpenAIAgentAdapter implements the AgentAdapter contract using the OpenAI JS SDK Responses API.
- */
-class OpenAIAgentAdapter {
-  constructor(options = {}) {
-    this.model = options.model || 'gpt-5.1-codex-mini';
-    this.maxTokens = parseMaxTokens(options.maxTokens, null);
-    this.defaultLogDir = options.logDir || null;
-    this.defaultCwd = options.cwd;
-    
-    // Allow base URL override for LiteLLM, Azure OpenAI, vLLM, or other OpenAI-compatible endpoints
-    const baseURL = options.baseUrl || process.env.OPENAI_BASE_URL || undefined;
-    const apiKey = options.apiKey || process.env.OPENAI_API_KEY;
-    
-    // When using custom base URL, allow placeholder API key (some proxies don't require it)
-    if (!apiKey && !baseURL) {
-      throw new Error(
-        'OPENAI_API_KEY environment variable is required\n\n' +
-        '💡 How to fix:\n' +
-        '  1. Get an API key from https://platform.openai.com/api-keys\n' +
-        '  2. Add to your .env file: OPENAI_API_KEY=sk-...\n' +
-        '  3. Or export in your shell: export OPENAI_API_KEY=sk-...\n' +
-        '  4. Ensure .env file is in your project root directory\n' +
-        '  5. Or set base_url in superconnect.toml for custom endpoints (LiteLLM, etc.)'
-      );
-    }
-    
-    this.client = new OpenAI({ 
-      apiKey: apiKey || 'unused',  // Some proxies accept any value
-      baseURL 
-    });
-    this.baseURL = baseURL;  // Store for error messages
-  }
-
-  orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
-    return this.run({
-      payload,
-      logLabel,
-      logDir,
-      outputStream
-    });
-  }
-
-  codegen({ payload, logLabel = 'component', cwd, logDir } = {}) {
-    return this.run({
-      payload,
-      logLabel,
-      logDir,
-      cwd
-    });
-  }
-
-  async run({ payload, logLabel, logDir, outputStream } = {}) {
-    const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
-    const writeLog = (text) => {
-      if (logStream?.stream) logStream.stream.write(text);
-    };
-    const writeOutput = (text) => {
-      if (outputStream) outputStream.write(text);
-    };
-
-    try {
-      if (!this.client) {
-        throw new Error('OPENAI_API_KEY is required for OpenAIAgentAdapter');
-      }
-      writeLog('=== AGENT INPUT ===\n');
-      writeLog(payload);
-      writeLog('\n\n=== AGENT OUTPUT ===\n');
-      const response = await this.client.responses.create({
-        model: this.model,
-        input: payload,
-        max_output_tokens: this.maxTokens
-      });
-      const stdout = extractResponseText(response) || '';
-      writeLog(stdout);
-      writeOutput(stdout);
-      if (logStream?.stream) logStream.stream.end();
-      if (outputStream) outputStream.end();
-      return { code: 0, stdout, stderr: '', logFile: logStream?.file || null };
-    } catch (err) {
-      let message = err?.message || 'Unknown OpenAI error';
-      
-      // Log detailed error info for debugging
-      const errorDetails = [
-        `Error type: ${err?.constructor?.name || 'Unknown'}`,
-        `Error code: ${err?.code || 'none'}`,
-        `Status: ${err?.status || 'none'}`,
-        `Message: ${message}`
-      ];
-      if (err?.cause) {
-        errorDetails.push(`Cause: ${err.cause}`);
-      }
-      writeLog(`\n=== ERROR DETAILS ===\n${errorDetails.join('\n')}\n`);
-      
-      // Provide helpful context for common errors
-      if (err?.status === 400 && (message.includes('Invalid model') || message.includes('model name'))) {
-        const modelSuggestions = [
-          '💡 Invalid Model Name:',
-          '',
-          `  Current model: ${this.model}`,
-          `  ${message}`,
-          '',
-          'How to fix:',
-          '  1. Set a different model in superconnect.toml:',
-          '     [agent]',
-          '     model = "gpt-4o"  # or gpt-4-turbo, gpt-3.5-turbo',
-          '',
-          '  2. Or use CLI flag: --agent-model gpt-4o',
-          '',
-          '  3. Check available models: curl https://api.openai.com/v1/models \\',
-          '       -H "Authorization: Bearer $OPENAI_API_KEY"',
-          '',
-          'Note: Model availability depends on your API key tier and account.'
-        ];
-        message = modelSuggestions.join('\n');
-      } else if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
-        message = `OpenAI API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify OPENAI_API_KEY is set correctly in your environment or .env file\n  - Check that your API key is valid at https://platform.openai.com/api-keys\n  - Ensure your .env file is in the project root directory`;
-      } else if (err?.status === 429 || message.includes('rate limit')) {
-        message = `OpenAI API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://platform.openai.com/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes`;
-      } else if (err?.status === 403) {
-        message = `OpenAI API access denied: ${message}\n\n💡 Troubleshooting:\n  - Your API key may not have access to the requested model\n  - Check your organization settings at https://platform.openai.com/account/organization`;
-      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' || 
-                 err?.code === 'ECONNRESET' || message.includes('fetch failed') || 
-                 message.includes('certificate') || message.includes('self-signed') || 
-                 message.includes('SSL') || message.includes('TLS')) {
-        // Enhanced network error handling for corporate environments
-        const endpoint = this.baseURL || 'api.openai.com';
-        const networkTips = [
-          '💡 Network/Certificate Error - Common in corporate environments:',
-          '',
-          'Quick diagnostics:',
-          `  1. Test API connectivity: curl -v ${this.baseURL ? this.baseURL + '/v1/models' : 'https://api.openai.com/v1/models'}`,
-          '  2. Check if you can reach the API from your network',
-          '',
-          'Possible solutions:',
-          '  • Corporate proxy: Set HTTP_PROXY and HTTPS_PROXY environment variables',
-          this.baseURL 
-            ? `  • Check LiteLLM/proxy status: Ensure ${this.baseURL} is running and accessible`
-            : '  • Certificate issues: Your IT may need to add OpenAI\'s certs to the trust store',
-          `  • Firewall: Ensure ${endpoint} (port 443) is allowed`,
-          '  • VPN: Try connecting/disconnecting from corporate VPN',
-          '',
-          'As a last resort (INSECURE - only for testing):',
-          '  export NODE_TLS_REJECT_UNAUTHORIZED=0',
-          '',
-          `Raw error: ${message}`
-        ];
-        message = networkTips.join('\n');
-      }
-      
-      writeLog(`${message}\n`);
-      if (logStream?.stream) logStream.stream.end();
-      if (outputStream) outputStream.end();
-      return { code: 1, stdout: '', stderr: message, logFile: logStream?.file || null };
-    }
-  }
-
-  /**
-   * Multi-turn chat for direct codegen.
-   * @param {object} params
-   * @param {Array<{role: string, content: string}>} params.messages - Chat messages
-   * @param {string} params.logLabel - Label for logging
-   * @returns {Promise<string>} - Assistant response text
-   */
-  async chat({ messages, logLabel = 'chat' } = {}) {
-    if (!this.client) {
-      throw new Error('OPENAI_API_KEY is required for OpenAIAgentAdapter');
-    }
-
-    // Convert to OpenAI chat format
-    const chatMessages = messages.map((m) => ({
-      role: m.role === 'system' ? 'developer' : m.role,
-      content: m.content
-    }));
-
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: chatMessages,
-      max_tokens: this.maxTokens
-    });
-
-    return response.choices?.[0]?.message?.content || '';
-  }
-
-  /**
-   * Stateless single-turn call for direct codegen with prompt caching.
-   * @param {object} params
-   * @param {string} params.system - System message (guidance + API docs)
-   * @param {string} params.user - User message (component payload)
-   * @param {number} params.maxTokens - Max tokens for this call (overrides default)
-   * @param {string} params.logLabel - Label for logging
-   * @returns {Promise<{text: string, usage: object}>} - Response text and usage info
-   */
-  async chatStateless({ system, user, maxTokens, logLabel = 'stateless' } = {}) {
-    if (!this.client) {
-      throw new Error('OPENAI_API_KEY is required for OpenAIAgentAdapter');
-    }
-
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: [
-        { role: 'developer', content: system },
-        { role: 'user', content: user }
-      ],
-      max_tokens: maxTokens || this.maxTokens
-    });
-
-    // Capture token usage
-    const usage = response.usage ? {
-      inputTokens: response.usage.prompt_tokens,
-      outputTokens: response.usage.completion_tokens,
-      cacheWriteTokens: 0,
-      cacheReadTokens: 0
-    } : null;
-
-    return { text: response.choices?.[0]?.message?.content || '', usage };
-  }
-}
-
 const extractClaudeText = (message) => {
   if (!message || !Array.isArray(message.content)) return '';
   for (const block of message.content) {
@@ -281,7 +46,7 @@ class ClaudeAgentAdapter {
     this.defaultLogDir = options.logDir || null;
     this.defaultCwd = options.cwd;
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    
+
     if (!apiKey) {
       throw new Error(
         'ANTHROPIC_API_KEY environment variable is required\n\n' +
@@ -292,9 +57,9 @@ class ClaudeAgentAdapter {
         '  4. Ensure .env file is in your project root directory'
       );
     }
-    
+
     // Set a longer timeout (20 minutes) for large orientation tasks
-    this.client = new Anthropic({ 
+    this.client = new Anthropic({
       apiKey,
       timeout: 20 * 60 * 1000 // 20 minutes in milliseconds
     });
@@ -339,15 +104,14 @@ class ClaudeAgentAdapter {
         messages: [{ role: 'user', content: payload }],
         stream: false
       });
-      
+
       // Log token usage if available
       if (response.usage) {
         const { input_tokens, output_tokens } = response.usage;
         const usageMsg = `\n[Usage: in=${input_tokens} out=${output_tokens} max=${this.maxTokens}]\n`;
         writeLog(usageMsg);
-        // Console logging removed - details captured in attempts array
       }
-      
+
       const stdout = extractClaudeText(response) || '';
       writeLog(stdout);
       writeOutput(stdout);
@@ -357,7 +121,7 @@ class ClaudeAgentAdapter {
     } catch (err) {
       // Extract detailed error message from Anthropic API errors
       let message = err?.message || 'Unknown Claude error';
-      
+
       // Check for rate limit errors in the error response
       if (err?.status === 400 || err?.status === 429) {
         const errorBody = err?.error || {};
@@ -365,7 +129,7 @@ class ClaudeAgentAdapter {
           message = errorBody.message;
         }
       }
-      
+
       // Log detailed error info for debugging
       const errorDetails = [
         `Error type: ${err?.constructor?.name || 'Unknown'}`,
@@ -377,7 +141,7 @@ class ClaudeAgentAdapter {
         errorDetails.push(`Cause: ${err.cause}`);
       }
       writeLog(`\n=== ERROR DETAILS ===\n${errorDetails.join('\n')}\n`);
-      
+
       // Provide helpful context for common errors
       if (err?.status === 400 && (message.includes('Invalid model') || message.includes('model') || message.includes('invalid_model_requested'))) {
         const modelSuggestions = [
@@ -404,16 +168,16 @@ class ClaudeAgentAdapter {
         message = `Claude API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://console.anthropic.com/settings/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes or reduce concurrency`;
       } else if (err?.status === 403) {
         message = `Claude API access denied: ${message}\n\n💡 Troubleshooting:\n  - Your API key may not have access to the requested model\n  - Verify your account status at https://console.anthropic.com`;
-      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' || 
-                 err?.code === 'ECONNRESET' || message.includes('fetch failed') || 
-                 message.includes('certificate') || message.includes('self-signed') || 
+      } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' ||
+                 err?.code === 'ECONNRESET' || message.includes('fetch failed') ||
+                 message.includes('certificate') || message.includes('self-signed') ||
                  message.includes('SSL') || message.includes('TLS')) {
         // Enhanced network error handling for corporate environments
         const networkTips = [
           '💡 Network/Certificate Error - Common in corporate environments:',
           '',
           'Quick diagnostics:',
-          `  1. Test API connectivity: curl -v https://api.anthropic.com/v1/messages`,
+          '  1. Test API connectivity: curl -v https://api.anthropic.com/v1/messages',
           '  2. Check if you can reach the API from your network',
           '',
           'Possible solutions:',
@@ -429,7 +193,7 @@ class ClaudeAgentAdapter {
         ];
         message = networkTips.join('\n');
       }
-      
+
       writeLog(`${message}\n`);
       if (logStream?.stream) logStream.stream.end();
       if (outputStream) outputStream.end();
@@ -531,7 +295,7 @@ class ClaudeAgentAdapter {
 
       const text = extractClaudeText(response) || '';
       writeLog(text);
-      
+
       if (usage) {
         const usageMsg = `\n\n[Usage: in=${usage.inputTokens} out=${usage.outputTokens} cacheWrite=${usage.cacheWriteTokens} cacheRead=${usage.cacheReadTokens}]\n`;
         writeLog(usageMsg);
@@ -548,7 +312,6 @@ class ClaudeAgentAdapter {
 }
 
 module.exports = {
-  OpenAIAgentAdapter,
   ClaudeAgentAdapter,
   sanitizeSlug,
   parseMaxTokens
