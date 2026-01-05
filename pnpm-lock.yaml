@@ -38,9 +38,6 @@ importers:
       json-stringify-pretty-compact:
         specifier: ^4.0.0
         version: 4.0.0
-      openai:
-        specifier: ^6.14.0
-        version: 6.14.0(ws@8.18.3)(zod@3.25.58)
       p-limit:
         specifier: ^3.1.0
         version: 3.1.0
@@ -1472,18 +1469,6 @@ packages:
   onetime@5.1.2:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
-
-  openai@6.14.0:
-    resolution: {integrity: sha512-ZPD9MG5/sPpyGZ0idRoDK0P5MWEMuXe0Max/S55vuvoxqyEVkN94m9jSpE3YgNgz3WoESFvozs57dxWqAco31w==}
-    hasBin: true
-    peerDependencies:
-      ws: ^8.18.0
-      zod: ^3.25 || ^4.0
-    peerDependenciesMeta:
-      ws:
-        optional: true
-      zod:
-        optional: true
 
   ora@5.4.1:
     resolution: {integrity: sha512-5b6Y85tPxZZ7QytO+BQzysW31HJku27cRIlkbAXaNx+BdcVi+LlRFmVXzeF6a7JCwJpyw5c4b+YSVImQIrBpuQ==}
@@ -3649,11 +3634,6 @@ snapshots:
   onetime@5.1.2:
     dependencies:
       mimic-fn: 2.1.0
-
-  openai@6.14.0(ws@8.18.3)(zod@3.25.58):
-    optionalDependencies:
-      ws: 8.18.3
-      zod: 3.25.58
 
   ora@5.4.1:
     dependencies:
