@@ -130,100 +130,56 @@ If the **Code Connect** section is missing
   - Your Figma user has access to the Enterprise org and file where mappings were published
 
 
-# Implementation
+# Pipeline Stages
 
-Superconnect runs five logical stages:
+Superconnect runs a four-stage pipeline:
 
-  1. Repo summarizer (scripts/summarize-repo.js) -- scans a React/Typescript or Angular component repo to get the lay of the land
-      - Input: repo root (component_repo_path)
-      - Output: superconnect/repo-summary.json (exports, file structure hints, detected frameworks, Angular component selectors/modules/templates, etc.)
-  1. Repo indexer (scripts/build-repo-index.js) -- builds searchable index of codebase for agent tools
-      - Input: Component repo path
-      - Output: superconnect/repo-index.json (file tree, imports, exports, component definitions)
-  2. Figma scan (scripts/figma-scan.js) -- scans a design system in Figma and extracts component metadata
-      - Input: Figma URL/key + Figma token
-      - Output:
-          - superconnect/figma-components-index.json
-          - One JSON per component set in superconnect/figma-components/
-  3. Unified codegen (scripts/run-codegen.js) -- agent-powered generation of Code Connect files with built-in exploration
-      - Input:
-          - superconnect/figma-components-index.json
-          - superconnect/repo-index.json
-          - superconnect/figma-components/{component}.json
-          - Agent explores source files via tools (queryIndex, readFile, listFiles)
-      - Output: 
-          - codeConnect/{component}.figma.tsx (React) or .figma.ts (Angular)
-          - superconnect/codegen-summaries/{component}-codegen-summary.json (with tool metrics)
-      - Agents follow Figma's Code Connect API documentation:
-          - React: https://developers.figma.com/docs/code-connect/react/
-          - HTML/Angular: https://developers.figma.com/docs/code-connect/html/
-  4. Finalizer (scripts/finalize.js)
-      - Input: everything above
-      - Output: A human-friendly run summary printed to stdout (no file), with colored sections and stats, plus figma.config.json written at the repo root (parser/label and include globs set for React or Angular)
+1. **Repo indexer** (`scripts/build-repo-index.js`) — builds searchable index of codebase for agent tools
+   - Input: Component repo path
+   - Output: `superconnect/repo-index.json` (file tree, imports, exports, component definitions)
+
+2. **Figma scan** (`scripts/figma-scan.js`) — extracts component metadata from Figma
+   - Input: Figma URL/key + API token
+   - Output: `superconnect/figma-components-index.json` and per-component JSON files
+
+3. **Unified codegen** (`scripts/run-codegen.js`) — generates Code Connect files using agent with tools
+   - Agent explores source files via `queryIndex`, `readFile`, `listFiles` tools
+   - Output: `codeConnect/{component}.figma.tsx` (React) or `.figma.ts` (Angular)
+   - Agents follow Figma's Code Connect API:
+     - [React docs](https://developers.figma.com/docs/code-connect/react/)
+     - [HTML/Angular docs](https://developers.figma.com/docs/code-connect/html/)
+
+4. **Finalizer** (`scripts/finalize.js`) — summarizes run and writes `figma.config.json`
 
 
 # Agent Configuration
 
-Superconnect uses AI to generate your Code Connect mappings. By default it uses Anthropic's Claude, but you can switch to OpenAI or any OpenAI-compatible service.
-
-## Choosing an API
-
-The `api` setting determines which API format Superconnect uses to communicate with AI services.
-
-Edit the `[agent]` section in `superconnect.toml`:
+Superconnect uses Claude Sonnet 4 by default to generate Code Connect mappings. Configure in `superconnect.toml`:
 
 ```toml
 [agent]
-api = "anthropic"             # or "openai"
-model = "claude-haiku-4-5"    # model to use
+api = "anthropic"
+model = "claude-sonnet-4-20250514"
 ```
 
-| API | Environment Variable | Example Models | Notes |
-|-----|---------------------|----------------|-------|
-| `anthropic` (default) | `ANTHROPIC_API_KEY` | claude-haiku-4-5, claude-sonnet-4-20250514 | Anthropic Claude only |
-| `openai` | `OPENAI_API_KEY` | gpt-5.1-codex-mini | OpenAI + any compatible service |
-
-**Note:** Setting `api = "openai"` doesn't mean you're using OpenAI's service—it means you're using the OpenAI-compatible API format. You can route to any provider using `base_url`.
-
-## Custom OpenAI-Compatible Endpoints (Advanced)
-
-Many services implement the OpenAI API format. You can use them by setting `api = "openai"` and adding a custom `base_url`:
-
-```toml
-[agent]
-api = "openai"
-base_url = "http://localhost:4000/v1"  # your proxy endpoint
-model = "gpt-5.1-codex-mini"
-```
-
-Common use cases:
-- **LiteLLM** - proxy/gateway for 100+ LLM providers
-- **Azure OpenAI** - Microsoft's hosted OpenAI with enterprise security
-- **vLLM** - self-hosted inference server
-- **LocalAI** - run models offline
-
-When using a custom endpoint, the API key comes from `OPENAI_API_KEY` (or set `api_key` in TOML if your proxy needs a different key).
-
-For connection issues with custom endpoints, see [docs/NETWORK-TROUBLESHOOTING.md](docs/NETWORK-TROUBLESHOOTING.md).
-
-Code gen agents log to superconnect/orienter-agent.log, superconnect/codegen-summaries/, and superconnect/codegen-agent-transcripts/
+**Environment variable:** `ANTHROPIC_API_KEY`
 
 # Outputs
 
-`superconnect` writes these files to your component repo:
+Superconnect writes files to your component repo:
 
-- In superconnect/:
-    - figma-components-index.json: canonical list of Figma components
-    - figma-components/*.json: per-component extracted Figma metadata
-    - repo-summary.json: lightweight summary of the repo (framework detection, Angular component metadata, exports)
-    - orientation.jsonl: agent suggestions for which files to read for each Figma component
-    - orienter-agent.log: orientation agent interaction logs
-    - codegen-summaries/*.json: per-component codegen results (status, attempts, errors)
-    - codegen-agent-transcripts/*.log: full agent I/O transcripts for debugging
-- In codeConnect/
-    - *.figma.tsx or *.figma.ts files for each successfully mapped component, ready for Code Connect
-- At repo root:
-    - figma.config.json pointing Code Connect to generated files (uses react parser for .tsx, html parser for .ts)
+**In `superconnect/` directory:**
+- `figma-components-index.json` — list of Figma components
+- `figma-components/*.json` — per-component Figma metadata
+- `repo-index.json` — searchable codebase index for agent tools
+- `codegen-summaries/*.json` — per-component results (status, attempts, metrics)
+- `codegen-agent-transcripts/*.log` — full agent I/O for debugging
+
+**In `codeConnect/` directory:**
+- `*.figma.tsx` or `*.figma.ts` — generated Code Connect files
+
+**At repo root:**
+- `figma.config.json` — configuration for Code Connect CLI
 
 
 # Interrupts & Reruns
@@ -235,12 +191,10 @@ The pipeline is designed for graceful partial runs:
     - superconnect/codegen-summaries/, codegen-agent-transcripts/, and codeConnect/ contain whatever was completed so far
     - The pipeline still runs the finalizer, so you get an accurate summary of what was built versus skipped
 - Rerunning without --force
-    - Repo summary, Figma scan, and orienter are skipped if their outputs already exist
-    - Codegen re-invokes the agent for each mapped component but:
-        - Does not overwrite existing .figma.tsx files unless --force is used
-        - Marks such components as “skipped” with an explanatory reason
+    - Skips stages with existing outputs (Figma scan, repo index)
+    - Does not overwrite existing .figma.tsx files
+    - Marks such components as "skipped" with an explanatory reason
 - Rerunning with --force
-    - Clears relevant logs and lets codegen overwrite existing .figma.tsx files
-    - Upstream stages are re-run as needed (Figma scan, summary, orientation)
+    - Re-runs all stages and overwrites existing Code Connect files
 
 This makes it safe to interrupt, inspect, tweak prompts/config, and then rerun the pipeline without losing context

@@ -10,63 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2025-01-05
 
 ### 🚀 Breaking Changes
-- **3-stage pipeline**: Merged orientation and codegen into single unified agentic flow
-  - Removed separate orientation stage (was Stage 3 in 0.2.x)
-  - Agents now explore codebase during code generation using built-in tools
-  - **Breaking**: `scripts/run-orienter.js` removed (archived to `scripts/archive/`)
-  - **Breaking**: `orientation.jsonl` artifacts no longer generated
+- **Unified agentic pipeline**: Merged orientation and codegen into single agent flow per component
+  - `scripts/run-orienter.js` removed (archived in `scripts/archive/`)
+  - `orientation.jsonl` artifacts no longer generated
+  - Non-Anthropic agent backends removed (OpenAI, OpenRouter)
   
 ### Added
-- **Unified agentic codegen** (`src/agent/unified-codegen.js`)
-  - Single agent call per component handles both orientation and generation
-  - Agent tools: `queryIndex`, `readFile`, `listFiles` with hard limits
-  - Validation retry loop (max 2 retries by default)
+- **Agent tools for codebase exploration**
+  - `queryIndex` — semantic search across indexed codebase
+  - `readFile` — read specific file sections
+  - `listFiles` — list directory contents
+  - Validation retry loop (max 2 retries)
   - Tool usage metrics tracked per component
 - **Repo indexing** (`scripts/build-repo-index.js`)
-  - Searchable index for agent tools
-  - Includes file tree, imports, exports, and component definitions
-  - Created by Agent A (qfq epic tasks)
-- **Framework-specific agentic prompts**
-  - `prompts/react-agentic-codegen.md` - React Code Connect generation
-  - `prompts/angular-agentic-codegen.md` - Angular Code Connect generation
-  - Includes tool usage guidance and examples
+  - Pre-built searchable index for fast agent queries
+  - Includes file tree, imports, exports, component definitions
+- **Framework-specific prompts**
+  - `prompts/react-agentic-codegen.md`
+  - `prompts/angular-agentic-codegen.md`
 
 ### Changed
-- **Pipeline orchestration** (`scripts/run-pipeline.js`)
-  - Updated for 3-stage flow: repo index → Figma scan → unified codegen
-  - Increased default max tokens to 4096 (from 2048 for codegen in 0.2.x)
-  - Simplified stage management (removed orientation wiring)
-- **Codegen script** (`scripts/run-codegen.js`)
-  - Complete rewrite to use unified-codegen module
-  - Agent explores codebase via tools during generation
-  - Writes codegen summaries with tool metrics
-  - Old 0.2.x version archived to `scripts/archive/run-codegen-0.2.x.js`
-- **Test coverage**
-  - Added `test/pipeline-0.3.x-e2e.test.js` (11 new tests)
-  - Skipped orientation-specific tests (feature merged into unified codegen)
-  - All 140 tests passing
+- Default max tokens increased to 4096
+- Complete codegen rewrite using `src/agent/unified-codegen.js`
+- 11 new E2E tests added
 
-### Removed
-- Separate orientation stage and related artifacts
-- `scripts/run-orienter.js` (archived to `scripts/archive/run-orienter-0.2.x.js`)
-- Non-Anthropic agent backends (OpenAI, OpenRouter)
-
-### Migration Guide
-- **For users**: No action required - pipeline usage unchanged
-  - `pnpm exec superconnect` works the same way
-  - All CLI flags remain compatible
-- **For contributors**: 
-  - See `docs/ARCHITECTURE.md` for updated 3-stage pipeline
-  - See `docs/PIPELINE-SPEC-0.3.x.md` for detailed changes
-  - Old 0.2.x scripts archived in `scripts/archive/` for reference
-
-### Performance
-- Agent tools enable more targeted file reads (no need to read entire codebase)
-- Single agent call per component (vs separate orientation + codegen in 0.2.x)
-
-### Known Issues
-- Agents sometimes add explanatory text before code blocks (validation still passes)
-- Will be addressed in 0.3.1 with improved prompt instructions
+### For Contributors
+- See `docs/ARCHITECTURE.md` for current pipeline
+- Legacy code archived in `scripts/archive/`
 
 ## [0.2.10] - 2025-12-18
 

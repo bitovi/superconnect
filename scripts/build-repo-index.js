@@ -1,9 +1,89 @@
 #!/usr/bin/env node
 
 /**
- * Build a lightweight repo index with file metadata, exports, and import hints
+ * Build Repo Index - Generate index for fast file discovery
  *
- * Index schema overview (why fields exist):
+ * Creates a pre-built metadata file (`repo-index.json`) that enables fast file discovery
+ * without filesystem crawls during agentic code generation.
+ *
+ * Version: repo-index@1
+ * Location: superconnect/repo-index.json (generated per target repo)
+ *
+ * ## Purpose
+ *
+ * In agentic mode, agents use the repo index to:
+ * 1. Find candidate files by exported symbols (e.g., "which files export `Button`?")
+ * 2. Filter by tags (e.g., "show me all component files")
+ * 3. Resolve imports without reading every file in the repo
+ * 4. Cache file reads using the stable `repoHash` for invalidation
+ *
+ * The index-first approach reduces filesystem I/O and LLM context by providing
+ * structured metadata upfront.
+ *
+ * ## Schema
+ *
+ * ### Top-Level Fields
+ *
+ * - schema: string - Version identifier (repo-index@1)
+ * - root: string - Absolute path to repo root
+ * - generatedAt: string - ISO 8601 timestamp of index generation
+ * - repoHash: string - SHA-256 hash of all file paths, sizes, and mtimes for cache invalidation
+ * - maxFileBytes: number - Max file size parsed (default: 200KB)
+ * - ignorePatterns: string[] - Glob patterns excluded from indexing
+ * - filePatterns: string[] - Glob patterns included in indexing
+ * - packageRoots: string[] - Detected package.json directories (for monorepo imports)
+ * - stats: object - Summary statistics (see below)
+ * - files: File[] - Array of file metadata entries
+ * - exportIndex: object - Map of symbol name → file paths
+ *
+ * ### File Entry Schema
+ *
+ * Each file entry contains:
+ * - path: string - Repo-relative path (POSIX format)
+ * - packageRoot: string - Nearest package.json directory
+ * - size: number - File size in bytes
+ * - language: string - ts, tsx, js, jsx, mjs, cjs, mts, cts
+ * - tags: string[] - Inferred tags (component, hook, util, theme, etc.)
+ * - exports: string[] - Exported identifiers (includes "default")
+ * - reexportAll: string[] - Re-export specifiers (export * from "...")
+ * - importsLocal: string[] - Local import specifiers (./foo, ../bar)
+ * - parseStatus: string - "parsed" | "skipped:size"
+ *
+ * ### Stats Object
+ *
+ * Summary statistics:
+ * - totalFiles: number - Total files found
+ * - parsedFiles: number - Files successfully parsed
+ * - skippedLargeFiles: number - Files exceeding maxFileBytes
+ * - byLanguage: { [language: string]: number } - Breakdown by file extension
+ *
+ * ### Export Index
+ *
+ * Fast symbol lookup: { [symbolName: string]: string[] }
+ *
+ * Example:
+ * {
+ *   "Button": ["src/components/Button.tsx", "src/index.ts"],
+ *   "useTheme": ["src/hooks/useTheme.ts"],
+ *   "default": ["src/App.tsx", "src/theme/index.ts"]
+ * }
+ *
+ * ## Performance Targets
+ *
+ * Use the `time` command to measure:
+ *
+ * time node scripts/build-repo-index.js \
+ *   --root /path/to/repo \
+ *   --output /path/to/repo/superconnect/repo-index.json
+ *
+ * Look at the **total** time (wall-clock).
+ *
+ * ## Usage
+ *
+ * node scripts/build-repo-index.js --root /path/to/repo --output /path/to/index.json
+ *
+ * ## Field Rationale (Why Each Field Exists)
+ *
  * - schema: version pin for downstream tools
  * - root/generatedAt/repoHash: provenance and cache invalidation
  * - maxFileBytes/filePatterns/ignorePatterns: make coverage explicit
@@ -18,9 +98,6 @@
  * - files[].importsLocal: dependency slice for context packs
  * - files[].parseStatus: signal missing or skipped parse data
  * - exportIndex: fast symbol -> file lookup for orientation and codegen
- *
- * Usage:
- *   node scripts/build-repo-index.js --root /path/to/repo --output /path/to/index.json
  */
 
 const fs = require('fs-extra');

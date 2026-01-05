@@ -1,8 +1,102 @@
 /**
  * Agent Tools for Claude Agent SDK
  *
- * Implements the tool contract from AGENT-TOOL-CONTRACT.md
- * with metrics instrumentation and hard limits.
+ * Implements the tool contract for agentic Code Connect generation with:
+ * - Index-first policy: Agents query repo index before exploring files
+ * - Hard limits: All tools have enforced limits to prevent runaway exploration
+ * - Metrics instrumentation: All tool calls emit usage metrics
+ * - Deterministic behavior: Consistent results for the same inputs
+ * - Fail-fast with clear errors: Invalid inputs produce actionable error messages
+ *
+ * ## Tool Catalog
+ *
+ * ### 1. queryIndex
+ * Query the pre-built repository index to find candidate files without filesystem crawls.
+ * Primary discovery mechanism - agents should use this before reading files.
+ *
+ * Parameters:
+ *   query: {
+ *     type: 'exports' | 'tag' | 'pathPrefix' | 'listAll',
+ *     value?: string  // Required for 'exports', 'tag', 'pathPrefix'
+ *   }
+ *   limit?: number  // Default: 50, Max: 200
+ *
+ * Returns:
+ *   files: Array<{
+ *     path: string,
+ *     exports?: string[],
+ *     tags?: string[],
+ *     size_bytes?: number,
+ *     package_root?: string
+ *   }>
+ *   total_matches: number
+ *   truncated: boolean
+ *
+ * Examples:
+ *   // Find files exporting "Button"
+ *   queryIndex({ query: { type: 'exports', value: 'Button' }, limit: 10 })
+ *
+ *   // Find all React component files
+ *   queryIndex({ query: { type: 'tag', value: 'react-component' } })
+ *
+ * Errors:
+ *   INVALID_QUERY_TYPE: Query type not in allowed set
+ *   MISSING_VALUE: Value required for query type but not provided
+ *   LIMIT_EXCEEDED: Requested limit > 200
+ *
+ * ### 2. readFile
+ * Read the contents of a specific file from the repository.
+ * Inspect source code after identifying candidates via queryIndex.
+ *
+ * Parameters:
+ *   path: string       // Relative path from repo root
+ *   maxBytes?: number  // Default: 100KB, Max: 500KB
+ *
+ * Returns:
+ *   path: string
+ *   content: string
+ *   size_bytes: number
+ *   truncated: boolean
+ *   cached: boolean
+ *
+ * Hard Limits:
+ *   - Max file size: 500KB (larger files return error)
+ *   - Max concurrent reads per component: 20
+ *   - Cumulative read budget per component: 5MB
+ *
+ * Errors:
+ *   FILE_NOT_FOUND: Path doesn't exist in repo
+ *   FILE_TOO_LARGE: File exceeds 500KB hard limit
+ *   READ_BUDGET_EXCEEDED: Cumulative read limit for this component reached
+ *   INVALID_PATH: Path attempts directory traversal (../) or absolute path
+ *
+ * ### 3. listFiles
+ * List files in a specific directory (shallow, non-recursive).
+ * Explore directory structure when index queries are insufficient.
+ *
+ * Parameters:
+ *   directory: string  // Relative path from repo root
+ *   pattern?: string   // Glob pattern (e.g., "*.tsx")
+ *   limit?: number     // Default: 50, Max: 100
+ *
+ * Returns:
+ *   directory: string
+ *   files: Array<{
+ *     name: string,      // Filename only
+ *     path: string,      // Full relative path
+ *     type: 'file',
+ *     size_bytes: number
+ *   }>
+ *   total: number
+ *   truncated: boolean
+ *
+ * Hard Limits:
+ *   - Max list operations per component: 10
+ *
+ * Errors:
+ *   INVALID_DIRECTORY: Directory attempts traversal or is absolute
+ *   LIMIT_EXCEEDED: Requested limit > 100
+ *   LIST_BUDGET_EXCEEDED: Max 10 list operations per component reached
  */
 
 const fs = require('fs-extra');

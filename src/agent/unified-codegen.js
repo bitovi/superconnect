@@ -27,22 +27,16 @@ const DEFAULT_MAX_TOKENS = 4096;
 function buildSystemPrompt(framework) {
   const promptsDir = path.join(__dirname, '..', '..', 'prompts');
   
-  // Use new agentic prompts that include tool guidance
-  const agenticPromptFile = framework === 'react' 
+  // Use agentic prompts that include tool guidance and API docs
+  const promptFile = framework === 'react' 
     ? 'react-agentic-codegen.md' 
     : 'angular-agentic-codegen.md';
-  const apiDocsFile = framework === 'react'
-    ? 'figma-code-connect-react.md'
-    : 'figma-code-connect-html.md';
 
   try {
-    const agenticPrompt = fs.readFileSync(path.join(promptsDir, agenticPromptFile), 'utf8');
-    const apiDocs = fs.readFileSync(path.join(promptsDir, apiDocsFile), 'utf8');
-
-    return `${agenticPrompt}\n\n---\n\n## Figma Code Connect API Reference\n\n${apiDocs}`;
+    return fs.readFileSync(path.join(promptsDir, promptFile), 'utf8');
   } catch (err) {
     if (err.code === 'ENOENT') {
-      throw new Error(`Prompt file not found: ${err.path}\n  Make sure ${agenticPromptFile} exists in prompts/`);
+      throw new Error(`Prompt file not found: ${err.path}\n  Make sure ${promptFile} exists in prompts/`);
     }
     throw new Error(`Failed to read prompt files: ${err.message}`);
   }

@@ -1,6 +1,4 @@
-Now I have the information I need. The Angular button component uses the selector `zap-button`. Since the Figma component data shows no variant properties, component properties, text layers, or slot layers, this is a simple button component with no dynamic properties to map.
-
-Here's the Code Connect file:
+Perfect! I found the Button component. The selector is `zap-button` and it's a simple component with no inputs or outputs defined. Since the Figma component data shows no variant properties, component properties, text layers, or slot layers, this will be a very simple Code Connect file.
 
 ```typescript
 import figma, { html } from '@figma/code-connect'

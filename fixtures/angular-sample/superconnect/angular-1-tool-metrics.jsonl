@@ -19,3 +19,17 @@
 {"timestamp":"2026-01-05T20:50:26.670Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"ButtonComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
 {"timestamp":"2026-01-05T20:50:36.727Z","component":"angular-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":5,"size_bytes":0,"cached":false},"duration_ms":0}
 {"timestamp":"2026-01-05T20:50:42.601Z","component":"angular-1","tool":"readFile","params":{"path":"src/app/components/zap-button/zap-button.component.ts"},"result":{"count":1,"size_bytes":167,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T20:55:37.246Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"ButtonComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T20:55:42.143Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"Button"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:55:44.324Z","component":"angular-1","tool":"queryIndex","params":{"type":"pathPrefix","value":"src/"},"result":{"count":5,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:55:46.761Z","component":"angular-1","tool":"readFile","params":{"path":"src/app/components/zap-button/zap-button.component.ts"},"result":{"count":1,"size_bytes":167,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:12:13.007Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"ButtonComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:12:14.824Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"Button"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:12:19.838Z","component":"angular-1","tool":"queryIndex","params":{"type":"tag","value":"angular-component"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:12:24.921Z","component":"angular-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":5,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:12:30.089Z","component":"angular-1","tool":"readFile","params":{"path":"src/app/components/zap-button/zap-button.component.ts"},"result":{"count":1,"size_bytes":167,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T21:14:34.818Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"ButtonComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:14:39.620Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"Button"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:14:44.693Z","component":"angular-1","tool":"queryIndex","params":{"type":"tag","value":"angular-component"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:14:49.248Z","component":"angular-1","tool":"queryIndex","params":{"type":"pathPrefix","value":"src/"},"result":{"count":5,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:14:54.884Z","component":"angular-1","tool":"readFile","params":{"path":"src/app/components/zap-button/zap-button.component.ts"},"result":{"count":1,"size_bytes":167,"cached":false},"duration_ms":2}

@@ -15,3 +15,12 @@
 {"timestamp":"2026-01-05T20:50:05.772Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
 {"timestamp":"2026-01-05T20:50:07.609Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
 {"timestamp":"2026-01-05T20:50:14.062Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T20:55:16.085Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:55:21.133Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:55:25.926Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:11:51.919Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:11:56.957Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:12:01.977Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T21:14:14.547Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:14:16.476Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:14:22.318Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":2}

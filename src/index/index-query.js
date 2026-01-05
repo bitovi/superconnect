@@ -3,6 +3,49 @@
  *
  * Provides fast lookup functions over the repo index without filesystem crawls.
  * Supports the agent tool contract (queryIndex, readFile with caching).
+ *
+ * ## Usage Patterns
+ *
+ * ### 1. Load Index Once
+ *
+ * const index = await loadIndex('path/to/repo-index.json');
+ *
+ * ### 2. Query by Exported Symbol
+ *
+ * // Find files that export "Button"
+ * const result = findExports(index, 'Button', 10);
+ * result.files.forEach(f => console.log(f.path));
+ *
+ * ### 3. Query by Tag
+ *
+ * // Find all React components
+ * const components = findByTag(index, 'react-component', 50);
+ *
+ * ### 4. Query by Path Prefix
+ *
+ * // Find files under src/components/
+ * const files = findByPathPrefix(index, 'src/components/', 20);
+ *
+ * ### 5. Read File with Caching
+ *
+ * // Cache key: `${repoHash}:${filePath}`
+ * const file = await readFile(repoRoot, index.repoHash, 'src/Button.tsx', 102400);
+ * console.log(file.content);
+ * console.log(file.cached); // true on subsequent reads with same repoHash
+ *
+ * ### 6. List All Files
+ *
+ * const all = listFiles(index, 100);
+ *
+ * ## Performance Characteristics
+ *
+ * - findExports: O(1) lookup via exportIndex, O(n) file metadata assembly
+ * - findByTag: O(n) scan of files array
+ * - findByPathPrefix: O(n) scan of files array
+ * - readFile: O(1) cache lookup, O(file size) disk read on cache miss
+ * - listFiles: O(n) scan of files array
+ *
+ * Where n = number of files in index (typically 100s-1000s, not 10,000s)
  */
 
 const fs = require('fs-extra');
