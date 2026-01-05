@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run ${{ matrix.fixture }} E2E tests
+      - name: Run ${{ matrix.fixture }} E2E tests (small)
         if: env.FIGMA_ACCESS_TOKEN != '' && env.ANTHROPIC_API_KEY != ''
         run: |
           FIXTURE_PATH="fixtures/${{ matrix.fixture == 'chakra' && 'chakra-ui' || 'zapui' }}/package.json"
@@ -46,7 +46,7 @@ jobs:
             exit 0
           fi
           ENV_VAR="${{ matrix.fixture == 'chakra' && 'CHAKRA_E2E_KEEP' || 'ZAPUI_E2E_KEEP' }}"
-          eval "$ENV_VAR=1 SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:${{ matrix.fixture }}"
+          eval "$ENV_VAR=1 SUPERCONNECT_E2E_VERBOSE=1 pnpm run test:e2e:${{ matrix.fixture }}:small"
 
       - name: Upload ${{ matrix.fixture }} E2E artifacts
         uses: actions/upload-artifact@v4
