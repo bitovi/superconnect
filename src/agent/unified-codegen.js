@@ -180,8 +180,29 @@ async function processComponentWithTools({
 
       // Extract code from response
       let code = (response.text || response).trim();
-      if (code.startsWith('```')) {
-        code = code.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+      
+      // If response contains markdown code fences, extract content between them
+      if (code.includes('```')) {
+        const match = code.match(/```(?:tsx?|javascript)?\s*\n([\s\S]*?)\n```/);
+        if (match) {
+          code = match[1].trim();
+        } else {
+          // Fallback: strip fences at start/end
+          code = code.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+        }
+      }
+      
+      // If code doesn't start with 'import' or other expected tokens, 
+      // try to find where the actual code starts
+      if (!code.match(/^(import|export|\/\/|\/\*|const|let|var|function|class)/)) {
+        // Look for the first line that looks like TypeScript/JavaScript code
+        const lines = code.split('\n');
+        let codeStartIndex = lines.findIndex(line => 
+          line.trim().match(/^(import|export|\/\/|\/\*|const|let|var|function|class)/)
+        );
+        if (codeStartIndex > 0) {
+          code = lines.slice(codeStartIndex).join('\n').trim();
+        }
       }
 
       lastCode = code;
