@@ -1,3 +1,15 @@
+/**
+ * JSON Response Extractor
+ * 
+ * Extracts and parses JSON from LLM responses that may contain:
+ * - Markdown code fences (```json)
+ * - Line comments (// or #)
+ * - Trailing commas
+ * - Mixed text and JSON content
+ * 
+ * Used to parse orientation and codegen agent responses.
+ */
+
 const tryParseJson = (input) => {
   if (!input || typeof input !== 'string') return null;
   try {

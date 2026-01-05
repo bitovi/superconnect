@@ -16,7 +16,7 @@ This guide helps diagnose and resolve network connectivity issues when running S
 
 For Figma API:
 ```bash
-curl -v https://api.figma.com/v1/me -H "X-Figma-Token: YOUR_TOKEN"
+curl -v https://api.figma.com/v1/files/<FILE_KEY> -H "X-Figma-Token: YOUR_TOKEN"
 ```
 
 For Claude (Anthropic):

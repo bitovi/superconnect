@@ -1,3 +1,13 @@
+/**
+ * Color Utilities
+ * 
+ * Provides consistent terminal colors for Superconnect output:
+ * - figmaColor: Figma brand red (#ff6b6b)
+ * - codeColor: Code blue (#2f9cf4)
+ * - generatedColor: Generated purple (#b779ff)
+ * - highlight: White highlight
+ */
+
 const chalk = require('chalk');
 
 const figmaColor = (text) => chalk.hex('#ff6b6b')(text);

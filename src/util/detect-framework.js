@@ -1,3 +1,14 @@
+/**
+ * Framework Detection
+ * 
+ * Detects React or Angular framework in a codebase by analyzing:
+ * - package.json dependencies
+ * - File structure (tsconfig, angular.json, vite.config, etc.)
+ * - File extensions (.jsx, .tsx for React; .component.ts for Angular)
+ * 
+ * Returns 'react', 'angular', or null if framework cannot be determined.
+ */
+
 const fs = require('fs/promises');
 const path = require('path');
 const fg = require('fast-glob');

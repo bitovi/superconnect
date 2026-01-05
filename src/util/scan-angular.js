@@ -1,3 +1,15 @@
+/**
+ * Angular Component Scanner
+ * 
+ * Scans an Angular codebase to find components with:
+ * - Component file path (.component.ts)
+ * - Selector (from @Component decorator)
+ * - Template path (.component.html)
+ * - Class name
+ * 
+ * Returns array of component metadata for indexing.
+ */
+
 const fs = require('fs/promises');
 const path = require('path');
 const fg = require('fast-glob');

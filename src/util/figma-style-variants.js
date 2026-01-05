@@ -1,3 +1,15 @@
+/**
+ * Figma Style Variant Detection
+ * 
+ * Detects Figma variant properties that represent component styling/theming:
+ * - Boolean variants (yes/no, true/false, on/off)
+ * - Color/theme variants (primary, secondary, error, etc.)
+ * - Size variants (sm, md, lg, xl, etc.)
+ * 
+ * Used to exclude styling props from Code Connect mappings,
+ * as these typically don't map to component props.
+ */
+
 const cleanPropName = (raw) => (raw || '').replace(/^['"`]/, '').replace(/['"`]$/, '').trim();
 
 const sanitizePropKeyForMatch = (key) =>
