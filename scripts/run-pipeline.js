@@ -4,12 +4,11 @@
 require('dotenv').config();
 
 /**
- * Superconnect pipeline v4 (5 stages):
- * 1) Figma scan
- * 2) Repo summarizer
- * 3) Orienter
- * 4) Codegen
- * 5) Finalizer (summary)
+ * Superconnect pipeline v0.3.x (3 stages):
+ * 1) Repo index builder (uses summarizer for now, will be replaced)
+ * 2) Figma scan
+ * 3) Unified codegen (orientation + generation in one agentic call per component)
+ * 4) Finalizer (summary)
  */
 
 const fs = require('fs-extra');
@@ -24,8 +23,7 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5';
 const DEFAULT_API = 'anthropic';
-const DEFAULT_MAX_TOKENS = 2048;
-const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
+const DEFAULT_MAX_TOKENS = 4096; // Unified codegen uses single default (was 2048 for codegen, 32768 for orientation in 0.2.x)
 const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_LAYER_DEPTH = 3;
 const DEFAULT_CONCURRENCY = 8;
@@ -373,7 +371,7 @@ async function main() {
 
   const needFigmaScan = args.force || !fs.existsSync(paths.figmaIndex);
   const needRepoSummary = args.force || !fs.existsSync(paths.repoSummary);
-  const needOrientation = args.force || !fs.existsSync(paths.orientation);
+  // Note: In 0.3.x, orientation is merged into unified codegen (no separate orientation stage)
   const rel = (p) => path.relative(process.cwd(), p) || p;
 
   const needsAgent = !args.dryRun;
@@ -442,54 +440,21 @@ async function main() {
     );
   }
 
-  if (needOrientation) {
-    // Orientation agent needs much higher max_tokens to output JSONL for all components.
-    // Use explicit user setting if provided, otherwise use orientation-specific default.
-    const userMaxTokens = parseMaybeInt(cfg?.agent?.max_tokens);
-    const orientationMaxTokens = userMaxTokens || DEFAULT_ORIENTATION_MAX_TOKENS;
-    const orienterArgs = [
-      '--figma-index', paths.figmaIndex,
-      '--repo-summary', paths.repoSummary,
-      '--output', paths.orientation,
-      ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
-      '--agent-max-tokens', String(orientationMaxTokens),
-      ...(inferredFramework ? ['--target-framework', inferredFramework] : []),
-      ...(args.dryRun ? ['--dry-run'] : [])
-    ];
-    runNodeScript(
-      `${highlight('Repo orientation')} → ${generatedColor(rel(paths.orientation))}`,
-      path.join(paths.scriptDir, 'run-orienter.js'),
-      orienterArgs,
-      {
-        env: {
-          FIGMA_ACCESS_TOKEN: figmaToken || process.env.FIGMA_ACCESS_TOKEN,
-          [agentEnvVar]: agentToken || process.env[agentEnvVar]
-        }
-      }
-    );
-  } else {
-    console.log(
-      `${chalk.dim('•')} ${highlight('Repo orientation')} (skipped, ${generatedColor(
-        rel(paths.orientation)
-      )} already present)`
-    );
-  }
-
+  // In 0.3.x: Unified codegen replaces separate orientation + codegen stages
   if (!args.dryRun) {
     const codegenArgs = [
       '--figma-index', paths.figmaIndex,
-      '--orienter', paths.orientation,
       '--repo-summary', paths.repoSummary,
       ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
       ...(agentConfig.maxTokens ? ['--agent-max-tokens', String(agentConfig.maxTokens)] : []),
-      '--concurrency', String(codegenConfig.concurrency),
+      '--max-retries', String(codegenConfig.maxRetries),
       ...(args.only && args.only.length ? ['--only', args.only.join(',')] : []),
       ...(args.exclude && args.exclude.length ? ['--exclude', args.exclude.join(',')] : []),
       ...(inferredFramework ? ['--target-framework', inferredFramework] : []),
       ...(args.force ? ['--force'] : [])
     ];
     runNodeScript(
-      `${highlight('Code generation')} (${codeColor(rel(paths.orientation))} → ${generatedColor(rel(paths.codeConnectDir))})`,
+      `${highlight('Unified codegen')} (${codeColor(rel(paths.repoSummary))} + ${figmaColor(rel(paths.figmaIndex))} → ${generatedColor(rel(paths.codeConnectDir))})`,
       path.join(paths.scriptDir, 'run-codegen.js'),
       codegenArgs,
       {
@@ -502,7 +467,7 @@ async function main() {
       }
     );
   } else {
-    console.log(`${chalk.dim('•')} ${highlight('Code generation')} skipped (dry run)`);
+    console.log(`${chalk.dim('•')} ${highlight('Unified codegen')} skipped (dry run)`);
   }
 
   {
