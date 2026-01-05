@@ -1,0 +1,10 @@
+<button
+  class="toggle"
+  type="button"
+  [attr.data-size]="size"
+  [attr.aria-pressed]="checked"
+  [disabled]="disabled"
+  (click)="onToggle()"
+>
+  {{ label }}
+</button>

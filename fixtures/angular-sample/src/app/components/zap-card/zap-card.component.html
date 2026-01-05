@@ -1,0 +1,12 @@
+<div class="card" [class.elevated]="elevated">
+  <div class="card-header">
+    <ng-content select="[slot=header]"></ng-content>
+    <h3 *ngIf="heading">{{ heading }}</h3>
+  </div>
+  <div class="card-body">
+    <ng-content></ng-content>
+  </div>
+  <div class="card-footer">
+    <ng-content select="[slot=footer]"></ng-content>
+  </div>
+</div>

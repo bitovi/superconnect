@@ -28,10 +28,31 @@
   },
   "angular_components": [
     {
+      "selector": "zap-badge",
+      "class_name": "ZapBadgeComponent",
+      "ts_file": "src/app/components/zap-badge/zap-badge.component.ts",
+      "html_file": "src/app/components/zap-badge/zap-badge.component.html",
+      "module_file": "src/app/app.module.ts"
+    },
+    {
       "selector": "zap-button",
       "class_name": "ZapButtonComponent",
       "ts_file": "src/app/components/zap-button/zap-button.component.ts",
       "html_file": "src/app/components/zap-button/zap-button.component.html",
+      "module_file": "src/app/app.module.ts"
+    },
+    {
+      "selector": "zap-card",
+      "class_name": "ZapCardComponent",
+      "ts_file": "src/app/components/zap-card/zap-card.component.ts",
+      "html_file": "src/app/components/zap-card/zap-card.component.html",
+      "module_file": "src/app/app.module.ts"
+    },
+    {
+      "selector": "zap-toggle",
+      "class_name": "ZapToggleComponent",
+      "ts_file": "src/app/components/zap-toggle/zap-toggle.component.ts",
+      "html_file": "src/app/components/zap-toggle/zap-toggle.component.html",
       "module_file": "src/app/app.module.ts"
     }
   ],
