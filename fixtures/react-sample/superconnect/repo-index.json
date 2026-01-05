@@ -1,8 +1,12 @@
 {
+  "frameworks": [
+    "react"
+  ],
+  "primary_framework": "react",
   "schema": "repo-index@1",
   "root": "/Users/brandonharvey/src/superconnect/fixtures/react-sample",
-  "generatedAt": "2026-01-04T16:00:42.620Z",
-  "repoHash": "92a17c616b1a807beef6c54b6f660db4828e92e07dbc9709cef8bb376ac11c87",
+  "generatedAt": "2026-01-05T21:22:18.269Z",
+  "repoHash": "79525139e9531c0343aae84e8151a480ff6c29d2b17eba04daa0290ade072643",
   "maxFileBytes": 204800,
   "ignorePatterns": [
     "**/node_modules/**",
@@ -33,11 +37,11 @@
     "."
   ],
   "stats": {
-    "totalFiles": 1,
-    "parsedFiles": 1,
+    "totalFiles": 2,
+    "parsedFiles": 2,
     "skippedLargeFiles": 0,
     "byLanguage": {
-      "tsx": 1
+      "tsx": 2
     }
   },
   "files": [
@@ -53,11 +57,29 @@
       "reexportAll": [],
       "importsLocal": [],
       "parseStatus": "parsed"
+    },
+    {
+      "path": "superconnect/spike-output.figma.tsx",
+      "packageRoot": ".",
+      "size": 871,
+      "language": "tsx",
+      "tags": [],
+      "exports": [
+        "default"
+      ],
+      "reexportAll": [],
+      "importsLocal": [
+        "./FixtureComponent"
+      ],
+      "parseStatus": "parsed"
     }
   ],
   "exportIndex": {
     "App": [
       "src/App.tsx"
+    ],
+    "default": [
+      "superconnect/spike-output.figma.tsx"
     ]
   }
 }

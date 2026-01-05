@@ -1,4 +1,4 @@
-Perfect! I found the Button component. The selector is `zap-button` and it's a simple component with no inputs or outputs defined. Since the Figma component data shows no variant properties, component properties, text layers, or slot layers, this will be a very simple Code Connect file.
+Perfect! I found the button component with selector `zap-button`. Since the Figma component has no variant properties, component properties, text layers, or slot layers, this will be a simple Code Connect file with just the basic component mapping.
 
 ```typescript
 import figma, { html } from '@figma/code-connect'

@@ -214,20 +214,6 @@ Use the tools to find and read the matching component file, then generate the Co
 [Tool Call: queryIndex]
 {
   "query": {
-    "type": "tag",
-    "value": "angular-component"
-  }
-}
-[Tool Result: queryIndex]
-{
-  "files": [],
-  "total_matches": 0,
-  "truncated": false
-}
-
-[Tool Call: queryIndex]
-{
-  "query": {
     "type": "pathPrefix",
     "value": "src/"
   }
@@ -245,17 +231,6 @@ Use the tools to find and read the matching component file, then generate the Co
       "package_root": "."
     },
     {
-      "path": "src/app/components/zap-button/zap-button.component.ts",
-      "exports": [
-        "ZapButtonComponent"
-      ],
-      "tags": [
-        "component"
-      ],
-      "size_bytes": 167,
-      "package_root": "."
-    },
-    {
       "path": "src/app/components/zap-badge/zap-badge.component.ts",
       "exports": [
         "ZapBadgeComponent"
@@ -264,6 +239,17 @@ Use the tools to find and read the matching component file, then generate the Co
         "component"
       ],
       "size_bytes": 300,
+      "package_root": "."
+    },
+    {
+      "path": "src/app/components/zap-button/zap-button.component.ts",
+      "exports": [
+        "ZapButtonComponent"
+      ],
+      "tags": [
+        "component"
+      ],
+      "size_bytes": 167,
       "package_root": "."
     },
     {
@@ -306,7 +292,7 @@ Use the tools to find and read the matching component file, then generate the Co
   "encoding": "utf-8",
   "cached": false
 }
-Perfect! I found the Button component. The selector is `zap-button` and it's a simple component with no inputs or outputs defined. Since the Figma component data shows no variant properties, component properties, text layers, or slot layers, this will be a very simple Code Connect file.
+Perfect! I found the button component with selector `zap-button`. Since the Figma component has no variant properties, component properties, text layers, or slot layers, this will be a simple Code Connect file with just the basic component mapping.
 
 ```typescript
 import figma, { html } from '@figma/code-connect'
@@ -316,4 +302,4 @@ export default figma.connect('https://figma.com/file/dummy-angular?node-id=angul
 })
 ```
 
-[Usage: in=3843 out=564 cacheWrite=0 cacheRead=11454 toolCalls=5]
+[Usage: in=3043 out=474 cacheWrite=0 cacheRead=9545 toolCalls=4]

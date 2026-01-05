@@ -1,4 +1,4 @@
-const { detectRecipeStyleComponent } = require('../src/react/recipe-style');
+const { detectRecipeStyleComponent } = require('../src/util/recipe-style');
 
 describe('detectRecipeStyleComponent', () => {
   test('detects recipe style from recipe-like paths', () => {

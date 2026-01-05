@@ -296,7 +296,7 @@ function resolvePaths(config) {
   const superconnectDir = path.join(target, 'superconnect');
   const figmaDir = path.join(superconnectDir, 'figma-components');
   const figmaIndex = path.join(superconnectDir, 'figma-components-index.json');
-  const repoSummary = path.join(superconnectDir, 'repo-summary.json');
+  const repoIndex = path.join(superconnectDir, 'repo-index.json');
   const orientation = path.join(superconnectDir, 'orientation.jsonl');
   const agentLogDir = path.join(superconnectDir, 'orienter-agent.log');
   const codegenTranscriptDir = path.join(superconnectDir, 'codegen-agent-transcripts');
@@ -309,7 +309,7 @@ function resolvePaths(config) {
     superconnectDir,
     figmaDir,
     figmaIndex,
-    repoSummary,
+    repoIndex,
     orientation,
     agentLogDir,
     codegenTranscriptDir,
@@ -370,7 +370,7 @@ async function main() {
   fs.ensureDirSync(paths.figmaDir);
 
   const needFigmaScan = args.force || !fs.existsSync(paths.figmaIndex);
-  const needRepoSummary = args.force || !fs.existsSync(paths.repoSummary);
+  const needRepoIndex = args.force || !fs.existsSync(paths.repoIndex);
   // Note: In 0.3.x, orientation is merged into unified codegen (no separate orientation stage)
   const rel = (p) => path.relative(process.cwd(), p) || p;
 
@@ -386,22 +386,22 @@ async function main() {
     process.exit(1);
   }
 
-  if (needRepoSummary) {
+  if (needRepoIndex) {
     runNodeScript(
-      `${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`,
-      path.join(paths.scriptDir, 'summarize-repo.js'),
-      ['--root', paths.target]
+      `${highlight('Repo index')} → ${codeColor(rel(paths.repoIndex))}`,
+      path.join(paths.scriptDir, 'build-repo-index.js'),
+      ['--root', paths.target, '--output', paths.repoIndex]
     );
   } else {
     console.log(
-      `${chalk.dim('•')} ${highlight('Repo overview')} (skipped, ${codeColor(
-        rel(paths.repoSummary)
+      `${chalk.dim('•')} ${highlight('Repo index')} (skipped, ${codeColor(
+        rel(paths.repoIndex)
       )} present)`
     );
   }
   let inferredFramework = args.framework || null;
   try {
-    const summaryData = fs.readJsonSync(paths.repoSummary);
+    const summaryData = fs.readJsonSync(paths.repoIndex);
     if (!inferredFramework && summaryData?.primary_framework) {
       inferredFramework = summaryData.primary_framework;
     }
@@ -444,7 +444,7 @@ async function main() {
   if (!args.dryRun) {
     const codegenArgs = [
       '--figma-index', paths.figmaIndex,
-      '--repo-summary', paths.repoSummary,
+      '--repo-summary', paths.repoIndex,
       ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
       ...(agentConfig.maxTokens ? ['--agent-max-tokens', String(agentConfig.maxTokens)] : []),
       '--max-retries', String(codegenConfig.maxRetries),

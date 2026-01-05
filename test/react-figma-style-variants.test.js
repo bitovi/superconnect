@@ -1,7 +1,7 @@
 const {
   extractFigmaStyleVariantKeys,
   mergePropHintsForRecipeStyle
-} = require('../src/react/figma-style-variants');
+} = require('../src/util/figma-style-variants');
 
 describe('extractFigmaStyleVariantKeys', () => {
   test('keeps enum axes and drops boolean/dotted axes', () => {

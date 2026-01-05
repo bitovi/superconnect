@@ -33,3 +33,11 @@
 {"timestamp":"2026-01-05T21:14:44.693Z","component":"angular-1","tool":"queryIndex","params":{"type":"tag","value":"angular-component"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
 {"timestamp":"2026-01-05T21:14:49.248Z","component":"angular-1","tool":"queryIndex","params":{"type":"pathPrefix","value":"src/"},"result":{"count":5,"size_bytes":0,"cached":false},"duration_ms":1}
 {"timestamp":"2026-01-05T21:14:54.884Z","component":"angular-1","tool":"readFile","params":{"path":"src/app/components/zap-button/zap-button.component.ts"},"result":{"count":1,"size_bytes":167,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T21:19:39.007Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"ButtonComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:19:40.685Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"Button"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:19:45.800Z","component":"angular-1","tool":"queryIndex","params":{"type":"pathPrefix","value":"src/app/components/"},"result":{"count":4,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:19:50.729Z","component":"angular-1","tool":"readFile","params":{"path":"src/app/components/zap-button/zap-button.component.ts"},"result":{"count":1,"size_bytes":167,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T21:22:48.718Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"ButtonComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:22:50.698Z","component":"angular-1","tool":"queryIndex","params":{"type":"exports","value":"Button"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:22:55.844Z","component":"angular-1","tool":"queryIndex","params":{"type":"pathPrefix","value":"src/"},"result":{"count":5,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:22:57.819Z","component":"angular-1","tool":"readFile","params":{"path":"src/app/components/zap-button/zap-button.component.ts"},"result":{"count":1,"size_bytes":167,"cached":false},"duration_ms":2}

@@ -104,6 +104,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const crypto = require('crypto');
 const fg = require('fast-glob');
+const { detectFrameworks } = require('../src/util/detect-framework');
 
 const DEFAULT_IGNORES = [
   '**/node_modules/**',
@@ -283,10 +284,18 @@ const findPackageRoot = (filePath, packageRoots) => {
 };
 
 const buildIndex = async ({ root, maxFileBytes }) => {
-  const [filePaths, packageRoots] = await Promise.all([
+  const [filePaths, packageRoots, packageJsonContent] = await Promise.all([
     fg(DEFAULT_FILE_PATTERNS, { cwd: root, ignore: DEFAULT_IGNORES, dot: false }),
     buildPackageRoots(root),
+    fs.readJson(path.join(root, 'package.json')).catch(() => null),
   ]);
+
+  // Detect frameworks
+  const frameworkInfo = await detectFrameworks({
+    root,
+    packageJson: packageJsonContent,
+    ignore: DEFAULT_IGNORES,
+  });
 
   const stats = {
     totalFiles: filePaths.length,
@@ -368,6 +377,8 @@ const buildIndex = async ({ root, maxFileBytes }) => {
     });
 
   return {
+    frameworks: frameworkInfo.frameworks,
+    primary_framework: frameworkInfo.primaryFramework,
     schema: 'repo-index@1',
     root: path.resolve(root),
     generatedAt: new Date().toISOString(),

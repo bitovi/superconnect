@@ -24,3 +24,10 @@
 {"timestamp":"2026-01-05T21:14:14.547Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
 {"timestamp":"2026-01-05T21:14:16.476Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
 {"timestamp":"2026-01-05T21:14:22.318Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T21:19:19.177Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:19:24.240Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:19:29.128Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":3}
+{"timestamp":"2026-01-05T21:22:20.956Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:22:25.987Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":2,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:22:31.558Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:22:36.933Z","component":"react-1","tool":"readFile","params":{"path":"superconnect/spike-output.figma.tsx"},"result":{"count":1,"size_bytes":871,"cached":false},"duration_ms":2}

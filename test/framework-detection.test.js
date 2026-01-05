@@ -2,13 +2,13 @@ const fs = require('fs-extra');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const summarizeScript = path.join(__dirname, '..', 'scripts', 'summarize-repo.js');
+const buildIndexScript = path.join(__dirname, '..', 'scripts', 'build-repo-index.js');
 
 const runSummary = (root, outputFile) => {
-  const output = outputFile || path.join(root, 'superconnect', 'repo-summary.json');
+  const output = outputFile || path.join(root, 'superconnect', 'repo-index.json');
   fs.removeSync(output);
   fs.ensureDirSync(path.dirname(output));
-  execFileSync('node', [summarizeScript, '--root', root, '--output', output], {
+  execFileSync('node', [buildIndexScript, '--root', root, '--output', output], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'inherit'],
   });

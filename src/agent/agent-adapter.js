@@ -23,7 +23,6 @@ const parseMaxTokens = (value, fallback) => {
 
 /**
  * AgentAdapter interface (contract):
- *  - orient({ payload, logLabel?, outputStream?, logDir? }) -> Promise<{ code, stdout, stderr, logFile }>
  *  - codegen({ payload, logLabel?, cwd?, logDir? }) -> Promise<{ code, stdout, stderr, logFile }>
  *
  * Implementations abstract how we talk to an agent (CLI, SDK, etc.).
@@ -58,19 +57,10 @@ class ClaudeAgentAdapter {
       );
     }
 
-    // Set a longer timeout (20 minutes) for large orientation tasks
+    // Set a longer timeout (20 minutes) for large codegen tasks
     this.client = new Anthropic({
       apiKey,
       timeout: 20 * 60 * 1000 // 20 minutes in milliseconds
-    });
-  }
-
-  orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
-    return this.run({
-      payload,
-      logLabel,
-      logDir,
-      outputStream
     });
   }
 

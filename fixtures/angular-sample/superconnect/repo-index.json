@@ -1,7 +1,11 @@
 {
+  "frameworks": [
+    "angular"
+  ],
+  "primary_framework": "angular",
   "schema": "repo-index@1",
   "root": "/Users/brandonharvey/src/superconnect/fixtures/angular-sample",
-  "generatedAt": "2026-01-05T20:43:50.869Z",
+  "generatedAt": "2026-01-05T21:22:05.831Z",
   "repoHash": "d263da393567925745ef730af1b4575766d4c2f9e5315d1c2f4893710fbf59b8",
   "maxFileBytes": 204800,
   "ignorePatterns": [
@@ -60,21 +64,6 @@
       "parseStatus": "parsed"
     },
     {
-      "path": "src/app/components/zap-button/zap-button.component.ts",
-      "packageRoot": ".",
-      "size": 167,
-      "language": "ts",
-      "tags": [
-        "component"
-      ],
-      "exports": [
-        "ZapButtonComponent"
-      ],
-      "reexportAll": [],
-      "importsLocal": [],
-      "parseStatus": "parsed"
-    },
-    {
       "path": "src/app/components/zap-badge/zap-badge.component.ts",
       "packageRoot": ".",
       "size": 300,
@@ -84,6 +73,21 @@
       ],
       "exports": [
         "ZapBadgeComponent"
+      ],
+      "reexportAll": [],
+      "importsLocal": [],
+      "parseStatus": "parsed"
+    },
+    {
+      "path": "src/app/components/zap-button/zap-button.component.ts",
+      "packageRoot": ".",
+      "size": 167,
+      "language": "ts",
+      "tags": [
+        "component"
+      ],
+      "exports": [
+        "ZapButtonComponent"
       ],
       "reexportAll": [],
       "importsLocal": [],
@@ -121,17 +125,17 @@
     }
   ],
   "exportIndex": {
-    "ZapCardComponent": [
-      "src/app/components/zap-card/zap-card.component.ts"
-    ],
     "AppModule": [
       "src/app/app.module.ts"
+    ],
+    "ZapBadgeComponent": [
+      "src/app/components/zap-badge/zap-badge.component.ts"
     ],
     "ZapButtonComponent": [
       "src/app/components/zap-button/zap-button.component.ts"
     ],
-    "ZapBadgeComponent": [
-      "src/app/components/zap-badge/zap-badge.component.ts"
+    "ZapCardComponent": [
+      "src/app/components/zap-card/zap-card.component.ts"
     ],
     "ZapToggleComponent": [
       "src/app/components/zap-toggle/zap-toggle.component.ts"
