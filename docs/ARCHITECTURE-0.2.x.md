@@ -26,8 +26,6 @@ Key architectural differences from 0.2.x:
 - **Unified flow**: Single agentic call per component handles both orientation and codegen
 - **Validation loop**: Built-in validation with retry eliminates error accumulation
 
-**For detailed 0.3.x pipeline specification, see [PIPELINE-SPEC-0.3.x.md](./PIPELINE-SPEC-0.3.x.md).**
-
 ## Runtime components
 
 - **CLI orchestrator** (`scripts/run-pipeline.js`)
