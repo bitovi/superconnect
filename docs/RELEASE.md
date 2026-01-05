@@ -16,8 +16,8 @@ git add -A && git commit -m "Release v0.X.Y"
 git tag v0.X.Y
 git push origin main --tags
 
-# 4. Wait for CI + E2E to pass:
-echo "⏳ Waiting for CI (unit tests: 3 OS) and E2E (chakra, zapui) to complete..."
+# 4. Wait for E2E to pass:
+echo "⏳ Waiting for E2E (chakra, zapui) to complete..."
 gh run watch --exit-status || (gh run view --log | grep -E "FAIL|ERROR|✕" | tail -20)
 
 # 5. Create GitHub release (triggers npm publish):
@@ -64,20 +64,21 @@ pnpm test:e2e:zapui   # Takes ~2 minutes
 
 **Note:** If E2E fails, check whether it's a pre-existing fixture issue or a new regression from your changes. The fixtures (chakra-ui, zapui) may have data quality issues unrelated to your code.
 
-### 4. Push (triggers CI + E2E tests)
+### 4. Push (triggers E2E tests)
 
 ```bash
 git push origin main --tags
 ```
 
 This triggers:
-- **CI workflow** - unit tests on Ubuntu, Windows, macOS
 - **E2E workflow** - integration tests with chakra-ui and zapui fixtures
+
+**Note:** CI unit tests are skipped for commits starting with "Release v" (by design). E2E tests provide sufficient coverage for releases.
 
 ### 5. Wait for tests
 
 ```bash
-echo "⏳ Waiting for CI (unit tests: 3 OS) and E2E (chakra, zapui) to complete..."
+echo "⏳ Waiting for E2E (chakra, zapui) to complete..."
 gh run watch --exit-status
 ```
 

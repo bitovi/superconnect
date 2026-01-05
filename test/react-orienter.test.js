@@ -3,7 +3,8 @@ const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
 
-const orienterScript = path.join(__dirname, '..', 'scripts', 'run-orienter.js');
+// 0.3.x: Orienter script removed (unified into codegen)
+const orienterScript = path.join(__dirname, '..', 'scripts', 'archive', 'run-orienter-0.2.x.js');
 
 const copyFixture = (fixtureDir) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'react-orienter-'));
@@ -58,7 +59,8 @@ const readOrientationLines = (filePath) =>
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 
-describe('react orienter with fake output', () => {
+// 0.3.x: Orientation tests skipped (feature merged into unified codegen)
+describe.skip('react orienter with fake output', () => {
   test('writes orientation including the mapped React file', () => {
     const fixtureDir = copyFixture(path.join(__dirname, '..', 'fixtures', 'react-sample'));
     const { output, stdout } = runOrienterFake(fixtureDir);

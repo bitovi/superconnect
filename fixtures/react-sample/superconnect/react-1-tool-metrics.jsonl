@@ -1,0 +1,17 @@
+{"timestamp":"2026-01-05T17:29:40.218Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T17:29:43.409Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T17:29:47.094Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T17:29:50.678Z","component":"react-1","tool":"queryIndex","params":{"type":"tag","value":"react-component"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T17:29:52.095Z","component":"react-1","tool":"listFiles","params":{"directory":"src"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:45:13.638Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:45:19.235Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T20:45:24.712Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T20:46:07.099Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:46:12.409Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T20:46:17.940Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T20:48:50.007Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:48:56.061Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:49:01.495Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T20:50:05.772Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:50:07.609Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":1,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T20:50:14.062Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":2}

@@ -16,8 +16,10 @@
       "figma.config.json"
     ],
     "files": {
-      "count": 0,
-      "samples": []
+      "count": 1,
+      "samples": [
+        "superconnect/spike-output.figma.tsx"
+      ]
     }
   },
   "components": {

@@ -1,0 +1,140 @@
+{
+  "schema": "repo-index@1",
+  "root": "/Users/brandonharvey/src/superconnect/fixtures/angular-sample",
+  "generatedAt": "2026-01-05T20:43:50.869Z",
+  "repoHash": "d263da393567925745ef730af1b4575766d4c2f9e5315d1c2f4893710fbf59b8",
+  "maxFileBytes": 204800,
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.turbo/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/storybook-static/**",
+    "**/codeConnect/**",
+    "**/coverage/**",
+    "**/tmp/**",
+    "**/.cache/**",
+    "**/.history/**",
+    "**/*.d.ts",
+    "**/*.d.mts",
+    "**/*.d.cts",
+    "**/*.gen.ts",
+    "**/*.gen.tsx",
+    "**/__generated__/**",
+    "**/generated/**"
+  ],
+  "filePatterns": [
+    "**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}"
+  ],
+  "packageRoots": [
+    "."
+  ],
+  "stats": {
+    "totalFiles": 5,
+    "parsedFiles": 5,
+    "skippedLargeFiles": 0,
+    "byLanguage": {
+      "ts": 5
+    }
+  },
+  "files": [
+    {
+      "path": "src/app/app.module.ts",
+      "packageRoot": ".",
+      "size": 592,
+      "language": "ts",
+      "tags": [],
+      "exports": [
+        "AppModule"
+      ],
+      "reexportAll": [],
+      "importsLocal": [
+        "./components/zap-badge/zap-badge.component",
+        "./components/zap-button/zap-button.component",
+        "./components/zap-card/zap-card.component",
+        "./components/zap-toggle/zap-toggle.component"
+      ],
+      "parseStatus": "parsed"
+    },
+    {
+      "path": "src/app/components/zap-button/zap-button.component.ts",
+      "packageRoot": ".",
+      "size": 167,
+      "language": "ts",
+      "tags": [
+        "component"
+      ],
+      "exports": [
+        "ZapButtonComponent"
+      ],
+      "reexportAll": [],
+      "importsLocal": [],
+      "parseStatus": "parsed"
+    },
+    {
+      "path": "src/app/components/zap-badge/zap-badge.component.ts",
+      "packageRoot": ".",
+      "size": 300,
+      "language": "ts",
+      "tags": [
+        "component"
+      ],
+      "exports": [
+        "ZapBadgeComponent"
+      ],
+      "reexportAll": [],
+      "importsLocal": [],
+      "parseStatus": "parsed"
+    },
+    {
+      "path": "src/app/components/zap-card/zap-card.component.ts",
+      "packageRoot": ".",
+      "size": 223,
+      "language": "ts",
+      "tags": [
+        "component"
+      ],
+      "exports": [
+        "ZapCardComponent"
+      ],
+      "reexportAll": [],
+      "importsLocal": [],
+      "parseStatus": "parsed"
+    },
+    {
+      "path": "src/app/components/zap-toggle/zap-toggle.component.ts",
+      "packageRoot": ".",
+      "size": 500,
+      "language": "ts",
+      "tags": [
+        "component"
+      ],
+      "exports": [
+        "ZapToggleComponent"
+      ],
+      "reexportAll": [],
+      "importsLocal": [],
+      "parseStatus": "parsed"
+    }
+  ],
+  "exportIndex": {
+    "ZapCardComponent": [
+      "src/app/components/zap-card/zap-card.component.ts"
+    ],
+    "AppModule": [
+      "src/app/app.module.ts"
+    ],
+    "ZapButtonComponent": [
+      "src/app/components/zap-button/zap-button.component.ts"
+    ],
+    "ZapBadgeComponent": [
+      "src/app/components/zap-badge/zap-badge.component.ts"
+    ],
+    "ZapToggleComponent": [
+      "src/app/components/zap-toggle/zap-toggle.component.ts"
+    ]
+  }
+}

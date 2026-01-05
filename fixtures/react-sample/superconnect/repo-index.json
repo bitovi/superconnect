@@ -1,0 +1,63 @@
+{
+  "schema": "repo-index@1",
+  "root": "/Users/brandonharvey/src/superconnect/fixtures/react-sample",
+  "generatedAt": "2026-01-04T16:00:42.620Z",
+  "repoHash": "92a17c616b1a807beef6c54b6f660db4828e92e07dbc9709cef8bb376ac11c87",
+  "maxFileBytes": 204800,
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.turbo/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/storybook-static/**",
+    "**/codeConnect/**",
+    "**/coverage/**",
+    "**/tmp/**",
+    "**/.cache/**",
+    "**/.history/**",
+    "**/*.d.ts",
+    "**/*.d.mts",
+    "**/*.d.cts",
+    "**/*.gen.ts",
+    "**/*.gen.tsx",
+    "**/__generated__/**",
+    "**/generated/**"
+  ],
+  "filePatterns": [
+    "**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}"
+  ],
+  "packageRoots": [
+    "."
+  ],
+  "stats": {
+    "totalFiles": 1,
+    "parsedFiles": 1,
+    "skippedLargeFiles": 0,
+    "byLanguage": {
+      "tsx": 1
+    }
+  },
+  "files": [
+    {
+      "path": "src/App.tsx",
+      "packageRoot": ".",
+      "size": 87,
+      "language": "tsx",
+      "tags": [],
+      "exports": [
+        "App"
+      ],
+      "reexportAll": [],
+      "importsLocal": [],
+      "parseStatus": "parsed"
+    }
+  ],
+  "exportIndex": {
+    "App": [
+      "src/App.tsx"
+    ]
+  }
+}

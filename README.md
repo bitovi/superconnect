@@ -12,7 +12,7 @@ Figma Code Connect [also offers an interactive setup to help create Code Connect
 
 - **Works fully automatically** - no interactive terminal prompts, maps all components in one run
 - **Supports Angular/HTML** - Figma's interactive setup and AI features only work for React components; Angular requires manual mapping
-- **Lets you bring your own AI model** - use Claude, OpenAI, or switch to a smarter model if needed
+- **Uses advanced agent tools** - agents explore your codebase intelligently during generation, finding the right files and understanding your architecture
 
 # Installation
 
@@ -32,7 +32,7 @@ Figma Code Connect [also offers an interactive setup to help create Code Connect
     - `ANTHROPIC_API_KEY` – for Anthropic Claude (the default)
     - `OPENAI_API_KEY` – for OpenAI or OpenAI-compatible endpoints
 
-- superconnect.toml
+- `superconnect.toml`
   - Superconnect looks for this config file in the current working directory
   - If missing, the tool will prompt you on first run and create it for you
 
@@ -137,25 +137,27 @@ Superconnect runs five logical stages:
   1. Repo summarizer (scripts/summarize-repo.js) -- scans a React/Typescript or Angular component repo to get the lay of the land
       - Input: repo root (component_repo_path)
       - Output: superconnect/repo-summary.json (exports, file structure hints, detected frameworks, Angular component selectors/modules/templates, etc.)
+  1. Repo indexer (scripts/build-repo-index.js) -- builds searchable index of codebase for agent tools
+      - Input: Component repo path
+      - Output: superconnect/repo-index.json (file tree, imports, exports, component definitions)
   2. Figma scan (scripts/figma-scan.js) -- scans a design system in Figma and extracts component metadata
       - Input: Figma URL/key + Figma token
       - Output:
           - superconnect/figma-components-index.json
           - One JSON per component set in superconnect/figma-components/
-  3. Orienter (scripts/run-orienter.js) -- first step of the code generation phase; agent narrows which files to use for each Figma component
-      - Input: Figma index + repo summary + optional target framework hint
-      - Output: superconnect/orientation.jsonl (one JSON per Figma component), oriented logs grouped with codegen in stdout coloring; supports --dry-run and fake outputs for tests
-  4. Codegen (scripts/run-codegen.js) -- a series of agents that each write a single Code Code mapping file {component}.figma.tsx (React) or {component}.figma.ts (Angular). If the agent isn't confident about a mapping, it will log its explanation or fall back to stubs for Angular
+  3. Unified codegen (scripts/run-codegen.js) -- agent-powered generation of Code Connect files with built-in exploration
       - Input:
-          - superconnect/orientation.jsonl
+          - superconnect/figma-components-index.json
+          - superconnect/repo-index.json
           - superconnect/figma-components/{component}.json
-          - superconnect/repo-summary.json (framework hints, Angular components)
-          - Source files from the component repo
-      - Output: codeConnect/{component}.figma.tsx or .figma.ts
+          - Agent explores source files via tools (queryIndex, readFile, listFiles)
+      - Output: 
+          - codeConnect/{component}.figma.tsx (React) or .figma.ts (Angular)
+          - superconnect/codegen-summaries/{component}-codegen-summary.json (with tool metrics)
       - Agents follow Figma's Code Connect API documentation:
           - React: https://developers.figma.com/docs/code-connect/react/
           - HTML/Angular: https://developers.figma.com/docs/code-connect/html/
-  5. Finalizer (scripts/finalize.js)
+  4. Finalizer (scripts/finalize.js)
       - Input: everything above
       - Output: A human-friendly run summary printed to stdout (no file), with colored sections and stats, plus figma.config.json written at the repo root (parser/label and include globs set for React or Angular)
 

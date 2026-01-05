@@ -309,6 +309,171 @@ class ClaudeAgentAdapter {
       throw err;
     }
   }
+
+  /**
+   * Chat with tool support for agentic codegen.
+   * Handles tool call loops: agent → tool → agent → tool... → final response
+   * @param {object} params
+   * @param {string} params.system - System message (guidance + API docs)
+   * @param {string} params.user - Initial user message
+   * @param {Array} params.tools - Tool definitions (Anthropic format)
+   * @param {Function} params.toolHandler - Async function(toolName, toolInput) => result
+   * @param {number} params.maxTokens - Max tokens per response
+   * @param {string} params.logLabel - Label for logging
+   * @param {string} params.logDir - Directory for I/O logs
+   * @returns {Promise<{text: string, usage: object, toolCalls: Array}>}
+   */
+  async chatWithTools({ system, user, tools, toolHandler, maxTokens, logLabel = 'agentic', logDir } = {}) {
+    if (!this.client) {
+      throw new Error('ANTHROPIC_API_KEY is required for ClaudeAgentAdapter');
+    }
+
+    const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
+    const writeLog = (text) => {
+      if (logStream?.stream) logStream.stream.write(text);
+    };
+
+    try {
+      writeLog('=== AGENT INPUT ===\n');
+      writeLog('## System\n');
+      writeLog(system);
+      writeLog('\n\n## User\n');
+      writeLog(user);
+      writeLog('\n\n=== AGENT OUTPUT ===\n');
+
+      // System message with cache control
+      const systemContent = [
+        {
+          type: 'text',
+          text: system,
+          cache_control: { type: 'ephemeral' }
+        }
+      ];
+
+      // Build conversation messages
+      const messages = [{ role: 'user', content: user }];
+      const allToolCalls = [];
+      let totalUsage = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0
+      };
+
+      // Tool use loop: keep calling until agent returns final text
+      let loopCount = 0;
+      const maxLoops = 25; // Safety limit
+
+      while (loopCount < maxLoops) {
+        loopCount++;
+
+        const response = await this.client.messages.create({
+          model: this.model,
+          max_tokens: maxTokens || this.maxTokens,
+          system: systemContent,
+          messages,
+          tools,
+          stream: false
+        });
+
+        // Accumulate usage
+        if (response.usage) {
+          totalUsage.inputTokens += response.usage.input_tokens || 0;
+          totalUsage.outputTokens += response.usage.output_tokens || 0;
+          totalUsage.cacheWriteTokens += response.usage.cache_creation_input_tokens || 0;
+          totalUsage.cacheReadTokens += response.usage.cache_read_input_tokens || 0;
+        }
+
+        // Add assistant response to conversation
+        messages.push({
+          role: 'assistant',
+          content: response.content
+        });
+
+        // Check stop reason
+        if (response.stop_reason === 'end_turn') {
+          // Agent finished - extract final text
+          const text = extractClaudeText(response) || '';
+          writeLog(text);
+
+          if (totalUsage) {
+            const usageMsg = `\n\n[Usage: in=${totalUsage.inputTokens} out=${totalUsage.outputTokens} cacheWrite=${totalUsage.cacheWriteTokens} cacheRead=${totalUsage.cacheReadTokens} toolCalls=${allToolCalls.length}]\n`;
+            writeLog(usageMsg);
+          }
+
+          if (logStream?.stream) logStream.stream.end();
+          return { text, usage: totalUsage, toolCalls: allToolCalls };
+        }
+
+        if (response.stop_reason === 'tool_use') {
+          // Agent wants to use tools - process them
+          const toolUseBlocks = response.content.filter(block => block.type === 'tool_use');
+          const toolResults = [];
+
+          for (const toolUse of toolUseBlocks) {
+            writeLog(`\n[Tool Call: ${toolUse.name}]\n`);
+            writeLog(JSON.stringify(toolUse.input, null, 2));
+            writeLog('\n');
+
+            allToolCalls.push({
+              name: toolUse.name,
+              input: toolUse.input,
+              id: toolUse.id
+            });
+
+            try {
+              const result = await toolHandler(toolUse.name, toolUse.input);
+              
+              writeLog(`[Tool Result: ${toolUse.name}]\n`);
+              writeLog(JSON.stringify(result, null, 2));
+              writeLog('\n');
+
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: toolUse.id,
+                content: JSON.stringify(result)
+              });
+            } catch (err) {
+              writeLog(`[Tool Error: ${toolUse.name}]\n`);
+              writeLog(err.message);
+              writeLog('\n');
+
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: toolUse.id,
+                content: JSON.stringify({ error: err.message }),
+                is_error: true
+              });
+            }
+          }
+
+          // Add tool results to conversation
+          messages.push({
+            role: 'user',
+            content: toolResults
+          });
+
+          // Continue loop - agent will process tool results
+          continue;
+        }
+
+        // Unexpected stop reason
+        writeLog(`\n[Unexpected stop_reason: ${response.stop_reason}]\n`);
+        break;
+      }
+
+      // If we hit max loops, return what we have
+      const text = messages.length > 0 ? extractClaudeText(messages[messages.length - 1]) || '' : '';
+      writeLog(`\n[Warning: Reached max tool loop iterations (${maxLoops})]\n`);
+
+      if (logStream?.stream) logStream.stream.end();
+      return { text, usage: totalUsage, toolCalls: allToolCalls };
+    } catch (err) {
+      writeLog(`\nError: ${err.message}\n`);
+      if (logStream?.stream) logStream.stream.end();
+      throw err;
+    }
+  }
 }
 
 module.exports = {
