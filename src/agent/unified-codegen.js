@@ -137,8 +137,8 @@ async function processComponentWithTools({
   figmaUrl,
   indexSummary,
   framework,
-  maxRetries,
-  maxTokens,
+  maxRetries = DEFAULT_MAX_RETRIES,
+  maxTokens = DEFAULT_MAX_TOKENS,
   logDir,
   componentId
 }) {
