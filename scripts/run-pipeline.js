@@ -454,7 +454,7 @@ async function main() {
       ...(args.force ? ['--force'] : [])
     ];
     runNodeScript(
-      `${highlight('Unified codegen')} (${codeColor(rel(paths.repoSummary))} + ${figmaColor(rel(paths.figmaIndex))} → ${generatedColor(rel(paths.codeConnectDir))})`,
+      `${highlight('Unified codegen')} (${codeColor(rel(paths.repoIndex))} + ${figmaColor(rel(paths.figmaIndex))} → ${generatedColor(rel(paths.codeConnectDir))})`,
       path.join(paths.scriptDir, 'run-codegen.js'),
       codegenArgs,
       {

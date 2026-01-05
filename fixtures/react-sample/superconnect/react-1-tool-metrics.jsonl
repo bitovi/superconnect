@@ -31,3 +31,7 @@
 {"timestamp":"2026-01-05T21:22:25.987Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":2,"size_bytes":0,"cached":false},"duration_ms":0}
 {"timestamp":"2026-01-05T21:22:31.558Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":1}
 {"timestamp":"2026-01-05T21:22:36.933Z","component":"react-1","tool":"readFile","params":{"path":"superconnect/spike-output.figma.tsx"},"result":{"count":1,"size_bytes":871,"cached":false},"duration_ms":2}
+{"timestamp":"2026-01-05T21:24:53.499Z","component":"react-1","tool":"queryIndex","params":{"type":"exports","value":"FixtureComponent"},"result":{"count":0,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:24:58.381Z","component":"react-1","tool":"queryIndex","params":{"type":"listAll"},"result":{"count":2,"size_bytes":0,"cached":false},"duration_ms":0}
+{"timestamp":"2026-01-05T21:25:03.687Z","component":"react-1","tool":"readFile","params":{"path":"src/App.tsx"},"result":{"count":1,"size_bytes":87,"cached":false},"duration_ms":1}
+{"timestamp":"2026-01-05T21:25:09.374Z","component":"react-1","tool":"readFile","params":{"path":"superconnect/spike-output.figma.tsx"},"result":{"count":1,"size_bytes":871,"cached":false},"duration_ms":1}
