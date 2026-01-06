@@ -200,8 +200,8 @@ Use the tools to find and read the matching component file, then generate the Co
 [Tool Call: queryIndex]
 {
   "query": {
-    "type": "pathPrefix",
-    "value": "button"
+    "type": "exports",
+    "value": "Button"
   }
 }
 [Tool Result: queryIndex]
@@ -214,21 +214,13 @@ Use the tools to find and read the matching component file, then generate the Co
 [Tool Call: queryIndex]
 {
   "query": {
-    "type": "listAll"
+    "type": "pathPrefix",
+    "value": "src/app/components/"
   }
 }
 [Tool Result: queryIndex]
 {
   "files": [
-    {
-      "path": "src/app/app.module.ts",
-      "exports": [
-        "AppModule"
-      ],
-      "tags": [],
-      "size_bytes": 592,
-      "package_root": "."
-    },
     {
       "path": "src/app/components/zap-badge/zap-badge.component.ts",
       "exports": [
@@ -274,7 +266,7 @@ Use the tools to find and read the matching component file, then generate the Co
       "package_root": "."
     }
   ],
-  "total_matches": 5,
+  "total_matches": 4,
   "truncated": false
 }
 
@@ -291,13 +283,7 @@ Use the tools to find and read the matching component file, then generate the Co
   "encoding": "utf-8",
   "cached": false
 }
-Perfect! I found the ZapButtonComponent with selector `zap-button`. Since the Figma component data shows no variant properties, component properties, text layers, or slot layers, this is a simple button component with no inputs.
-
-Based on the component file analysis:
-- Selector: `zap-button`
-- No @Input() properties found
-- No @Output() events found
-- No variants or properties to map
+Perfect! I found the Button component with the selector `zap-button`. Since the Figma component data shows no variant properties, component properties, text layers, or slot layers, this is a simple button component with no configurable properties.
 
 ```typescript
 import figma, { html } from '@figma/code-connect'
@@ -307,4 +293,4 @@ export default figma.connect('https://figma.com/file/dummy-angular?node-id=angul
 })
 ```
 
-[Usage: in=3039 out=522 cacheWrite=0 cacheRead=9545 toolCalls=4]
+[Usage: in=2960 out=476 cacheWrite=1909 cacheRead=7636 toolCalls=4]

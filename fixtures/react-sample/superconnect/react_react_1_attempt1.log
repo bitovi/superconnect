@@ -248,7 +248,7 @@ Use the tools to find and read the matching component file, then generate the Co
   "encoding": "utf-8",
   "cached": false
 }
-It appears that FixtureComponent doesn't exist in the current repository. The repository only contains an App component and a previous Code Connect file. Since the Figma component data shows no variant properties, component properties, text layers, or slot layers, I'll generate a minimal Code Connect file assuming the component exists.
+I can see that the FixtureComponent doesn't exist in the current repository. Since this is a fixture component for testing purposes and the Figma component data shows no variant properties, component properties, text layers, or slot layers, I'll generate a minimal Code Connect file that assumes the component exists:
 
 ```tsx
 import figma from '@figma/code-connect'
@@ -259,4 +259,4 @@ export default figma.connect(FixtureComponent, 'https://figma.com/file/dummy-rea
 })
 ```
 
-[Usage: in=3125 out=518 cacheWrite=0 cacheRead=9405 toolCalls=4]
+[Usage: in=3140 out=522 cacheWrite=1881 cacheRead=7524 toolCalls=4]

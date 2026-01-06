@@ -133,6 +133,23 @@ async function figmaRequest(pathname, token) {
   }
 }
 
+/**
+ * Fetch a specific component node to get full componentPropertyDefinitions.
+ * The initial file fetch may not include these, so we fetch the node directly.
+ */
+async function fetchComponentNode(fileKey, nodeId, token) {
+  try {
+    const data = await figmaRequest(`/v1/files/${fileKey}/nodes?ids=${nodeId}`, token);
+    if (data.nodes && data.nodes[nodeId]) {
+      return data.nodes[nodeId].document;
+    }
+    return null;
+  } catch (err) {
+    console.warn(`Warning: Could not fetch node ${nodeId}: ${err.message}`);
+    return null;
+  }
+}
+
 function findComponentSets(node, acc = [], breadcrumbs = []) {
   if (!node) return acc;
   const nextTrail = node.name ? [...breadcrumbs, node.name] : breadcrumbs;

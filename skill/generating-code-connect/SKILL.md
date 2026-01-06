@@ -42,53 +42,192 @@ Create Code Connect files, write figma.config.json, validate mappings, and optio
 - Read package.json and look for react or @angular/core
 - If ambiguous, ask the user to choose
 
-2) Get Figma data
-- Prefer an MCP server if available and use fully qualified tool names ServerName:tool_name
-- Otherwise use the Figma REST API with FIGMA_ACCESS_TOKEN
-- Follow references/figma-extraction-spec.md for extraction and file naming
-- Extract evidence for each component
-  - variantProperties: map of variant name to list of values
-  - componentProperties: list of { name, type }
-  - textLayers: list of layer names
-  - slotLayers: list of layer names
-- Save evidence per component to codeConnect/.figma-evidence/<normalized>.json
-- Write codeConnect/.figma-evidence/evidence-index.json with original names and normalized names
+2) Extract Figma data with figma-scan.js
+- Use the bundled script for reliable extraction:
+  ```bash
+  node scripts/figma-scan.js <figmaFileUrl> \
+    --token $FIGMA_ACCESS_TOKEN \
+    --output codeConnect/.figma-evidence \
+    --index codeConnect/.figma-evidence/figma-components-index.json
+  ```
+- The script handles all Figma API complexity including:
+  - Fetching componentPropertyDefinitions via /v1/files/:key/nodes endpoint
+  - Parsing variant properties from component names
+  - Extracting text layers for figma.textContent()
+  - Extracting slot layers for figma.children()
+  - Normalizing property names to camelCase
+- Do NOT use raw curl + jq for extraction - the API has edge cases the script handles
+- See references/figma-extraction-spec.md for output format details
 
-3) Read the relevant Figma docs and extract rules
+### Evidence output structure
+Each evidence file contains:
+```json
+{
+  "schemaVersion": "figma-component@1",
+  "componentSetId": "6:4335",
+  "componentName": "Button",
+  "variantProperties": { "Size": ["Compact", "Base", "Wide"] },
+  "variantValueEnums": {
+    "Size": { "normalizedKey": "size", "enums": ["compact", "base", "wide"] }
+  },
+  "componentProperties": [
+    { "name": "Disabled", "type": "BOOLEAN" },
+    { "name": "Label", "type": "STRING" }
+  ],
+  "textLayers": [{ "name": "Label", "type": "TEXT" }],
+  "slotLayers": [{ "name": "Icon", "type": "FRAME" }]
+}
+```
+
+### Evidence quality gate
+Before proceeding to generation, verify evidence is not empty:
+```bash
+for f in codeConnect/.figma-evidence/*.json; do
+  props=$(jq '.variantProperties | length' "$f")
+  comps=$(jq '.componentProperties | length' "$f")
+  if [ "$props" -eq 0 ] && [ "$comps" -eq 0 ]; then
+    echo "WARNING: Empty evidence for $f"
+  fi
+done
+```
+If evidence is empty, the script may need --layer-depth increased or the Figma component genuinely has no configurable properties.
+
+3) Extract code component inputs
+- For Angular, find all inputs in each component:
+  ```bash
+  rg "= input[<\(]" projects/zap/src/lib/components/button/button.component.ts
+  ```
+- For React, find props interface or destructured props:
+  ```bash
+  rg "interface.*Props|type.*Props|function.*\(\{" src/components/Button.tsx
+  ```
+- Update codeConnect/mapping.json with discovered inputs, see references/mapping-spec.md
+
+### Mapping Figma to code
+Create figmaToCodeMap in mapping.json to link Figma property names to code input names:
+```json
+{
+  "figmaToCodeMap": {
+    "Size": "size",
+    "Disabled": "disabled",
+    "Label": "text"
+  }
+}
+```
+Use these heuristics for matching:
+1. Case-insensitive match first (Size → size)
+2. Remove spaces and normalize (Has Icon → hasIcon)
+3. Common synonyms (Label → text, Title → heading)
+4. If ambiguous, prompt the user for confirmation
+
+4) Read the relevant Figma docs and extract rules
 - React: https://developers.figma.com/docs/code-connect/react/
 - HTML and Angular: https://developers.figma.com/docs/code-connect/html/
 - If network access is blocked, ask the user to paste the relevant sections
-- Enforce these rules from the docs
+- Enforce these rules from the docs:
   - figma.connect uses an object literal
   - example uses only props defined in props
   - Use figma.children for slots and figma.textContent for text layers
   - Keep JSX or templates valid and minimal
 
-4) Generate Code Connect files
-- Use codeConnect/mapping.json as the source of truth for component mapping, see references/mapping-spec.md
-- Map props using figma.string, figma.boolean, figma.enum, figma.instance, figma.textContent, figma.children
-- Ensure example uses only defined props
-- Normalize prop keys to camelCase when they contain spaces or punctuation
-- Keep figma.* keys as the original Figma property names
-- Write files to codeConnect/<normalized>.figma.tsx for React or codeConnect/<normalized>.figma.ts for Angular
+### Angular-specific syntax rules
+Use Angular property binding syntax in examples:
+```typescript
+// ✅ CORRECT - Angular property binding
+html`<zap-button [disabled]="props.disabled" [size]="props.size">`
 
-5) Write figma.config.json at repo root
+// ❌ WRONG - HTML attribute syntax
+html`<zap-button disabled=${props.disabled} size="${props.size}">`
+```
+
+For content projection with slots, use figma.children:
+```typescript
+props: {
+  icon: figma.children('Icon'),
+},
+example: ({ icon }) => html`<zap-button>${icon}</zap-button>`
+```
+
+5) Write Code Connect files directly
+- Follow references/code-connect-format.md for exact file structure
+- Read evidence from codeConnect/.figma-evidence/<normalized>.json
+- Read component info from codeConnect/mapping.json
+- Write files directly to codeConnect/<normalized>.figma.ts (Angular) or .figma.tsx (React)
+
+### For each component:
+1. Read the evidence file to get Figma properties
+2. Read the mapping entry to get selector, componentClass, figmaToCodeMap
+3. Build the props object mapping Figma properties to code props
+4. Build the example template using Angular property binding syntax
+5. Write the complete Code Connect file
+
+### Prop mapping rules:
+- `figma.enum('PropName', {...})` for variantProperties
+- `figma.boolean('PropName')` for BOOLEAN componentProperties
+- `figma.string('PropName')` for STRING componentProperties
+- `figma.textContent('LayerName')` for textLayers
+- `figma.children('LayerName')` for slotLayers
+- `figma.instance('PropName')` for INSTANCE_SWAP componentProperties
+
+### URL must include node-id
+Every figma.connect() call MUST include the node-id query parameter:
+```typescript
+// ✅ CORRECT - includes node-id from componentSetId
+figma.connect('https://www.figma.com/design/FILE_KEY/Name?node-id=6-4335', {...})
+
+// ❌ WRONG - missing node-id
+figma.connect('https://www.figma.com/design/FILE_KEY/Name', {...})
+```
+Use the componentSetId from evidence files, converting colon to hyphen (6:4335 → 6-4335).
+
+### Import path discovery
+Do not guess import paths. Derive them from the actual package:
+```bash
+# Find the package name
+jq -r '.name' projects/zap/package.json
+
+# Find exported components
+rg "export \* from|export \{" projects/zap/src/public-api.ts
+```
+
+Write files to codeConnect/<normalized>.figma.tsx for React or codeConnect/<normalized>.figma.ts for Angular
+
+6) Write figma.config.json at repo root
 - Follow references/figma-config-spec.md for a fuller config
 - Use parser: react for .figma.tsx, html for .figma.ts
 - Use include globs for Code Connect files and exclude node_modules, dist, .next
 
-6) Validate using the two-tier validator
+7) Validate using the two-tier validator
 - Run node scripts/validate_code_connect.js
   - Single file: node scripts/validate_code_connect.js --code codeConnect/button.figma.tsx --evidence codeConnect/.figma-evidence/button.json
   - Batch: node scripts/validate_code_connect.js --code-dir codeConnect --evidence-dir codeConnect/.figma-evidence
 - If evidence is missing, stop and ask for it before proceeding
 
-7) Offer to publish
+### Do not generate empty Code Connect files
+If props cannot be determined, either prompt for manual input or skip the component:
+```typescript
+// ❌ NEVER generate this - provides no value
+figma.connect('...', {
+  props: {},
+  example: () => html`<zap-button></zap-button>`
+})
+```
+
+8) Offer to publish
 - Ask before running figma connect publish
 - If user wants a dry run, use figma connect publish --dry-run
 
+## Prerequisites
+For figma-scan.js, ensure dependencies are available:
+```bash
+npm install commander chalk json-stringify-pretty-compact
+```
+
 ## Notes
+- Write Code Connect files directly - do not use a generator script
 - Avoid global installs unless the user explicitly prefers them
 - Keep references one level deep from SKILL.md
 - Use forward slashes in all paths
 - Never print the raw FIGMA_ACCESS_TOKEN value
+- The figma-scan.js script filters hidden components (prefixed with . or _)
+- Use componentSetId from evidence for node-id URLs, not individual variant IDs

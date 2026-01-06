@@ -17,6 +17,9 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const REACT_FIXTURE = path.join(REPO_ROOT, 'fixtures', 'react-sample');
 const ANGULAR_FIXTURE = path.join(REPO_ROOT, 'fixtures', 'angular-sample');
 
+// Skip these tests if ANTHROPIC_API_KEY is not available
+const describeOrSkip = process.env.ANTHROPIC_API_KEY ? describe : describe.skip;
+
 const runCodegen = (fixturePath, framework) => {
   const result = spawnSync(
     'node',
@@ -44,7 +47,7 @@ const runCodegen = (fixturePath, framework) => {
   };
 };
 
-describe('Pipeline 0.3.x E2E', () => {
+describeOrSkip('Pipeline 0.3.x E2E', () => {
   beforeAll(() => {
     // Build repo indexes for fixtures if they don't exist
     const buildIndex = (fixturePath, framework) => {
