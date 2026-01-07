@@ -6,6 +6,8 @@ The Figma Code Connect API docs follow this prompt—use them as the API referen
 
 ## Rules
 
+**In import statements, do not use internal import paths.** In production, consumers typically install via npm. The internal paths only exist in the monorepo source tree — they'd break if someone tried to use these Code Connect files in a consuming project. Our goal is to create Code Connect files that can be used in production. You should package.json exports or the package name, understand the monorepo's publish structure, and map internal paths → published package names.
+
 **Only use properties from the Figma Component Data section.**
 - `componentProperties[]` → `figma.boolean()`, `figma.string()`, `figma.instance()`
 - `variantProperties{}` → `figma.enum()`
@@ -41,7 +43,10 @@ Don't use conditionals (`{type === 'x' && ...}`) to handle structural variants.
 
 Code Connect treats snippets as strings—ternaries/operators appear literally, breaking output.
 
-**NEVER use `&&`, `||`, or ternaries in example JSX.**
+**NEVER use ternaries in example JSX.**
+Code Connect files aren't executed — they're parsed by Figma's static analyzer to extract the component structure. Ternary expressions require runtime evaluation, which breaks static analysis. The figma.boolean() function is a declarative way to express the same thing that can be statically analyzed.
+
+**Also NEVER use `&&` or `||` in example JSX.**
 
 ❌ `{hasIcon && <Icon />}` 
 ❌ `{icon || <Fallback />}`
