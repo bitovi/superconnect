@@ -24,6 +24,25 @@ const parseMaxTokens = (value, fallback) => {
 };
 
 /**
+ * Extract clean code from LLM responses, handling markdown fences and thinking text.
+ * Used by agent-SDK to strip explanatory text that sometimes leaks through.
+ */
+const extractCleanCode = (text) => {
+  if (!text) return '';
+  text = text.trim();
+  
+  // Extract code from markdown fence
+  const fenceMatch = text.match(/```(?:tsx?|typescript|javascript|js)?[^\n]*\n([\s\S]*?)```/);
+  if (fenceMatch) return fenceMatch[1].trim();
+  
+  // If starts with import/const/figma, assume it's pure code
+  if (/^(import\s|const\s|export\s|figma\.)/.test(text)) return text;
+  
+  // Otherwise return as-is (validation will catch issues)
+  return text;
+};
+
+/**
  * AgentAdapter interface (contract):
  *  - orient({ payload, logLabel?, outputStream?, logDir? }) -> Promise<{ code, stdout, stderr, logFile }>
  *  - codegen({ payload, logLabel?, cwd?, logDir? }) -> Promise<{ code, stdout, stderr, logFile }>
@@ -638,7 +657,8 @@ class AgentSDKAdapter {
 
         // Capture final result
         if (message.type === 'result') {
-          resultText = message.result || '';
+          const rawResult = message.result || '';
+          resultText = extractCleanCode(rawResult);  // Strip thinking text and extract code
           
           if (message.usage) {
             totalUsage.inputTokens = message.usage.input_tokens || 0;
