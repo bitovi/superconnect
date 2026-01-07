@@ -23,14 +23,17 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - When `SUPERCONNECT_E2E_VERBOSE` is truthy, captures stage stdout/stderr for easier test debugging
 
 - **Agent adapters** (`src/agent/agent-adapter.js`)
-  - `OpenAIAgentAdapter` (Responses API) and `ClaudeAgentAdapter` (Anthropic SDK)
+  - `OpenAIAgentAdapter` (OpenAI Responses API)
+  - `ClaudeAgentAdapter` (Anthropic Messages API)
+  - `AgentSDKAdapter` (Anthropic Claude Agent SDK with built-in tools)
   - Implement a shared interface:
     - `orient({ payload, logLabel, outputStream, logDir })` – single-turn for orienter stage
     - `chatStateless({ system, user, maxTokens, logLabel })` – single-turn stateless call for direct codegen (used for initial generation and retry attempts)
   - Handle:
     - Model selection and `maxTokens` from config
     - Writing `=== AGENT INPUT ===` and `=== AGENT OUTPUT ===` logs to disk
-    - Returning `{ code, stdout, stderr, logFile }` to callers
+    - Returning `{ text, usage }` or `{ code, stdout, stderr, logFile }` to callers
+  - `AgentSDKAdapter` (experimental) allows agent to explore codebase using Read, Glob, and Grep tools before generating Code Connect files
 
 ## Pipeline stages and data flow
 

@@ -72,14 +72,16 @@ function normalizeAgentConfig(agentSection = {}) {
   const rawApi = agentSection.api || agentSection.backend || DEFAULT_API;
   // Normalize 'claude' → 'anthropic' for backward compatibility
   const apiRaw = (rawApi === 'claude' ? 'anthropic' : rawApi).toLowerCase();
-  const api = apiRaw === 'openai' || apiRaw === 'anthropic' ? apiRaw : DEFAULT_API;
+  const api = ['openai', 'anthropic', 'anthropic-agents'].includes(apiRaw) ? apiRaw : DEFAULT_API;
   const model =
     agentSection.model || agentSection.sdk_model ||
     (api === 'openai'
       ? DEFAULT_OPENAI_MODEL
+      : api === 'anthropic-agents'
+      ? 'claude-sonnet-4-5'
       : DEFAULT_ANTHROPIC_MODEL);
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
-  const resolvedMaxTokens = api === 'anthropic' ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
+  const resolvedMaxTokens = (api === 'anthropic' || api === 'anthropic-agents') ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
   
   // Support for custom OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
   const baseUrl = agentSection.base_url || null;
@@ -455,6 +457,8 @@ async function main() {
   const agentLabel =
     agentConfig.api === 'openai'
       ? `openai${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
+      : agentConfig.api === 'anthropic-agents'
+      ? `anthropic-agents${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
       : `anthropic${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
   console.log(`${chalk.dim('•')} ${highlight('Agent API')}: ${highlight(agentLabel)}`);
 

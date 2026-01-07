@@ -25,7 +25,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { Command } = require('commander');
-const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
+const { OpenAIAgentAdapter, ClaudeAgentAdapter, AgentSDKAdapter } = require('../src/agent/agent-adapter');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 const { processComponent: processReactComponent } = require('../src/react/direct-codegen');
 const { processComponent: processAngularComponent } = require('../src/angular/direct-codegen');
@@ -902,6 +902,7 @@ const writeLog = async (logDir, name, entry) => {
 const buildAdapter = (config) => {
   const api = config.agentApi;
   const maxTokens = config.agentMaxTokens || undefined;
+  
   if (api === 'openai') {
     return new OpenAIAgentAdapter({
       model: config.agentModel || undefined,
@@ -912,6 +913,17 @@ const buildAdapter = (config) => {
       apiKey: config.agentApiKey || undefined
     });
   }
+  
+  if (api === 'anthropic-agents') {
+    const { AgentSDKAdapter } = require('../src/agent/agent-adapter');
+    return new AgentSDKAdapter({
+      model: config.agentModel || 'claude-sonnet-4-5',
+      logDir: config.agentLogDir,
+      cwd: config.repo,
+      maxTokens
+    });
+  }
+  
   return new ClaudeAgentAdapter({
     model: config.agentModel || undefined,
     logDir: config.agentLogDir,
@@ -928,7 +940,7 @@ const parseArgs = (argv) => {
     .requiredOption('--orienter <file>', 'Orienter JSONL output (one JSON object per line)')
     .option('--repo-summary <file>', 'Path to repo-summary.json', null)
     .option('--force', 'Overwrite existing *.figma.tsx files', false)
-    .option('--agent-api <value>', 'Agent API format (openai|anthropic)', 'anthropic')
+    .option('--agent-api <value>', 'Agent API format (openai|anthropic|anthropic-agents)', 'anthropic')
     .option('--agent-model <value>', 'Model name (e.g., gpt-5.1-codex-mini, claude-haiku-4-5)')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
     .option('--agent-base-url <value>', 'Base URL for OpenAI-compatible API (e.g., LiteLLM, Azure, vLLM)')
@@ -1212,7 +1224,8 @@ async function main() {
         sourceContext,
         maxRetries: 2,
         maxTokens: config.agentMaxTokens || 4096,
-        logDir: ctx.agentTranscriptDir
+        logDir: ctx.agentTranscriptDir,
+        includeAgenticTools: config.agentApi === 'anthropic-agents'
       });
 
       if (result.success && result.code) {

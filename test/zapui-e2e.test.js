@@ -66,14 +66,18 @@ const copyZapuiFixture = (dest) => {
   });
 };
 
-const writeConfig = (dest) => {
+const writeConfig = (dest, options = {}) => {
+  const api = options.agentApi || 'anthropic';
+  const model = options.agentModel || (api === 'anthropic-agents' ? 'claude-sonnet-4-5' : 'claude-haiku-4-5');
+  
   const toml = [
     '[inputs]',
     `figma_url = "${FIGMA_URL}"`,
     'component_repo_path = "."',
     '',
     '[agent]',
-    'backend = "claude"',
+    `api = "${api}"`,
+    `model = "${model}"`,
     ''
   ].join('\n');
   fs.writeFileSync(path.join(dest, 'superconnect.toml'), toml, 'utf8');
@@ -105,6 +109,110 @@ const shouldKeep = () => {
 };
 
 const maybeTest = RUN_E2E ? test : test.skip;
+
+maybeTest('runs superconnect with agent exploration mode (anthropic-agents)', () => {
+  ensurePrerequisites();
+
+  const figmaToken = readEnvValue('FIGMA_ACCESS_TOKEN');
+  const anthropicKey = readEnvValue('ANTHROPIC_API_KEY');
+  expect(figmaToken).toBeTruthy();
+  expect(anthropicKey).toBeTruthy();
+
+  const env = {
+    ...process.env,
+    FIGMA_ACCESS_TOKEN: figmaToken,
+    ANTHROPIC_API_KEY: anthropicKey
+  };
+
+  const subset = getOnlyList();
+  const testLabel = subset && subset.length > 0 ? subset.join(', ') : 'Button';
+  console.log(`Testing agent exploration mode with components: ${testLabel}`);
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zapui-agent-sdk-'));
+  const keepArtifacts = shouldKeep();
+  
+  if (keepArtifacts) {
+    console.log(`\nTemp directory (will be preserved): ${tmpDir}`);
+  }
+  
+  try {
+    copyZapuiFixture(tmpDir);
+    writeConfig(tmpDir, { agentApi: 'anthropic-agents', agentModel: 'claude-haiku-4-5' });
+    fs.removeSync(path.join(tmpDir, 'superconnect'));
+    fs.removeSync(path.join(tmpDir, 'codeConnect'));
+
+    // Run with anthropic-agents API (configured in TOML)
+    const superconnectArgs = [
+      superconnectScript,
+      '--framework', 'angular',
+      '--force'
+    ];
+    
+    if (subset && subset.length > 0) {
+      superconnectArgs.push('--only', subset.join(','));
+    } else {
+      superconnectArgs.push('--only', 'Button');
+    }
+    
+    run('node', superconnectArgs, { cwd: tmpDir, env });
+
+    // Verify code was generated
+    const outputDir = path.join(tmpDir, 'codeConnect');
+    const connectors = fs.existsSync(outputDir)
+      ? fs.readdirSync(outputDir).filter((file) => file.endsWith('.figma.ts'))
+      : [];
+    expect(connectors.length).toBeGreaterThan(0);
+
+    // Verify generated code validates
+    const publishOutput = run(
+      figmaCli,
+      [
+        'connect',
+        'publish',
+        '--dry-run',
+        '--exit-on-unreadable-files',
+        '--skip-update-check',
+        '--outDir',
+        path.join(tmpDir, 'superconnect', 'code-connect-json')
+      ],
+      {
+        cwd: tmpDir,
+        env
+      }
+    );
+
+    expect(publishOutput).toEqual(expect.stringContaining('All Code Connect files are valid'));
+
+    // Verify agent SDK was used (directory exists even if no tools were called)
+    const transcriptDir = path.join(tmpDir, 'superconnect', 'codegen-agent-transcripts');
+    expect(fs.existsSync(transcriptDir)).toBe(true);
+    
+    const logFiles = fs.readdirSync(transcriptDir);
+    expect(logFiles.length).toBeGreaterThan(0);
+    
+    // Read log to verify agent SDK output format (includes token usage)
+    const logContent = fs.readFileSync(path.join(transcriptDir, logFiles[0]), 'utf8');
+    expect(logContent).toMatch(/\[Token Usage:/); // SDK includes token usage stats
+    
+    // Note: Agent may not always use exploration tools if provided context is sufficient
+    // The test validates that anthropic-agents mode works and produces valid code
+    if (isVerbose()) {
+      const toolUsageFound = logContent.includes('[Tool Usage:') || logContent.includes('[Tool:');
+      console.log(`Agent used exploration tools: ${toolUsageFound}`);
+    }
+    
+  } catch (error) {
+    if (keepArtifacts) {
+      console.error(`\n❌ Test failed. Artifacts preserved at: ${tmpDir}`);
+      console.error(`   To inspect: cd ${tmpDir}`);
+    }
+    throw error;
+  } finally {
+    if (!keepArtifacts) {
+      fs.removeSync(tmpDir);
+    }
+  }
+});
 
 maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
   ensurePrerequisites();

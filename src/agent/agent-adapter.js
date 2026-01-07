@@ -547,9 +547,168 @@ class ClaudeAgentAdapter {
   }
 }
 
+/**
+ * AgentSDKAdapter uses Anthropic's Claude Agent SDK with built-in tools.
+ * Allows agent to explore codebase with Read, Glob, Grep before generating.
+ */
+class AgentSDKAdapter {
+  constructor(options = {}) {
+    this.model = options.model || 'claude-haiku-4-5';
+    this.maxTokens = parseMaxTokens(options.maxTokens, 4096);
+    this.cwd = options.cwd || process.cwd();
+    this.defaultLogDir = options.logDir || null;
+    
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        'ANTHROPIC_API_KEY environment variable is required\n\n' +
+        '💡 How to fix:\n' +
+        '  1. Get an API key from https://console.anthropic.com/settings/keys\n' +
+        '  2. Add to your .env file: ANTHROPIC_API_KEY=sk-ant-...\n' +
+        '  3. Or export in your shell: export ANTHROPIC_API_KEY=sk-ant-...'
+      );
+    }
+  }
+
+  /**
+   * Stateless single-turn call for direct codegen with Agent SDK.
+   * Agent can explore codebase with built-in tools before generating.
+   * @param {object} params
+   * @param {string} params.system - System message (guidance + API docs + tool guidance)
+   * @param {string} params.user - User message (component payload)
+   * @param {number} params.maxTokens - Max tokens for this call
+   * @param {string} params.logLabel - Label for logging
+   * @param {string} params.logDir - Directory for I/O logs
+   * @returns {Promise<{text: string, usage: object}>} - Response text and usage info
+   */
+  async chatStateless({ system, user, maxTokens, logLabel = 'agent-sdk', logDir } = {}) {
+    const { query } = require('@anthropic-ai/claude-agent-sdk');
+    
+    const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
+    const writeLog = (text) => {
+      if (logStream?.stream) logStream.stream.write(text);
+    };
+
+    try {
+      writeLog('=== AGENT INPUT ===\n');
+      writeLog('## System\n');
+      writeLog(system);
+      writeLog('\n\n## User\n');
+      writeLog(user);
+      writeLog('\n\n=== AGENT OUTPUT ===\n');
+
+      const prompt = `${system}\n\n${user}`;
+      
+      let resultText = '';
+      let totalUsage = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0
+      };
+      
+      // Track tool usage for summary
+      const toolCounts = { Read: 0, Glob: 0, Grep: 0 };
+
+      // Stream messages from agent
+      for await (const message of query({
+        prompt,
+        options: {
+          cwd: this.cwd,
+          model: this.model,
+          allowedTools: ['Read', 'Glob', 'Grep'],
+          permissionMode: 'bypassPermissions',
+          maxTokens: maxTokens || this.maxTokens
+        }
+      })) {
+        // Log tool usage for observability
+        if (message.type === 'assistant' && message.message?.content) {
+          for (const block of message.message.content) {
+            if (block.type === 'tool_use') {
+              const toolLog = `[Tool: ${block.name}(${JSON.stringify(block.input).slice(0, 100)}...)]\n`;
+              writeLog(toolLog);
+              
+              // Count tool usage
+              if (toolCounts[block.name] !== undefined) {
+                toolCounts[block.name]++;
+              }
+            }
+          }
+        }
+
+        // Capture final result
+        if (message.type === 'result') {
+          resultText = message.result || '';
+          
+          if (message.usage) {
+            totalUsage.inputTokens = message.usage.input_tokens || 0;
+            totalUsage.outputTokens = message.usage.output_tokens || 0;
+            totalUsage.cacheWriteTokens = message.usage.cache_creation_input_tokens || 0;
+            totalUsage.cacheReadTokens = message.usage.cache_read_input_tokens || 0;
+          }
+        }
+      }
+
+      writeLog(resultText);
+      
+      // Log tool usage summary
+      const totalTools = toolCounts.Read + toolCounts.Glob + toolCounts.Grep;
+      if (totalTools > 0) {
+        const toolSummary = `\n[Tool Usage: ${totalTools} total (Read=${toolCounts.Read}, Glob=${toolCounts.Glob}, Grep=${toolCounts.Grep})]`;
+        writeLog(toolSummary);
+      }
+      
+      const usageMsg = `\n[Token Usage: in=${totalUsage.inputTokens} out=${totalUsage.outputTokens} cacheWrite=${totalUsage.cacheWriteTokens} cacheRead=${totalUsage.cacheReadTokens}]\n`;
+      writeLog(usageMsg);
+
+      if (logStream?.stream) logStream.stream.end();
+      
+      return { text: resultText, usage: totalUsage };
+    } catch (err) {
+      const errorMsg = err.message || String(err);
+      writeLog(`\nError: ${errorMsg}\n`);
+      if (logStream?.stream) logStream.stream.end();
+      
+      // Enhanced error handling for common cases
+      if (err?.status === 429 || errorMsg.includes('rate limit') || errorMsg.includes('429')) {
+        throw new Error(
+          `Anthropic API rate limit exceeded: ${errorMsg}\n\n` +
+          '💡 Troubleshooting:\n' +
+          '  - Wait a few minutes and try again\n' +
+          '  - Check your usage at https://console.anthropic.com/settings/usage\n' +
+          '  - Consider upgrading your API plan'
+        );
+      }
+      
+      if (err?.status === 401 || errorMsg.includes('authentication') || errorMsg.includes('API key')) {
+        throw new Error(
+          `Anthropic API authentication failed: ${errorMsg}\n\n` +
+          '💡 How to fix:\n' +
+          '  1. Check your ANTHROPIC_API_KEY environment variable\n' +
+          '  2. Get a valid key from https://console.anthropic.com/settings/keys\n' +
+          '  3. Verify the key starts with "sk-ant-"'
+        );
+      }
+      
+      if (err?.code === 'ETIMEDOUT' || err?.code === 'ECONNREFUSED' || errorMsg.includes('timeout')) {
+        throw new Error(
+          `Anthropic API timeout: ${errorMsg}\n\n` +
+          '💡 Possible causes:\n' +
+          '  - Network connectivity issues\n' +
+          '  - Agent SDK taking too long to complete\n' +
+          '  - Try reducing --concurrency or simplifying the task'
+        );
+      }
+      
+      throw err;
+    }
+  }
+}
+
 module.exports = {
   OpenAIAgentAdapter,
   ClaudeAgentAdapter,
+  AgentSDKAdapter,
   sanitizeSlug,
   parseMaxTokens
 };

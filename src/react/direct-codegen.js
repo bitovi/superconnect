@@ -15,19 +15,52 @@ const { validateCodeConnectWithCLI } = require('../util/validate-code-connect');
 const DEFAULT_MAX_RETRIES = 4;
 
 /**
+ * Extract code from agent response, handling markdown fences and explanatory text.
+ * @param {string} responseText - The raw response from the agent
+ * @returns {string} - The extracted code
+ */
+function extractCodeFromResponse(responseText) {
+  let text = responseText.trim();
+  
+  // Look for code fence with optional language and metadata (```tsx filename="...")
+  // Matches: ```tsx, ```ts, ```javascript, ```js, or just ``` 
+  // Also handles metadata after language: ```tsx filename="Button.figma.tsx"
+  const codeBlockMatch = text.match(/```(?:tsx?|javascript|js)?[^\n]*\n([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    return codeBlockMatch[1].trim();
+  }
+  
+  // If no code fence found but text starts with one, strip it
+  if (text.startsWith('```')) {
+    text = text.replace(/^```[^\n]*\n?/, '').replace(/\n?```$/, '');
+  }
+  
+  return text;
+}
+
+/**
  * Build the system prompt combining our guidance with Figma's official API docs.
+ * @param {boolean} includeAgenticTools - Whether to include agentic exploration guidance
  * @returns {string}
  */
-function buildSystemPrompt() {
+function buildSystemPrompt(includeAgenticTools = false) {
   const promptsDir = path.join(__dirname, '..', '..', 'prompts');
   const guidancePath = path.join(promptsDir, 'react-direct-codegen.md');
   const apiDocsPath = path.join(promptsDir, 'figma-code-connect-react.md');
+  const agenticPath = path.join(promptsDir, 'agentic-exploration.md');
   
   try {
     const guidance = fs.readFileSync(guidancePath, 'utf8');
     const apiDocs = fs.readFileSync(apiDocsPath, 'utf8');
     
-    return `${guidance}\n\n---\n\n${apiDocs}`;
+    let systemPrompt = `${guidance}\n\n---\n\n${apiDocs}`;
+    
+    if (includeAgenticTools) {
+      const agenticGuidance = fs.readFileSync(agenticPath, 'utf8');
+      systemPrompt += `\n\n---\n\n${agenticGuidance}`;
+    }
+    
+    return systemPrompt;
   } catch (err) {
     if (err.code === 'ENOENT') {
       throw new Error(`Prompt file not found: ${err.path}\n  This is likely a package installation issue. Try reinstalling: pnpm install`);
@@ -44,10 +77,11 @@ function buildSystemPrompt() {
  * @param {object} params.orientation - Orienter output for this component
  * @param {string} params.figmaUrl - The Figma URL for this component
  * @param {object} params.sourceContext - Source file contents (optional)
+ * @param {boolean} params.includeAgenticTools - Whether to include agentic exploration guidance
  * @returns {{ system: string, user: string }}
  */
-function buildStatelessMessages({ figmaEvidence, orientation, figmaUrl, sourceContext }) {
-  const system = buildSystemPrompt();
+function buildStatelessMessages({ figmaEvidence, orientation, figmaUrl, sourceContext, includeAgenticTools = false }) {
+  const system = buildSystemPrompt(includeAgenticTools);
   const user = buildComponentPrompt({ figmaEvidence, orientation, figmaUrl, sourceContext });
   return { system, user };
 }
@@ -163,6 +197,7 @@ function buildRepairMessages({ system, originalUser, previousCode, errors }) {
  * @param {object} params.sourceContext - Source files (optional)
  * @param {number} params.maxRetries - Max retry count
  * @param {number} params.maxTokens - Max tokens per call
+ * @param {boolean} params.includeAgenticTools - Whether to include agentic exploration guidance
  * @returns {Promise<{success: boolean, code: string|null, errors: string[]}>}
  */
 async function processComponent({
@@ -173,14 +208,16 @@ async function processComponent({
   sourceContext,
   maxRetries,
   maxTokens,
-  logDir
+  logDir,
+  includeAgenticTools = false
 }) {
   // Build initial messages
   const messages = buildStatelessMessages({
     figmaEvidence,
     orientation,
     figmaUrl,
-    sourceContext
+    sourceContext,
+    includeAgenticTools
   });
 
   let attempt = 0;
@@ -213,11 +250,8 @@ async function processComponent({
         logDir
       });
 
-      // Extract code from response (strip markdown if present)
-      let code = (response.text || response).trim();
-      if (code.startsWith('```')) {
-        code = code.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
-      }
+      // Extract code from response (handles markdown fences and explanatory text)
+      const code = extractCodeFromResponse(response.text || response);
 
       lastCode = code;
 
