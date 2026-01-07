@@ -43,10 +43,10 @@ Don't use conditionals (`{type === 'x' && ...}`) to handle structural variants.
 
 Code Connect treats snippets as strings—ternaries/operators appear literally, breaking output.
 
-**NEVER use ternaries in example JSX.**
-Code Connect files aren't executed — they're parsed by Figma's static analyzer to extract the component structure. Ternary expressions require runtime evaluation, which breaks static analysis. The figma.boolean() function is a declarative way to express the same thing that can be statically analyzed.
+**NEVER use ternaries. EVER.**
+Code Connect files aren't executed — they're parsed by Figma's static analyzer to extract the component structure. Ternary expressions require runtime evaluation, which breaks static analysis. Instead, prefer the figma.boolean() function, which is a declarative way to express the same thing.
 
-**Also NEVER use `&&` or `||` in example JSX.**
+**Also NEVER use `&&` or `||`.**
 
 ❌ `{hasIcon && <Icon />}` 
 ❌ `{icon || <Fallback />}`
