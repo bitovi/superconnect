@@ -1,22 +1,24 @@
 {
   "chakra": {
-    "minMappings": 5,
+    "minMappings": 7,
     "components": {
       "Button": {
         "variant": {
           "figmaKey": "variant",
           "propName": "variant",
-          "helper": "enum"
+          "helper": "enum",
+          "enumKeys": ["solid", "subtle", "surface", "outline", "ghost", "plain"]
         },
         "colorScheme": {
-          "figmaKey": "colorScheme",
-          "propName": "colorScheme",
+          "figmaKey": ["colorScheme", "colorPalette", "color"],
+          "propName": ["colorScheme", "colorPalette"],
           "helper": "enum"
         },
         "size": {
           "figmaKey": "size",
           "propName": "size",
-          "helper": "enum"
+          "helper": "enum",
+          "enumKeys": ["2xs", "xs", "sm", "md", "lg", "xl", "2xl"]
         }
       },
       "Alert": {
@@ -24,7 +26,7 @@
           "figmaKey": "status",
           "propName": "status",
           "helper": "enum",
-          "values": ["info", "success", "warning", "error"]
+          "enumKeys": ["info", "success", "warning", "error"]
         }
       },
       "Input": {
@@ -32,13 +34,14 @@
           "figmaKey": "size",
           "propName": "size",
           "helper": "enum",
-          "not": "inputSize"
+          "not": "inputSize",
+          "enumKeys": ["xs", "sm", "md", "lg"]
         }
       },
       "Dialog": {
         "close": {
-          "figmaKey": "close",
-          "propName": "close",
+          "figmaKey": ["close", "closeTrigger"],
+          "propName": ["close", "closeTrigger"],
           "helper": "boolean"
         },
         "children": {
@@ -51,30 +54,70 @@
           "helper": "children",
           "slots": ["trigger", "content"]
         }
+      },
+      "Avatar": {
+        "size": {
+          "figmaKey": "size",
+          "propName": "size",
+          "helper": "enum",
+          "enumKeys": ["2xs", "xs", "sm", "md", "lg", "xl", "2xl"]
+        },
+        "variant": {
+          "figmaKey": "variant",
+          "propName": "variant",
+          "helper": "enum",
+          "enumKeys": ["solid", "subtle", "outline"]
+        },
+        "shape": {
+          "figmaKey": "shape",
+          "propName": "shape",
+          "helper": "enum",
+          "enumKeys": ["square", "rounded", "full"]
+        }
+      },
+      "NumberInput": {
+        "size": {
+          "figmaKey": "size",
+          "propName": "size",
+          "helper": "enum",
+          "enumKeys": ["xs", "sm", "md", "lg"]
+        },
+        "variant": {
+          "figmaKey": "variant",
+          "propName": "variant",
+          "helper": "enum",
+          "enumKeys": ["outline", "subtle", "flushed"]
+        },
+        "label": {
+          "figmaKey": "label",
+          "helper": "textContent"
+        }
       }
     }
   },
   "zapui": {
-    "minMappings": 4,
+    "minMappings": 6,
     "components": {
       "Button": {
         "variant": {
           "figmaKey": "variant",
           "propName": "variant",
-          "helper": "enum"
+          "helper": "enum",
+          "enumKeys": ["primary", "secondary", "success", "warning", "danger", "light", "dark", "link"]
         },
         "size": {
           "figmaKey": "size",
           "propName": "size",
-          "helper": "enum"
+          "helper": "enum",
+          "enumKeys": ["compact", "base", "large"]
         }
       },
       "Alert": {
         "variant": {
-          "figmaKey": ["alert", "type"],
+          "figmaKey": ["alert", "type", "variant"],
           "propName": "variant",
           "helper": "enum",
-          "values": ["info", "success", "warning", "error"]
+          "enumKeys": ["info", "success", "warning", "danger"]
         }
       },
       "Dialog": {
@@ -93,6 +136,37 @@
           "propName": "type",
           "helper": "enum",
           "not": "inputType"
+        }
+      },
+      "Checkbox": {
+        "shape": {
+          "figmaKey": "shape",
+          "propName": "shape",
+          "helper": "enum",
+          "enumKeys": ["curve", "flat"]
+        },
+        "size": {
+          "figmaKey": "size",
+          "propName": "size",
+          "helper": "enum",
+          "enumKeys": ["compact", "base"]
+        },
+        "checked": {
+          "figmaKey": ["checked", "selected", "state"],
+          "propName": "checked",
+          "helper": "boolean"
+        },
+        "label": {
+          "figmaKey": "label",
+          "propName": "label",
+          "helper": "string"
+        }
+      },
+      "Icon": {
+        "icon": {
+          "figmaKey": "icon",
+          "propName": "icon",
+          "helper": "instance"
         }
       }
     }

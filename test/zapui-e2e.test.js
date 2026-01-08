@@ -30,7 +30,15 @@ function validateComponentMapping(componentName, ir, framework) {
       if (expected.slots && expected.slots.length > 0) {
         expect(hasChildrenSlots).toBe(true);
       }
-    } else if (expected.helper === 'enum' || expected.helper === 'boolean') {
+    } else if (expected.helper === 'instance') {
+      // Validate instance swap mapping
+      const hasInstance = helpers.some(h => h.helper === 'instance');
+      expect(hasInstance).toBe(true);
+    } else if (expected.helper === 'textContent') {
+      // Validate textContent mapping
+      const hasTextContent = helpers.some(h => h.helper === 'textContent');
+      expect(hasTextContent).toBe(true);
+    } else if (expected.helper === 'enum' || expected.helper === 'boolean' || expected.helper === 'string') {
       // Validate property mapping
       const figmaKeys = Array.isArray(expected.figmaKey) ? expected.figmaKey : [expected.figmaKey];
       const mapping = helpers.find(h => {
@@ -41,11 +49,31 @@ function validateComponentMapping(componentName, ir, framework) {
 
       if (mapping) {
         expect(mapping.helper).toBe(expected.helper);
+        
+        // Validate prop name (supports array of acceptable names)
         if (expected.propName) {
-          expect(mapping.propName.toLowerCase()).toBe(expected.propName.toLowerCase());
+          const acceptableNames = Array.isArray(expected.propName) ? expected.propName : [expected.propName];
+          const actualPropLower = mapping.propName.toLowerCase();
+          const isValidPropName = acceptableNames.some(name => actualPropLower === name.toLowerCase());
+          expect(isValidPropName).toBe(true);
         }
+        
+        // Validate prop name is NOT a forbidden value
         if (expected.not) {
           expect(mapping.propName.toLowerCase()).not.toBe(expected.not.toLowerCase());
+        }
+        
+        // Validate enum keys if specified (Option B - deeper validation)
+        if (expected.enumKeys && mapping.enumMapping?.mappings) {
+          const actualKeys = mapping.enumMapping.mappings.map(m => m.figmaValue.toLowerCase());
+          const expectedKeysLower = expected.enumKeys.map(k => k.toLowerCase());
+          // Check at least one expected key is present (allows for subset matching)
+          const hasExpectedKey = expectedKeysLower.some(ek => 
+            actualKeys.some(ak => ak.includes(ek) || ek.includes(ak))
+          );
+          if (expectedKeysLower.length > 0) {
+            expect(hasExpectedKey).toBe(true);
+          }
         }
       }
     }
@@ -277,6 +305,20 @@ maybeTest('runs superconnect with agent exploration mode (anthropic-agents)', ()
     const inputIR = extractIR(inputCode, inputFile);
     validateComponentMapping('FormField', inputIR, 'zapui');
 
+    // Checkbox - tests boolean checked state and shape/size enums
+    const checkboxFile = connectors.find(f => f.toLowerCase().includes('checkbox'));
+    expect(checkboxFile).toBeDefined();
+    const checkboxCode = fs.readFileSync(path.join(outputDir, checkboxFile), 'utf8');
+    const checkboxIR = extractIR(checkboxCode, checkboxFile);
+    validateComponentMapping('Checkbox', checkboxIR, 'zapui');
+
+    // Icon - tests instance swap pattern (icon component swap)
+    const iconFile = connectors.find(f => f.toLowerCase().includes('icon'));
+    expect(iconFile).toBeDefined();
+    const iconCode = fs.readFileSync(path.join(outputDir, iconFile), 'utf8');
+    const iconIR = extractIR(iconCode, iconFile);
+    validateComponentMapping('Icon', iconIR, 'zapui');
+
     // Verify generated code validates
     const publishOutput = run(
       figmaCli,
@@ -433,6 +475,20 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
     const inputCode = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
     const inputIR = extractIR(inputCode, inputFile);
     validateComponentMapping('FormField', inputIR, 'zapui');
+
+    // Checkbox - tests boolean checked state and shape/size enums
+    const checkboxFile = connectors.find(f => f.toLowerCase().includes('checkbox'));
+    expect(checkboxFile).toBeDefined();
+    const checkboxCode = fs.readFileSync(path.join(outputDir, checkboxFile), 'utf8');
+    const checkboxIR = extractIR(checkboxCode, checkboxFile);
+    validateComponentMapping('Checkbox', checkboxIR, 'zapui');
+
+    // Icon - tests instance swap pattern (icon component swap)
+    const iconFile = connectors.find(f => f.toLowerCase().includes('icon'));
+    expect(iconFile).toBeDefined();
+    const iconCode = fs.readFileSync(path.join(outputDir, iconFile), 'utf8');
+    const iconIR = extractIR(iconCode, iconFile);
+    validateComponentMapping('Icon', iconIR, 'zapui');
 
     const publishOutput = run(
       figmaCli,

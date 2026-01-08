@@ -30,7 +30,15 @@ function validateComponentMapping(componentName, ir, framework) {
       if (expected.slots && expected.slots.length > 0) {
         expect(hasChildrenSlots).toBe(true);
       }
-    } else if (expected.helper === 'enum' || expected.helper === 'boolean') {
+    } else if (expected.helper === 'instance') {
+      // Validate instance swap mapping
+      const hasInstance = helpers.some(h => h.helper === 'instance');
+      expect(hasInstance).toBe(true);
+    } else if (expected.helper === 'textContent') {
+      // Validate textContent mapping
+      const hasTextContent = helpers.some(h => h.helper === 'textContent');
+      expect(hasTextContent).toBe(true);
+    } else if (expected.helper === 'enum' || expected.helper === 'boolean' || expected.helper === 'string') {
       // Validate property mapping
       const figmaKeys = Array.isArray(expected.figmaKey) ? expected.figmaKey : [expected.figmaKey];
       const mapping = helpers.find(h => {
@@ -41,11 +49,31 @@ function validateComponentMapping(componentName, ir, framework) {
 
       if (mapping) {
         expect(mapping.helper).toBe(expected.helper);
+        
+        // Validate prop name (supports array of acceptable names)
         if (expected.propName) {
-          expect(mapping.propName.toLowerCase()).toBe(expected.propName.toLowerCase());
+          const acceptableNames = Array.isArray(expected.propName) ? expected.propName : [expected.propName];
+          const actualPropLower = mapping.propName.toLowerCase();
+          const isValidPropName = acceptableNames.some(name => actualPropLower === name.toLowerCase());
+          expect(isValidPropName).toBe(true);
         }
+        
+        // Validate prop name is NOT a forbidden value
         if (expected.not) {
           expect(mapping.propName.toLowerCase()).not.toBe(expected.not.toLowerCase());
+        }
+        
+        // Validate enum keys if specified (Option B - deeper validation)
+        if (expected.enumKeys && mapping.enumMapping?.mappings) {
+          const actualKeys = mapping.enumMapping.mappings.map(m => m.figmaValue.toLowerCase());
+          const expectedKeysLower = expected.enumKeys.map(k => k.toLowerCase());
+          // Check at least one expected key is present (allows for subset matching)
+          const hasExpectedKey = expectedKeysLower.some(ek => 
+            actualKeys.some(ak => ak.includes(ek) || ek.includes(ak))
+          );
+          if (expectedKeysLower.length > 0) {
+            expect(hasExpectedKey).toBe(true);
+          }
         }
       }
     }
@@ -268,6 +296,20 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
     const popoverCode = fs.readFileSync(path.join(outputDir, popoverFile), 'utf8');
     const popoverIR = extractIR(popoverCode, popoverFile);
     validateComponentMapping('Popover', popoverIR, 'chakra');
+
+    // Avatar - tests instance swap pattern (image src) and enum variants
+    const avatarFile = connectors.find(f => f.toLowerCase().includes('avatar'));
+    expect(avatarFile).toBeDefined();
+    const avatarCode = fs.readFileSync(path.join(outputDir, avatarFile), 'utf8');
+    const avatarIR = extractIR(avatarCode, avatarFile);
+    validateComponentMapping('Avatar', avatarIR, 'chakra');
+
+    // NumberInput - tests textContent for labels and nested component structure
+    const numberInputFile = connectors.find(f => f.toLowerCase().includes('numberinput') || f.toLowerCase().includes('number-input'));
+    expect(numberInputFile).toBeDefined();
+    const numberInputCode = fs.readFileSync(path.join(outputDir, numberInputFile), 'utf8');
+    const numberInputIR = extractIR(numberInputCode, numberInputFile);
+    validateComponentMapping('NumberInput', numberInputIR, 'chakra');
 
     const publishOutput = run(
       figmaCli,

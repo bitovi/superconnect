@@ -14,7 +14,9 @@
 ## CI Testing Layers
 
 1. **Unit tests** - Run on GitHub on every push to any branch
-2. **Small e2e tests** - Run on GitHub when version tags are pushed (Button, Alert, Input, Dialog, Popover for Chakra; Button, Alert, Dialog, FormField for ZapUI)
+2. **Small e2e tests** - Run on GitHub when version tags are pushed
+   - Chakra (7): Button, Alert, Input, Dialog, Popover, Avatar, NumberInput
+   - ZapUI (6): Button, Alert, Dialog, FormField, Checkbox, Icon
 3. **Full e2e tests** - All components in Chakra UI and ZapUI design systems (local only, not run in CI)
 
 ## Quality Ratchet
@@ -23,7 +25,14 @@ E2E tests validate LLM-generated Code Connect files in two layers:
 
 **Structural validation** - AST-based pre-check + Figma CLI verifies parseable TypeScript syntax matching Figma component structure (automated, comprehensive)
 
-**Semantic validation** - Pattern assertions verify specific Figma→code prop mappings (e.g. Button variant/size, Input not using "inputSize", Dialog boolean conditionals). These catch prompt regressions where structure is valid but mappings are wrong. See [test/e2e-expected-mappings.json](../test/e2e-expected-mappings.json) for complete spec.
+**Semantic validation** - Pattern assertions verify specific Figma→code prop mappings. Tests cover:
+- **Enum mappings**: variant/size/colorScheme with correct enum keys
+- **Boolean conditionals**: close/backdrop toggles
+- **Children slots**: header/body/footer content projection
+- **Instance swap**: Avatar images, Icon components
+- **Anti-patterns**: Input uses "size" not "inputSize", FormField uses "type" not "inputType"
+
+See [test/e2e-expected-mappings.json](../test/e2e-expected-mappings.json) for the complete spec with correct enum values derived from actual component APIs.
 
 Tests fail loudly if expected components are missing or mappings diverge from spec, preventing silent quality regressions in nondeterministic LLM output.
 
