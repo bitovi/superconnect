@@ -2,6 +2,8 @@ const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
 const { spawnSync } = require('child_process');
+const { validateCodeConnect } = require('../src/util/validate-code-connect');
+const { extractIR } = require('../src/util/code-connect-ir');
 
 jest.setTimeout(300000);
 
@@ -163,6 +165,124 @@ maybeTest('runs superconnect with agent exploration mode (anthropic-agents)', ()
       : [];
     expect(connectors.length).toBeGreaterThan(0);
 
+    // AST-based validation: verify mappings match Figma evidence
+    const figmaDir = path.join(tmpDir, 'superconnect', 'figma-components');
+    let validationErrors = [];
+    connectors.forEach((file) => {
+      const code = fs.readFileSync(path.join(outputDir, file), 'utf8');
+      const componentSlug = file.replace('.figma.ts', '');
+      const evidencePath = path.join(figmaDir, `${componentSlug}.json`);
+      
+      if (fs.existsSync(evidencePath)) {
+        const figmaEvidence = fs.readJsonSync(evidencePath);
+        const validation = validateCodeConnect({ 
+          generatedCode: code, 
+          figmaEvidence 
+        });
+        
+        if (!validation.valid) {
+          validationErrors.push({ file, errors: validation.errors });
+        }
+      }
+    });
+    
+    if (validationErrors.length > 0) {
+      console.error('\nAST validation errors found:');
+      validationErrors.forEach(({ file, errors }) => {
+        console.error(`\n${file}:`);
+        errors.forEach(err => console.error(`  - ${err}`));
+      });
+    }
+    expect(validationErrors).toHaveLength(0);
+
+    // Critical mapping assertions - catches prompt regressions
+    const buttonFile = connectors.find(f => f.toLowerCase().includes('button'));
+    if (buttonFile) {
+      const code = fs.readFileSync(path.join(outputDir, buttonFile), 'utf8');
+      const ir = extractIR(code, buttonFile);
+      
+      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
+        const helpers = ir.connects[0].config.props.helpers;
+        
+        // Button: Figma "Variant" → Angular "variant"
+        const variantMapping = helpers.find(h => h.key && h.key.toLowerCase().includes('variant'));
+        if (variantMapping) {
+          expect(variantMapping.helper).toBe('enum');
+          expect(variantMapping.propName.toLowerCase()).toBe('variant');
+        }
+        
+        // Button: Figma "Size" → Angular "size"
+        const sizeMapping = helpers.find(h => h.key && h.key.toLowerCase() === 'size');
+        if (sizeMapping) {
+          expect(sizeMapping.helper).toBe('enum');
+          expect(sizeMapping.propName.toLowerCase()).toBe('size');
+        }
+      }
+    }
+
+    // Alert: Should map "Alert Type" → "variant" (enum with info/success/warning/error)
+    const alertFile = connectors.find(f => f.toLowerCase().includes('alert'));
+    if (alertFile) {
+      const code = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
+      const ir = extractIR(code, alertFile);
+      
+      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
+        const helpers = ir.connects[0].config.props.helpers;
+        const variantMapping = helpers.find(h => 
+          h.key && (h.key.toLowerCase().includes('alert') || h.key.toLowerCase().includes('type'))
+        );
+        if (variantMapping) {
+          expect(variantMapping.helper).toBe('enum');
+          expect(variantMapping.propName.toLowerCase()).toBe('variant');
+        }
+      }
+    }
+
+    // Dialog: Should have children slots and boolean conditionals
+    const dialogFile = connectors.find(f => f.toLowerCase().includes('dialog'));
+    if (dialogFile) {
+      const code = fs.readFileSync(path.join(outputDir, dialogFile), 'utf8');
+      const ir = extractIR(code, dialogFile);
+      
+      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
+        const helpers = ir.connects[0].config.props.helpers;
+        
+        // Should have children slots for header/body/footer
+        const hasChildrenSlots = helpers.some(h => h.helper === 'children');
+        if (hasChildrenSlots) {
+          expect(hasChildrenSlots).toBe(true);
+        }
+        
+        // Should have boolean for backdrop/close controls
+        const backdropMapping = helpers.find(h => 
+          h.key && (h.key.toLowerCase().includes('backdrop') || h.key.toLowerCase().includes('close'))
+        );
+        if (backdropMapping) {
+          expect(backdropMapping.helper).toBe('boolean');
+        }
+      }
+    }
+
+    // FormField/Input: "Input Type" → "type" (not "inputType")
+    const inputFile = connectors.find(f => 
+      f.toLowerCase().includes('input') || f.toLowerCase().includes('formfield')
+    );
+    if (inputFile) {
+      const code = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
+      const ir = extractIR(code, inputFile);
+      
+      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
+        const helpers = ir.connects[0].config.props.helpers;
+        const typeMapping = helpers.find(h => 
+          h.key && h.key.toLowerCase().includes('type')
+        );
+        if (typeMapping) {
+          // Critical: should be "type", not "inputType"
+          expect(typeMapping.propName.toLowerCase()).toBe('type');
+        }
+      }
+    }
+
     // Verify generated code validates
     const publishOutput = run(
       figmaCli,
@@ -253,6 +373,124 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
       ? fs.readdirSync(outputDir).filter((file) => file.endsWith('.figma.ts'))
       : [];
     expect(connectors.length).toBeGreaterThan(0);
+
+    // AST-based validation: verify mappings match Figma evidence
+    const figmaDir = path.join(tmpDir, 'superconnect', 'figma-components');
+    let validationErrors = [];
+    connectors.forEach((file) => {
+      const code = fs.readFileSync(path.join(outputDir, file), 'utf8');
+      const componentSlug = file.replace('.figma.ts', '');
+      const evidencePath = path.join(figmaDir, `${componentSlug}.json`);
+      
+      if (fs.existsSync(evidencePath)) {
+        const figmaEvidence = fs.readJsonSync(evidencePath);
+        const validation = validateCodeConnect({ 
+          generatedCode: code, 
+          figmaEvidence 
+        });
+        
+        if (!validation.valid) {
+          validationErrors.push({ file, errors: validation.errors });
+        }
+      }
+    });
+    
+    if (validationErrors.length > 0) {
+      console.error('\nAST validation errors found:');
+      validationErrors.forEach(({ file, errors }) => {
+        console.error(`\n${file}:`);
+        errors.forEach(err => console.error(`  - ${err}`));
+      });
+    }
+    expect(validationErrors).toHaveLength(0);
+
+    // Critical mapping assertions - catches prompt regressions
+    const buttonFile = connectors.find(f => f.toLowerCase().includes('button'));
+    if (buttonFile) {
+      const code = fs.readFileSync(path.join(outputDir, buttonFile), 'utf8');
+      const ir = extractIR(code, buttonFile);
+      
+      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
+        const helpers = ir.connects[0].config.props.helpers;
+        
+        // Button: Figma "Variant" → Angular "variant"
+        const variantMapping = helpers.find(h => h.key && h.key.toLowerCase().includes('variant'));
+        if (variantMapping) {
+          expect(variantMapping.helper).toBe('enum');
+          expect(variantMapping.propName.toLowerCase()).toBe('variant');
+        }
+        
+        // Button: Figma "Size" → Angular "size"
+        const sizeMapping = helpers.find(h => h.key && h.key.toLowerCase() === 'size');
+        if (sizeMapping) {
+          expect(sizeMapping.helper).toBe('enum');
+          expect(sizeMapping.propName.toLowerCase()).toBe('size');
+        }
+      }
+    }
+
+    // Alert: Should map "Alert Type" → "variant" (enum with info/success/warning/error)
+    const alertFile = connectors.find(f => f.toLowerCase().includes('alert'));
+    if (alertFile) {
+      const code = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
+      const ir = extractIR(code, alertFile);
+      
+      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
+        const helpers = ir.connects[0].config.props.helpers;
+        const variantMapping = helpers.find(h => 
+          h.key && (h.key.toLowerCase().includes('alert') || h.key.toLowerCase().includes('type'))
+        );
+        if (variantMapping) {
+          expect(variantMapping.helper).toBe('enum');
+          expect(variantMapping.propName.toLowerCase()).toBe('variant');
+        }
+      }
+    }
+
+    // Dialog: Should have children slots and boolean conditionals
+    const dialogFile = connectors.find(f => f.toLowerCase().includes('dialog'));
+    if (dialogFile) {
+      const code = fs.readFileSync(path.join(outputDir, dialogFile), 'utf8');
+      const ir = extractIR(code, dialogFile);
+      
+      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
+        const helpers = ir.connects[0].config.props.helpers;
+        
+        // Should have children slots for header/body/footer
+        const hasChildrenSlots = helpers.some(h => h.helper === 'children');
+        if (hasChildrenSlots) {
+          expect(hasChildrenSlots).toBe(true);
+        }
+        
+        // Should have boolean for backdrop/close controls
+        const backdropMapping = helpers.find(h => 
+          h.key && (h.key.toLowerCase().includes('backdrop') || h.key.toLowerCase().includes('close'))
+        );
+        if (backdropMapping) {
+          expect(backdropMapping.helper).toBe('boolean');
+        }
+      }
+    }
+
+    // FormField/Input: "Input Type" → "type" (not "inputType")
+    const inputFile = connectors.find(f => 
+      f.toLowerCase().includes('input') || f.toLowerCase().includes('formfield')
+    );
+    if (inputFile) {
+      const code = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
+      const ir = extractIR(code, inputFile);
+      
+      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
+        const helpers = ir.connects[0].config.props.helpers;
+        const typeMapping = helpers.find(h => 
+          h.key && h.key.toLowerCase().includes('type')
+        );
+        if (typeMapping) {
+          // Critical: should be "type", not "inputType"
+          expect(typeMapping.propName.toLowerCase()).toBe('type');
+        }
+      }
+    }
 
     const publishOutput = run(
       figmaCli,

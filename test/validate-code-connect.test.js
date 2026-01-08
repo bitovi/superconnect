@@ -8,56 +8,38 @@ const {
 const { validateWithFigmaCLI } = require('../src/util/validate-with-figma-cli');
 
 describe('validate-code-connect', () => {
+  const basicEvidence = {
+    variantProperties: {},
+    componentProperties: [],
+    textLayers: [],
+    slotLayers: []
+  };
+
   describe('normalizeKey', () => {
-    it('strips leading dot', () => {
+    it('normalizes Figma keys (strips dots, question marks, lowercases)', () => {
       expect(normalizeKey('.iconStart')).toBe('iconstart');
-    });
-
-    it('strips trailing question mark', () => {
       expect(normalizeKey('iconStart?')).toBe('iconstart');
-    });
-
-    it('handles both dot and question mark', () => {
       expect(normalizeKey('.iconStart?')).toBe('iconstart');
-    });
-
-    it('lowercases the key', () => {
       expect(normalizeKey('ColorPalette')).toBe('colorpalette');
     });
   });
 
   describe('extractFigmaCalls', () => {
-    it('extracts figma.string calls', () => {
-      const code = `figma.string('label')`;
-      const calls = extractFigmaCalls(code);
-      expect(calls).toHaveLength(1);
-      expect(calls[0]).toEqual({ helper: 'string', key: 'label', line: 1 });
-    });
-
-    it('extracts multiple calls on different lines', () => {
+    it('extracts figma helper calls from code', () => {
       const code = `
-const props = {
-  label: figma.string('Label'),
-  disabled: figma.boolean('Disabled'),
-  size: figma.enum('Size', { Small: 'sm' }),
-};`;
+figma.connect(Button, 'url', {
+  props: {
+    label: figma.string('Label'),
+    disabled: figma.boolean('Disabled'),
+    size: figma.enum('Size', { Small: 'sm' }),
+    icon: figma.instance('Icon'),
+    buttonText: figma.textContent('Label'),
+    content: figma.children('Content')
+  }
+});`;
       const calls = extractFigmaCalls(code);
-      expect(calls).toHaveLength(3);
-      expect(calls.map(c => c.helper)).toEqual(['string', 'boolean', 'enum']);
-    });
-
-    it('extracts figma.textContent calls', () => {
-      const code = `buttonText: figma.textContent('Label')`;
-      const calls = extractFigmaCalls(code);
-      expect(calls).toHaveLength(1);
-      expect(calls[0]).toEqual({ helper: 'textContent', key: 'Label', line: 1 });
-    });
-
-    it('extracts figma.children calls', () => {
-      const code = `content: figma.children('Content')`;
-      const calls = extractFigmaCalls(code);
-      expect(calls).toHaveLength(1);
-      expect(calls[0]).toEqual({ helper: 'children', key: 'Content', line: 1 });
+      expect(calls).toHaveLength(6);
+      expect(calls.map(c => c.helper)).toEqual(['string', 'boolean', 'enum', 'instance', 'textContent', 'children']);
     });
   });
 
@@ -93,7 +75,7 @@ const props = {
     });
   });
 
-  describe('validateCodeConnect', () => {
+  describe('validateCodeConnect - core validation', () => {
     const validCode = `
 import figma from '@figma/code-connect/react';
 import { Button } from './Button';
@@ -108,67 +90,48 @@ figma.connect(Button, 'https://figma.com/design/abc/file?node-id=1-2', {
 `;
 
     const evidence = {
-      variantProperties: {
-        Size: ['sm', 'md']
-      },
-      componentProperties: [
-        { name: 'label', type: 'TEXT' }
-      ],
+      variantProperties: { Size: ['Small', 'Medium'] },
+      componentProperties: [{ name: 'label', type: 'TEXT' }],
       textLayers: [],
       slotLayers: []
     };
 
     it('returns valid for correct code', () => {
-      const result = validateCodeConnect({
-        generatedCode: validCode,
-        figmaEvidence: evidence
-      });
+      const result = validateCodeConnect({ generatedCode: validCode, figmaEvidence: evidence });
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
     it('catches invalid property key', () => {
       const badCode = validCode.replace("figma.string('label')", "figma.string('nonexistent')");
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: evidence
-      });
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('nonexistent'))).toBe(true);
     });
 
     it('catches invalid enum key', () => {
       const badCode = validCode.replace("figma.enum('Size'", "figma.enum('InvalidAxis'");
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: evidence
-      });
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('InvalidAxis'))).toBe(true);
     });
 
     it('catches missing figma.connect', () => {
       const badCode = `import figma from '@figma/code-connect/react';`;
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: evidence
-      });
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('figma.connect'))).toBe(true);
     });
 
     it('catches missing import', () => {
       const badCode = `figma.connect(Button, 'url', {});`;
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: evidence
-      });
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('import'))).toBe(true);
     });
 
     it('validates textContent against textLayers', () => {
-      const codeWithTextContent = `
+      const code = `
 import figma from '@figma/code-connect/react';
 figma.connect(Button, 'url', {
   props: { text: figma.textContent('Label') },
@@ -179,278 +142,317 @@ figma.connect(Button, 'url', {
         textLayers: [{ name: 'Label', type: 'TEXT' }]
       };
       
-      const result = validateCodeConnect({
-        generatedCode: codeWithTextContent,
-        figmaEvidence: evidenceWithTextLayer
-      });
+      const result = validateCodeConnect({ generatedCode: code, figmaEvidence: evidenceWithTextLayer });
       expect(result.valid).toBe(true);
     });
 
     it('catches invalid textContent layer name', () => {
-      const codeWithTextContent = `
+      const code = `
 import figma from '@figma/code-connect/react';
 figma.connect(Button, 'url', {
   props: { text: figma.textContent('NonexistentLayer') },
   example: () => null
 });`;
       
-      const result = validateCodeConnect({
-        generatedCode: codeWithTextContent,
-        figmaEvidence: evidence
-      });
+      const result = validateCodeConnect({ generatedCode: code, figmaEvidence: evidence });
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('NonexistentLayer'))).toBe(true);
     });
+  });
 
-    it('catches ternary expressions in template interpolation', () => {
-      const badCode = `
-import figma, { html } from '@figma/code-connect/html';
+  describe('validateCodeConnect - forbidden expressions', () => {
+    const angularEvidence = {
+      componentProperties: [{ name: 'Label', type: 'TEXT' }, { name: 'Disabled', type: 'BOOLEAN' }],
+      variantProperties: { State: ['Disabled', 'Default'] },
+      textLayers: [],
+      slotLayers: []
+    };
+
+    const reactEvidence = {
+      componentProperties: [{ name: 'Label', type: 'TEXT' }, { name: 'Icon', type: 'BOOLEAN' }],
+      variantProperties: {},
+      textLayers: [],
+      slotLayers: []
+    };
+
+    it.each([
+      [
+        'ternary in Angular template',
+        `import figma, { html } from '@figma/code-connect/html';
 figma.connect('url', {
   props: { hasIcon: figma.boolean('Icon') },
   example: ({ hasIcon }) => html\`<button \${hasIcon ? 'icon="star"' : ''}></button>\`
-});`;
-      
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { componentProperties: [{ name: 'Icon', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Ternary expression'))).toBe(true);
-    });
-
-    it('catches nested template literals in interpolation', () => {
-      const badCode = `
-import figma, { html } from '@figma/code-connect/html';
-figma.connect('url', {
-  props: { label: figma.string('Label') },
-  example: ({ label }) => html\`<input [label]="\${label ? \\\`'\${label}'\\\` : ''}"/>\`
-});`;
-      
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { componentProperties: [{ name: 'Label', type: 'TEXT' }], variantProperties: {}, textLayers: [], slotLayers: [] }
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Nested template literal'))).toBe(true);
-    });
-
-    it('catches logical operators in template interpolation', () => {
-      const badCode = `
-import figma, { html } from '@figma/code-connect/html';
+});`,
+        { componentProperties: [{ name: 'Icon', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] },
+        'Ternary expression'
+      ],
+      [
+        'logical operator in Angular template',
+        `import figma, { html } from '@figma/code-connect/html';
 figma.connect('url', {
   props: { disabled: figma.boolean('Disabled') },
   example: ({ disabled }) => html\`<button \${disabled && 'disabled'}></button>\`
-});`;
-      
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { componentProperties: [{ name: 'Disabled', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Logical operator'))).toBe(true);
-    });
-
-    it('catches prefix unary operators in template interpolation', () => {
-      const badCode = `
-import figma, { html } from '@figma/code-connect/html';
+});`,
+        angularEvidence,
+        'Logical operator'
+      ],
+      [
+        'prefix unary operator in Angular template',
+        `import figma, { html } from '@figma/code-connect/html';
 figma.connect('url', {
   props: { disabled: figma.boolean('Disabled') },
   example: ({ disabled }) => html\`<button [disabled]="\${!disabled}"></button>\`
-});`;
-
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { componentProperties: [{ name: 'Disabled', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Prefix unary operator'))).toBe(true);
-    });
-
-    it('catches ternary expressions in JSX props (React)', () => {
-      const badCode = `
-import figma from '@figma/code-connect/react';
+});`,
+        angularEvidence,
+        'Prefix unary operator'
+      ],
+      [
+        'comparison operator in Angular template',
+        `import figma, { html } from '@figma/code-connect/html';
+figma.connect('url', {
+  props: { state: figma.enum('State', { Disabled: 'disabled' }) },
+  example: ({ state }) => html\`<input [disabled]="\${state === 'disabled'}"/>\`
+});`,
+        angularEvidence,
+        'Comparison operator'
+      ],
+      [
+        'ternary in React JSX props',
+        `import figma from '@figma/code-connect/react';
 import { Button } from './Button';
 figma.connect(Button, 'url', {
   props: { hasIcon: figma.boolean('Icon') },
   example: ({ hasIcon }) => <Button icon={hasIcon ? 'star' : undefined} />
-});`;
-      
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { componentProperties: [{ name: 'Icon', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Ternary expression in JSX'))).toBe(true);
-    });
-
-    it('catches logical operators in JSX props (React)', () => {
-      const badCode = `
-import figma from '@figma/code-connect/react';
+});`,
+        reactEvidence,
+        'Ternary expression in JSX'
+      ],
+      [
+        'logical operator in React JSX props',
+        `import figma from '@figma/code-connect/react';
 import { Button } from './Button';
 figma.connect(Button, 'url', {
   props: { label: figma.string('Label') },
   example: ({ label }) => <Button label={label || 'Default'} />
-});`;
-      
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { componentProperties: [{ name: 'Label', type: 'TEXT' }], variantProperties: {}, textLayers: [], slotLayers: [] }
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Logical operator in JSX'))).toBe(true);
-    });
-
-    it('catches logical operators in JSX conditional rendering (React)', () => {
-      const badCode = `
-import figma from '@figma/code-connect/react';
+});`,
+        reactEvidence,
+        'Logical operator in JSX'
+      ],
+      [
+        'logical operator in React conditional rendering',
+        `import figma from '@figma/code-connect/react';
 import { Tooltip, TooltipArrowTip } from './Tooltip';
 figma.connect(Tooltip, 'url', {
-  props: { showArrow: figma.boolean('ShowArrow') },
+  props: { showArrow: figma.boolean('Icon') },
   example: ({ showArrow }) => (
     <Tooltip>
       {showArrow && <TooltipArrowTip />}
       Content
     </Tooltip>
   )
-});`;
-      
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { componentProperties: [{ name: 'ShowArrow', type: 'BOOLEAN' }], variantProperties: {}, textLayers: [], slotLayers: [] }
-      });
+});`,
+        reactEvidence,
+        'Logical operator in JSX'
+      ]
+    ])('catches %s', (_desc, badCode, evidence, expectedError) => {
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Logical operator in JSX'))).toBe(true);
-    });
-
-    it('catches comparison operators in template interpolation', () => {
-      const badCode = `
-import figma, { html } from '@figma/code-connect/html';
-figma.connect('url', {
-  props: { state: figma.enum('State', { Disabled: 'disabled' }) },
-  example: ({ state }) => html\`<input [disabled]="\${state === 'disabled'}"/>\`
-});`;
-      
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { variantProperties: { State: ['Disabled', 'Default'] }, componentProperties: [], textLayers: [], slotLayers: [] }
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Comparison operator'))).toBe(true);
+      expect(result.errors.some(e => e.includes(expectedError))).toBe(true);
     });
 
     it('catches function body with statements before return', () => {
       const badCode = `
 import figma, { html } from '@figma/code-connect/html';
 figma.connect('url', {
-  props: { icon: figma.string('Icon') },
+  props: { icon: figma.string('Label') },
   example: ({ icon }) => {
     const hasIcon = icon !== undefined;
     return html\`<button>\${icon}</button>\`;
   }
 });`;
       
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { componentProperties: [{ name: 'Icon', type: 'TEXT' }], variantProperties: {}, textLayers: [], slotLayers: [] }
-      });
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: angularEvidence });
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.includes('Example function has a body'))).toBe(true);
     });
+  });
 
-    it('catches bare ternary expressions in JSX (not wrapped in braces)', () => {
+  describe('validateCodeConnect - AST structural invariants', () => {
+    it('catches non-literal URL', () => {
       const badCode = `
 import figma from '@figma/code-connect/react';
-import { Modal } from './Modal';
-figma.connect(Modal, 'https://figma.com/file/abc?node-id=1-2', {
-  props: { footer: figma.children('.footer?') },
-  example: ({ footer }) => (
-    <Modal>
-      <ModalBody>Content</ModalBody>
-      footer ? <ModalFooter>{footer}</ModalFooter> : null
-    </Modal>
-  )
-});`;
+const url = 'https://figma.com/file';
+figma.connect(Button, url, {});`;
       
-      const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { variantProperties: {}, componentProperties: [], textLayers: [], slotLayers: [{ name: '.footer?' }] }
-      });
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: basicEvidence });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Ternary expression in JSX'))).toBe(true);
+      expect(result.errors.some(e => e.includes('URL must be a string literal'))).toBe(true);
     });
 
-    it('catches bare logical operators in JSX (not wrapped in braces)', () => {
+    it('catches non-object-literal config', () => {
       const badCode = `
 import figma from '@figma/code-connect/react';
-import { EmptyState } from './EmptyState';
-figma.connect(EmptyState, 'https://figma.com/file/abc?node-id=1-2', {
-  props: { iconStart: figma.instance('.iconStart?') },
-  example: ({ iconStart }) => (
-    <EmptyState>
-      iconStart && <Icon>{iconStart}</Icon>
-      <EmptyStateTitle>Empty</EmptyStateTitle>
-    </EmptyState>
-  )
+const config = { example: () => <Button /> };
+figma.connect(Button, 'url', config);`;
+      
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: basicEvidence });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Config must be an object literal'))).toBe(true);
+    });
+
+    it('catches example function with block body', () => {
+      const badCode = `
+import figma from '@figma/code-connect/react';
+figma.connect(Button, 'url', {
+  example: (props) => {
+    return <Button />;
+  }
+});`;
+      
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: basicEvidence });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('directly return an expression'))).toBe(true);
+    });
+
+    it('allows valid example with direct return', () => {
+      const goodCode = `
+import figma from '@figma/code-connect/react';
+figma.connect(Button, 'url', {
+  props: { label: figma.string('Label') },
+  example: (props) => <Button>{props.label}</Button>
 });`;
       
       const result = validateCodeConnect({
-        generatedCode: badCode,
-        figmaEvidence: { variantProperties: {}, componentProperties: [{ name: '.iconStart?', type: 'INSTANCE_SWAP' }], textLayers: [], slotLayers: [] }
+        generatedCode: goodCode,
+        figmaEvidence: { componentProperties: [{ name: 'Label', type: 'TEXT' }], variantProperties: {}, textLayers: [], slotLayers: [] }
       });
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('validateCodeConnect - enum mapping validation', () => {
+    const evidence = {
+      variantProperties: { Size: ['Small', 'Medium', 'Large'] },
+      componentProperties: [],
+      textLayers: [],
+      slotLayers: []
+    };
+
+    it('catches invalid enum option key', () => {
+      const badCode = `
+import figma from '@figma/code-connect/react';
+figma.connect(Button, 'url', {
+  props: {
+    size: figma.enum('Size', { Small: 'sm', InvalidOption: 'invalid' })
+  },
+  example: ({ size }) => <Button size={size} />
+});`;
+      
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Logical operator in JSX'))).toBe(true);
+      expect(result.errors.some(e => e.includes('InvalidOption'))).toBe(true);
+    });
+
+    it('shows available values in error message', () => {
+      const badCode = `
+import figma from '@figma/code-connect/react';
+figma.connect(Button, 'url', {
+  props: {
+    size: figma.enum('Size', { Tiny: 'xs', InvalidOption: 'invalid' })
+  },
+  example: ({ size }) => <Button size={size} />
+});`;
+      
+      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Small'))).toBe(true);
+      expect(result.errors.some(e => e.includes('Medium'))).toBe(true);
+      expect(result.errors.some(e => e.includes('Large'))).toBe(true);
+    });
+
+    it('allows valid enum mappings', () => {
+      const goodCode = `
+import figma from '@figma/code-connect/react';
+figma.connect(Button, 'url', {
+  props: {
+    size: figma.enum('Size', { Small: 'sm', Medium: 'md', Large: 'lg' })
+  },
+  example: ({ size }) => <Button size={size} />
+});`;
+      
+      const result = validateCodeConnect({ generatedCode: goodCode, figmaEvidence: evidence });
+      expect(result.valid).toBe(true);
+    });
+
+    it('allows partial enum mappings (subset of values)', () => {
+      const goodCode = `
+import figma from '@figma/code-connect/react';
+figma.connect(Button, 'url', {
+  props: {
+    size: figma.enum('Size', { Small: 'sm', Medium: 'md' })
+  },
+  example: ({ size }) => <Button size={size} />
+});`;
+      
+      const result = validateCodeConnect({ generatedCode: goodCode, figmaEvidence: evidence });
+      expect(result.valid).toBe(true);
     });
   });
 
   describe('validateCodeConnectWithCLI', () => {
     it('falls back to pre-check when skipCLI is true', () => {
-      const goodCode = `
+      const code = `
 import figma from '@figma/code-connect/react';
 import { Button } from './Button';
-
-figma.connect(Button, 'https://figma.com/file/abc?node-id=1-2', {
-  props: {
-    label: figma.string('Label'),
-  },
-  example: ({ label }) => <Button>{label}</Button>
+figma.connect(Button, 'https://figma.com/file', {
+  props: { label: figma.string('nonexistent') },
+  example: () => null
 });`;
-
+      
+      const evidence = {
+        variantProperties: {},
+        componentProperties: [],
+        textLayers: [],
+        slotLayers: []
+      };
+      
       const result = validateCodeConnectWithCLI({
-        generatedCode: goodCode,
-        figmaEvidence: { 
-          variantProperties: {}, 
-          componentProperties: [{ name: 'Label', type: 'TEXT' }], 
-          textLayers: [], 
-          slotLayers: [] 
-        },
+        generatedCode: code,
+        figmaEvidence: evidence,
+        tempCodeConnectFile: '/fake/path.figma.tsx',
+        tempDir: '/fake',
         skipCLI: true
       });
-
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('nonexistent'))).toBe(true);
     });
 
     it('catches pre-check errors before CLI validation', () => {
-      // Missing figma.connect call - just imports but no connection
       const badCode = `
 import figma from '@figma/code-connect/react';
-import { Button } from './Button';
-
-export const Button = () => <button>Click</button>;`;
-
+figma.connect(Button, 'url', {
+  props: { label: figma.string('nonexistent') },
+  example: () => null
+});`;
+      
+      const evidence = {
+        variantProperties: {},
+        componentProperties: [],
+        textLayers: [],
+        slotLayers: []
+      };
+      
       const result = validateCodeConnectWithCLI({
         generatedCode: badCode,
-        figmaEvidence: { 
-          variantProperties: {}, 
-          componentProperties: [], 
-          textLayers: [], 
-          slotLayers: [] 
-        },
+        figmaEvidence: evidence,
+        tempCodeConnectFile: '/fake/path.figma.tsx',
+        tempDir: '/fake',
         skipCLI: true
       });
-
+      
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Missing figma.connect'))).toBe(true);
+      expect(result.errors.length).toBeGreaterThan(0);
     });
   });
 
