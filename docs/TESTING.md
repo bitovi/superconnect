@@ -8,8 +8,8 @@
 - React/Angular-specific behavior
 
 **E2E tests** - Full pipeline against real design systems (requires API keys)
-- Chakra UI (React) - ~2 min
-- ZapUI (Angular) - ~45 sec
+- Chakra UI (React) - Full: ~2 min, Small: ~30-45 sec
+- ZapUI (Angular) - Full: ~2 min, Small: ~30-45 sec
 
 ## Prerequisites
 
@@ -41,10 +41,10 @@ pnpm test -t "validates react component"
 
 **Chakra UI (React):**
 ```bash
-# Small subset (Button only)
+# Pattern regression test (Button, Alert, Input, Dialog, Popover)
 pnpm run test:e2e:chakra:small
 
-# Full suite
+# Full suite (all components, includes pattern tests)
 pnpm run test:e2e:chakra
 
 # Custom components
@@ -53,10 +53,10 @@ CHAKRA_E2E_ONLY="Button,Alert,Badge" pnpm run test:e2e:chakra
 
 **ZapUI (Angular):**
 ```bash
-# Small subset (Button only)
+# Pattern regression test (Button, Alert, Dialog, FormField)
 pnpm run test:e2e:zapui:small
 
-# Full suite
+# Full suite (all components, includes pattern tests)
 pnpm run test:e2e:zapui
 
 # Custom components

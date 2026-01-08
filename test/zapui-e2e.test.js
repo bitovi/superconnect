@@ -152,8 +152,6 @@ maybeTest('runs superconnect with agent exploration mode (anthropic-agents)', ()
     
     if (subset && subset.length > 0) {
       superconnectArgs.push('--only', subset.join(','));
-    } else {
-      superconnectArgs.push('--only', 'Button');
     }
     
     run('node', superconnectArgs, { cwd: tmpDir, env });
@@ -365,8 +363,6 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
     const superconnectArgs = [superconnectScript, '--framework', 'angular', '--force'];
     if (subset && subset.length > 0) {
       superconnectArgs.push('--only', subset.join(','));
-    } else {
-      superconnectArgs.push('--only', 'Button');
     }
     run('node', superconnectArgs, { cwd: tmpDir, env });
 

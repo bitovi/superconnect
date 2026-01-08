@@ -8,9 +8,9 @@
   "scripts": {
     "test": "cross-env NODE_NO_WARNINGS=1 jest",
     "test:e2e:chakra": "cross-env RUN_CHAKRA_E2E=1 jest test/chakra-e2e.test.js",
-    "test:e2e:chakra:small": "cross-env RUN_CHAKRA_E2E=1 CHAKRA_E2E_ONLY=Button jest test/chakra-e2e.test.js",
+    "test:e2e:chakra:small": "cross-env RUN_CHAKRA_E2E=1 CHAKRA_E2E_ONLY=Button,Alert,Input,Dialog,Popover jest test/chakra-e2e.test.js",
     "test:e2e:zapui": "cross-env RUN_ZAPUI_E2E=1 jest test/zapui-e2e.test.js",
-    "test:e2e:zapui:small": "cross-env RUN_ZAPUI_E2E=1 ZAPUI_E2E_ONLY=Button jest test/zapui-e2e.test.js",
+    "test:e2e:zapui:small": "cross-env RUN_ZAPUI_E2E=1 ZAPUI_E2E_ONLY=Button,Alert,Dialog,FormField jest test/zapui-e2e.test.js",
     "test:watch": "jest --watch",
     "prepublishOnly": "node scripts/capture-version-sha.js"
   },
