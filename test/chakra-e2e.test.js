@@ -4,6 +4,53 @@ const os = require('os');
 const { spawnSync } = require('child_process');
 const { validateCodeConnect } = require('../src/util/validate-code-connect');
 const { extractIR } = require('../src/util/code-connect-ir');
+const expectedMappings = require('./e2e-expected-mappings.json');
+
+/**
+ * Validate a component's IR against expected mapping spec
+ * @param {string} componentName - Name of the component (e.g. 'Button', 'Alert')
+ * @param {Object} ir - Extracted IR from code-connect-ir.js
+ * @param {string} framework - 'chakra' or 'zapui'
+ */
+function validateComponentMapping(componentName, ir, framework) {
+  const spec = expectedMappings[framework].components[componentName];
+  if (!spec) {
+    throw new Error(`No expected mapping spec for ${framework}/${componentName}`);
+  }
+
+  expect(ir.connects.length).toBeGreaterThan(0);
+  expect(ir.connects[0].config?.props?.helpers).toBeDefined();
+  
+  const helpers = ir.connects[0].config.props.helpers;
+
+  Object.entries(spec).forEach(([mappingName, expected]) => {
+    if (expected.helper === 'children') {
+      // Validate children slots
+      const hasChildrenSlots = helpers.some(h => h.helper === 'children');
+      if (expected.slots && expected.slots.length > 0) {
+        expect(hasChildrenSlots).toBe(true);
+      }
+    } else if (expected.helper === 'enum' || expected.helper === 'boolean') {
+      // Validate property mapping
+      const figmaKeys = Array.isArray(expected.figmaKey) ? expected.figmaKey : [expected.figmaKey];
+      const mapping = helpers.find(h => {
+        if (!h.key) return false;
+        const keyLower = h.key.toLowerCase();
+        return figmaKeys.some(fk => keyLower.includes(fk.toLowerCase()));
+      });
+
+      if (mapping) {
+        expect(mapping.helper).toBe(expected.helper);
+        if (expected.propName) {
+          expect(mapping.propName.toLowerCase()).toBe(expected.propName.toLowerCase());
+        }
+        if (expected.not) {
+          expect(mapping.propName.toLowerCase()).not.toBe(expected.not.toLowerCase());
+        }
+      }
+    }
+  });
+}
 
 jest.setTimeout(1200000);
 
@@ -148,6 +195,11 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
       ? fs.readdirSync(outputDir).filter((file) => file.endsWith('.figma.tsx'))
       : [];
     expect(connectors.length).toBeGreaterThan(0);
+    
+    // When running with --only subset, ensure we hit minimum threshold
+    if (subset && subset.length > 0) {
+      expect(connectors.length).toBeGreaterThanOrEqual(subset.length);
+    }
 
     // AST-based validation: verify mappings match Figma evidence
     const figmaDir = path.join(tmpDir, 'superconnect', 'figma-components');
@@ -181,96 +233,41 @@ maybeTest('runs superconnect against Chakra UI and publishes cleanly (React)', (
 
     // Critical mapping assertions - catches prompt regressions
     // These verify specific Figma → React prop mappings don't change unexpectedly
+    
+    // Button
     const buttonFile = connectors.find(f => f.toLowerCase().includes('button'));
-    if (buttonFile) {
-      const code = fs.readFileSync(path.join(outputDir, buttonFile), 'utf8');
-      const ir = extractIR(code, buttonFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        
-        // Button: Figma "variant" or "colorScheme" → React "variant" or "colorScheme" or "colorPalette"
-        const variantMapping = helpers.find(h => 
-          h.key && (h.key.toLowerCase().includes('variant') || h.key.toLowerCase().includes('color'))
-        );
-        if (variantMapping) {
-          expect(variantMapping.helper).toBe('enum');
-          expect(['variant', 'colorscheme', 'colorpalette']).toContain(variantMapping.propName.toLowerCase());
-        }
-        
-        // Button: Figma "size" → React "size"
-        const sizeMapping = helpers.find(h => h.key && h.key.toLowerCase() === 'size');
-        if (sizeMapping) {
-          expect(sizeMapping.helper).toBe('enum');
-          expect(sizeMapping.propName.toLowerCase()).toBe('size');
-        }
-      }
-    }
+    expect(buttonFile).toBeDefined();
+    const buttonCode = fs.readFileSync(path.join(outputDir, buttonFile), 'utf8');
+    const buttonIR = extractIR(buttonCode, buttonFile);
+    validateComponentMapping('Button', buttonIR, 'chakra');
 
-    // Alert: Figma "status" → React "status" (enum with info/warning/success/error/neutral)
+    // Alert
     const alertFile = connectors.find(f => f.toLowerCase().includes('alert'));
-    if (alertFile) {
-      const code = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
-      const ir = extractIR(code, alertFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        const statusMapping = helpers.find(h => h.key && h.key.toLowerCase() === 'status');
-        if (statusMapping) {
-          expect(statusMapping.helper).toBe('enum');
-          expect(statusMapping.propName.toLowerCase()).toBe('status');
-        }
-      }
-    }
+    expect(alertFile).toBeDefined();
+    const alertCode = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
+    const alertIR = extractIR(alertCode, alertFile);
+    validateComponentMapping('Alert', alertIR, 'chakra');
 
-    // Input: Prop name should be "size" not "inputSize"
+    // Input
     const inputFile = connectors.find(f => f.toLowerCase().includes('input') && !f.toLowerCase().includes('number'));
-    if (inputFile) {
-      const code = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
-      const ir = extractIR(code, inputFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        const sizeMapping = helpers.find(h => h.key && h.key.toLowerCase().includes('size'));
-        if (sizeMapping) {
-          // Critical: should be "size", not "inputSize"
-          expect(sizeMapping.propName.toLowerCase()).toBe('size');
-        }
-      }
-    }
+    expect(inputFile).toBeDefined();
+    const inputCode = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
+    const inputIR = extractIR(inputCode, inputFile);
+    validateComponentMapping('Input', inputIR, 'chakra');
 
-    // Dialog: Should have boolean conditionals for closeTrigger, footer
+    // Dialog
     const dialogFile = connectors.find(f => f.toLowerCase().includes('dialog'));
-    if (dialogFile) {
-      const code = fs.readFileSync(path.join(outputDir, dialogFile), 'utf8');
-      const ir = extractIR(code, dialogFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        const closeMapping = helpers.find(h => 
-          h.key && (h.key.toLowerCase().includes('close') || h.key.toLowerCase().includes('dismiss'))
-        );
-        if (closeMapping) {
-          expect(closeMapping.helper).toBe('boolean');
-        }
-      }
-    }
+    expect(dialogFile).toBeDefined();
+    const dialogCode = fs.readFileSync(path.join(outputDir, dialogFile), 'utf8');
+    const dialogIR = extractIR(dialogCode, dialogFile);
+    validateComponentMapping('Dialog', dialogIR, 'chakra');
 
-    // Popover: Should have children slots for content/footer
+    // Popover
     const popoverFile = connectors.find(f => f.toLowerCase().includes('popover'));
-    if (popoverFile) {
-      const code = fs.readFileSync(path.join(outputDir, popoverFile), 'utf8');
-      const ir = extractIR(code, popoverFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        const hasChildrenSlots = helpers.some(h => h.helper === 'children');
-        if (hasChildrenSlots) {
-          // Verify at least one children helper exists
-          expect(hasChildrenSlots).toBe(true);
-        }
-      }
-    }
+    expect(popoverFile).toBeDefined();
+    const popoverCode = fs.readFileSync(path.join(outputDir, popoverFile), 'utf8');
+    const popoverIR = extractIR(popoverCode, popoverFile);
+    validateComponentMapping('Popover', popoverIR, 'chakra');
 
     const publishOutput = run(
       figmaCli,

@@ -11,6 +11,22 @@
 - Chakra UI (React) - Full: ~2 min, Small: ~30-45 sec
 - ZapUI (Angular) - Full: ~2 min, Small: ~30-45 sec
 
+## CI Testing Layers
+
+1. **Unit tests** - Run on GitHub on every push to any branch
+2. **Small e2e tests** - Run on GitHub when version tags are pushed (Button, Alert, Input, Dialog, Popover for Chakra; Button, Alert, Dialog, FormField for ZapUI)
+3. **Full e2e tests** - All components in Chakra UI and ZapUI design systems (local only, not run in CI)
+
+## Quality Ratchet
+
+E2E tests validate LLM-generated Code Connect files in two layers:
+
+**Structural validation** - AST-based pre-check + Figma CLI verifies parseable TypeScript syntax matching Figma component structure (automated, comprehensive)
+
+**Semantic validation** - Pattern assertions verify specific Figma→code prop mappings (e.g. Button variant/size, Input not using "inputSize", Dialog boolean conditionals). These catch prompt regressions where structure is valid but mappings are wrong. See [test/e2e-expected-mappings.json](../test/e2e-expected-mappings.json) for complete spec.
+
+Tests fail loudly if expected components are missing or mappings diverge from spec, preventing silent quality regressions in nondeterministic LLM output.
+
 ## Prerequisites
 
 **Unit tests:** Node.js ≥ 22 + `pnpm install`

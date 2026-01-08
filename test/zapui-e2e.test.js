@@ -4,6 +4,53 @@ const os = require('os');
 const { spawnSync } = require('child_process');
 const { validateCodeConnect } = require('../src/util/validate-code-connect');
 const { extractIR } = require('../src/util/code-connect-ir');
+const expectedMappings = require('./e2e-expected-mappings.json');
+
+/**
+ * Validate a component's IR against expected mapping spec
+ * @param {string} componentName - Name of the component (e.g. 'Button', 'Alert')
+ * @param {Object} ir - Extracted IR from code-connect-ir.js
+ * @param {string} framework - 'chakra' or 'zapui'
+ */
+function validateComponentMapping(componentName, ir, framework) {
+  const spec = expectedMappings[framework].components[componentName];
+  if (!spec) {
+    throw new Error(`No expected mapping spec for ${framework}/${componentName}`);
+  }
+
+  expect(ir.connects.length).toBeGreaterThan(0);
+  expect(ir.connects[0].config?.props?.helpers).toBeDefined();
+  
+  const helpers = ir.connects[0].config.props.helpers;
+
+  Object.entries(spec).forEach(([mappingName, expected]) => {
+    if (expected.helper === 'children') {
+      // Validate children slots
+      const hasChildrenSlots = helpers.some(h => h.helper === 'children');
+      if (expected.slots && expected.slots.length > 0) {
+        expect(hasChildrenSlots).toBe(true);
+      }
+    } else if (expected.helper === 'enum' || expected.helper === 'boolean') {
+      // Validate property mapping
+      const figmaKeys = Array.isArray(expected.figmaKey) ? expected.figmaKey : [expected.figmaKey];
+      const mapping = helpers.find(h => {
+        if (!h.key) return false;
+        const keyLower = h.key.toLowerCase();
+        return figmaKeys.some(fk => keyLower.includes(fk.toLowerCase()));
+      });
+
+      if (mapping) {
+        expect(mapping.helper).toBe(expected.helper);
+        if (expected.propName) {
+          expect(mapping.propName.toLowerCase()).toBe(expected.propName.toLowerCase());
+        }
+        if (expected.not) {
+          expect(mapping.propName.toLowerCase()).not.toBe(expected.not.toLowerCase());
+        }
+      }
+    }
+  });
+}
 
 jest.setTimeout(300000);
 
@@ -162,6 +209,11 @@ maybeTest('runs superconnect with agent exploration mode (anthropic-agents)', ()
       ? fs.readdirSync(outputDir).filter((file) => file.endsWith('.figma.ts'))
       : [];
     expect(connectors.length).toBeGreaterThan(0);
+    
+    // When running with --only subset, ensure we hit minimum threshold
+    if (subset && subset.length > 0) {
+      expect(connectors.length).toBeGreaterThanOrEqual(subset.length);
+    }
 
     // AST-based validation: verify mappings match Figma evidence
     const figmaDir = path.join(tmpDir, 'superconnect', 'figma-components');
@@ -194,92 +246,36 @@ maybeTest('runs superconnect with agent exploration mode (anthropic-agents)', ()
     expect(validationErrors).toHaveLength(0);
 
     // Critical mapping assertions - catches prompt regressions
+    
+    // Button
     const buttonFile = connectors.find(f => f.toLowerCase().includes('button'));
-    if (buttonFile) {
-      const code = fs.readFileSync(path.join(outputDir, buttonFile), 'utf8');
-      const ir = extractIR(code, buttonFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        
-        // Button: Figma "Variant" → Angular "variant"
-        const variantMapping = helpers.find(h => h.key && h.key.toLowerCase().includes('variant'));
-        if (variantMapping) {
-          expect(variantMapping.helper).toBe('enum');
-          expect(variantMapping.propName.toLowerCase()).toBe('variant');
-        }
-        
-        // Button: Figma "Size" → Angular "size"
-        const sizeMapping = helpers.find(h => h.key && h.key.toLowerCase() === 'size');
-        if (sizeMapping) {
-          expect(sizeMapping.helper).toBe('enum');
-          expect(sizeMapping.propName.toLowerCase()).toBe('size');
-        }
-      }
-    }
+    expect(buttonFile).toBeDefined();
+    const buttonCode = fs.readFileSync(path.join(outputDir, buttonFile), 'utf8');
+    const buttonIR = extractIR(buttonCode, buttonFile);
+    validateComponentMapping('Button', buttonIR, 'zapui');
 
-    // Alert: Should map "Alert Type" → "variant" (enum with info/success/warning/error)
+    // Alert
     const alertFile = connectors.find(f => f.toLowerCase().includes('alert'));
-    if (alertFile) {
-      const code = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
-      const ir = extractIR(code, alertFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        const variantMapping = helpers.find(h => 
-          h.key && (h.key.toLowerCase().includes('alert') || h.key.toLowerCase().includes('type'))
-        );
-        if (variantMapping) {
-          expect(variantMapping.helper).toBe('enum');
-          expect(variantMapping.propName.toLowerCase()).toBe('variant');
-        }
-      }
-    }
+    expect(alertFile).toBeDefined();
+    const alertCode = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
+    const alertIR = extractIR(alertCode, alertFile);
+    validateComponentMapping('Alert', alertIR, 'zapui');
 
-    // Dialog: Should have children slots and boolean conditionals
+    // Dialog
     const dialogFile = connectors.find(f => f.toLowerCase().includes('dialog'));
-    if (dialogFile) {
-      const code = fs.readFileSync(path.join(outputDir, dialogFile), 'utf8');
-      const ir = extractIR(code, dialogFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        
-        // Should have children slots for header/body/footer
-        const hasChildrenSlots = helpers.some(h => h.helper === 'children');
-        if (hasChildrenSlots) {
-          expect(hasChildrenSlots).toBe(true);
-        }
-        
-        // Should have boolean for backdrop/close controls
-        const backdropMapping = helpers.find(h => 
-          h.key && (h.key.toLowerCase().includes('backdrop') || h.key.toLowerCase().includes('close'))
-        );
-        if (backdropMapping) {
-          expect(backdropMapping.helper).toBe('boolean');
-        }
-      }
-    }
+    expect(dialogFile).toBeDefined();
+    const dialogCode = fs.readFileSync(path.join(outputDir, dialogFile), 'utf8');
+    const dialogIR = extractIR(dialogCode, dialogFile);
+    validateComponentMapping('Dialog', dialogIR, 'zapui');
 
-    // FormField/Input: "Input Type" → "type" (not "inputType")
+    // FormField/Input
     const inputFile = connectors.find(f => 
       f.toLowerCase().includes('input') || f.toLowerCase().includes('formfield')
     );
-    if (inputFile) {
-      const code = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
-      const ir = extractIR(code, inputFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        const typeMapping = helpers.find(h => 
-          h.key && h.key.toLowerCase().includes('type')
-        );
-        if (typeMapping) {
-          // Critical: should be "type", not "inputType"
-          expect(typeMapping.propName.toLowerCase()).toBe('type');
-        }
-      }
-    }
+    expect(inputFile).toBeDefined();
+    const inputCode = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
+    const inputIR = extractIR(inputCode, inputFile);
+    validateComponentMapping('FormField', inputIR, 'zapui');
 
     // Verify generated code validates
     const publishOutput = run(
@@ -371,6 +367,11 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
       ? fs.readdirSync(outputDir).filter((file) => file.endsWith('.figma.ts'))
       : [];
     expect(connectors.length).toBeGreaterThan(0);
+    
+    // When running with --only subset, ensure we hit minimum threshold
+    if (subset && subset.length > 0) {
+      expect(connectors.length).toBeGreaterThanOrEqual(subset.length);
+    }
 
     // AST-based validation: verify mappings match Figma evidence
     const figmaDir = path.join(tmpDir, 'superconnect', 'figma-components');
@@ -404,91 +405,34 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
 
     // Critical mapping assertions - catches prompt regressions
     const buttonFile = connectors.find(f => f.toLowerCase().includes('button'));
-    if (buttonFile) {
-      const code = fs.readFileSync(path.join(outputDir, buttonFile), 'utf8');
-      const ir = extractIR(code, buttonFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        
-        // Button: Figma "Variant" → Angular "variant"
-        const variantMapping = helpers.find(h => h.key && h.key.toLowerCase().includes('variant'));
-        if (variantMapping) {
-          expect(variantMapping.helper).toBe('enum');
-          expect(variantMapping.propName.toLowerCase()).toBe('variant');
-        }
-        
-        // Button: Figma "Size" → Angular "size"
-        const sizeMapping = helpers.find(h => h.key && h.key.toLowerCase() === 'size');
-        if (sizeMapping) {
-          expect(sizeMapping.helper).toBe('enum');
-          expect(sizeMapping.propName.toLowerCase()).toBe('size');
-        }
-      }
-    }
+    expect(buttonFile).toBeDefined();
+    
+    const buttonCode = fs.readFileSync(path.join(outputDir, buttonFile), 'utf8');
+    const buttonIR = extractIR(buttonCode, buttonFile);
+    validateComponentMapping('Button', buttonIR, 'zapui');
 
-    // Alert: Should map "Alert Type" → "variant" (enum with info/success/warning/error)
+    // Alert
     const alertFile = connectors.find(f => f.toLowerCase().includes('alert'));
-    if (alertFile) {
-      const code = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
-      const ir = extractIR(code, alertFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        const variantMapping = helpers.find(h => 
-          h.key && (h.key.toLowerCase().includes('alert') || h.key.toLowerCase().includes('type'))
-        );
-        if (variantMapping) {
-          expect(variantMapping.helper).toBe('enum');
-          expect(variantMapping.propName.toLowerCase()).toBe('variant');
-        }
-      }
-    }
+    expect(alertFile).toBeDefined();
+    const alertCode = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
+    const alertIR = extractIR(alertCode, alertFile);
+    validateComponentMapping('Alert', alertIR, 'zapui');
 
-    // Dialog: Should have children slots and boolean conditionals
+    // Dialog
     const dialogFile = connectors.find(f => f.toLowerCase().includes('dialog'));
-    if (dialogFile) {
-      const code = fs.readFileSync(path.join(outputDir, dialogFile), 'utf8');
-      const ir = extractIR(code, dialogFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        
-        // Should have children slots for header/body/footer
-        const hasChildrenSlots = helpers.some(h => h.helper === 'children');
-        if (hasChildrenSlots) {
-          expect(hasChildrenSlots).toBe(true);
-        }
-        
-        // Should have boolean for backdrop/close controls
-        const backdropMapping = helpers.find(h => 
-          h.key && (h.key.toLowerCase().includes('backdrop') || h.key.toLowerCase().includes('close'))
-        );
-        if (backdropMapping) {
-          expect(backdropMapping.helper).toBe('boolean');
-        }
-      }
-    }
+    expect(dialogFile).toBeDefined();
+    const dialogCode = fs.readFileSync(path.join(outputDir, dialogFile), 'utf8');
+    const dialogIR = extractIR(dialogCode, dialogFile);
+    validateComponentMapping('Dialog', dialogIR, 'zapui');
 
-    // FormField/Input: "Input Type" → "type" (not "inputType")
+    // FormField/Input
     const inputFile = connectors.find(f => 
       f.toLowerCase().includes('input') || f.toLowerCase().includes('formfield')
     );
-    if (inputFile) {
-      const code = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
-      const ir = extractIR(code, inputFile);
-      
-      if (ir.connects.length > 0 && ir.connects[0].config?.props?.helpers) {
-        const helpers = ir.connects[0].config.props.helpers;
-        const typeMapping = helpers.find(h => 
-          h.key && h.key.toLowerCase().includes('type')
-        );
-        if (typeMapping) {
-          // Critical: should be "type", not "inputType"
-          expect(typeMapping.propName.toLowerCase()).toBe('type');
-        }
-      }
-    }
+    expect(inputFile).toBeDefined();
+    const inputCode = fs.readFileSync(path.join(outputDir, inputFile), 'utf8');
+    const inputIR = extractIR(inputCode, inputFile);
+    validateComponentMapping('FormField', inputIR, 'zapui');
 
     const publishOutput = run(
       figmaCli,

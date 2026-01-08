@@ -1,0 +1,100 @@
+{
+  "chakra": {
+    "minMappings": 5,
+    "components": {
+      "Button": {
+        "variant": {
+          "figmaKey": "variant",
+          "propName": "variant",
+          "helper": "enum"
+        },
+        "colorScheme": {
+          "figmaKey": "colorScheme",
+          "propName": "colorScheme",
+          "helper": "enum"
+        },
+        "size": {
+          "figmaKey": "size",
+          "propName": "size",
+          "helper": "enum"
+        }
+      },
+      "Alert": {
+        "status": {
+          "figmaKey": "status",
+          "propName": "status",
+          "helper": "enum",
+          "values": ["info", "success", "warning", "error"]
+        }
+      },
+      "Input": {
+        "size": {
+          "figmaKey": "size",
+          "propName": "size",
+          "helper": "enum",
+          "not": "inputSize"
+        }
+      },
+      "Dialog": {
+        "close": {
+          "figmaKey": "close",
+          "propName": "close",
+          "helper": "boolean"
+        },
+        "children": {
+          "helper": "children",
+          "slots": ["header", "body", "footer"]
+        }
+      },
+      "Popover": {
+        "children": {
+          "helper": "children",
+          "slots": ["trigger", "content"]
+        }
+      }
+    }
+  },
+  "zapui": {
+    "minMappings": 4,
+    "components": {
+      "Button": {
+        "variant": {
+          "figmaKey": "variant",
+          "propName": "variant",
+          "helper": "enum"
+        },
+        "size": {
+          "figmaKey": "size",
+          "propName": "size",
+          "helper": "enum"
+        }
+      },
+      "Alert": {
+        "variant": {
+          "figmaKey": ["alert", "type"],
+          "propName": "variant",
+          "helper": "enum",
+          "values": ["info", "success", "warning", "error"]
+        }
+      },
+      "Dialog": {
+        "backdrop": {
+          "figmaKey": ["backdrop", "close"],
+          "helper": "boolean"
+        },
+        "children": {
+          "helper": "children",
+          "slots": ["header", "body", "footer"]
+        }
+      },
+      "FormField": {
+        "type": {
+          "figmaKey": "type",
+          "propName": "type",
+          "helper": "enum",
+          "not": "inputType"
+        }
+      }
+    }
+  }
+}
