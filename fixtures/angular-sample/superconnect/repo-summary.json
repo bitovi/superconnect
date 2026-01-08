@@ -21,7 +21,12 @@
     }
   },
   "components": {
-    "roots": []
+    "roots": [
+      {
+        "path": "src/app/components",
+        "tsxCount": 1
+      }
+    ]
   },
   "themes": {
     "recipes": []
@@ -35,10 +40,17 @@
       "module_file": "src/app/app.module.ts"
     }
   ],
-  "component_source_files": [],
+  "component_source_files": [
+    {
+      "path": "src/app/components/zap-button/zap-button.component.ts",
+      "exports": [
+        "ZapButtonComponent"
+      ]
+    }
+  ],
   "component_source_files_meta": {
-    "total": 0,
-    "selectedCount": 0
+    "total": 1,
+    "selectedCount": 1
   },
   "frameworks": [
     "angular"

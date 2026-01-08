@@ -15,7 +15,8 @@
     "label": "react",
     "interactiveSetupFigmaFileUrl": "https://www.figma.com/design/dummy-react",
     "documentUrlSubstitutions": {
-      "<FIGMA_ICONS_BASE>": "https://www.figma.com/design/dummy-react"
+      "<FIGMA_ICONS_BASE>": "https://www.figma.com/design/dummy-react",
+      "<FIGMA_FIXTURECOMPONENT>": "https://www.figma.com/design/dummy-react?node-id=react-1"
     }
   }
 }
