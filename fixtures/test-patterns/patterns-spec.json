@@ -1,0 +1,351 @@
+{
+  "button-variant-mapping.figma.tsx": {
+    "description": "React Button with Style→variant and Size→size enum mappings",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Style",
+        "reactProp": "variant",
+        "helperType": "enum",
+        "enumKeys": ["Primary", "Secondary", "Ghost"]
+      },
+      {
+        "figmaAxis": "Size",
+        "reactProp": "size",
+        "helperType": "enum",
+        "enumKeys": ["Small", "Medium", "Large"]
+      },
+      {
+        "figmaAxis": "Label",
+        "reactProp": "label",
+        "helperType": "string"
+      }
+    ]
+  },
+  "input-property-mapping.figma.tsx": {
+    "description": "Input with renamed props (Placeholder Text, Is Disabled, Input Size→inputSize)",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Placeholder Text",
+        "reactProp": "placeholder",
+        "helperType": "string"
+      },
+      {
+        "figmaAxis": "Is Disabled",
+        "reactProp": "disabled",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": "Input Size",
+        "reactProp": "inputSize",
+        "helperType": "enum"
+      }
+    ]
+  },
+  "card-with-slots.figma.tsx": {
+    "description": "Card with children slots and elevation enum",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Header Slot",
+        "reactProp": "header",
+        "helperType": "children"
+      },
+      {
+        "figmaAxis": "Content Slot",
+        "reactProp": "content",
+        "helperType": "children"
+      },
+      {
+        "figmaAxis": "Elevation",
+        "reactProp": "elevation",
+        "helperType": "enum",
+        "enumKeys": ["Flat", "Raised", "Floating"]
+      }
+    ]
+  },
+  "icon-instance-swap.figma.tsx": {
+    "description": "IconButton with instance swap and string property",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Icon Swap",
+        "reactProp": "icon",
+        "helperType": "instance"
+      },
+      {
+        "figmaAxis": "aria-label",
+        "reactProp": "ariaLabel",
+        "helperType": "string"
+      }
+    ]
+  },
+  "numberinput-nested-booleans.figma.tsx": {
+    "description": "NumberInput with nested boolean helpers (conditional rendering based on state)",
+    "expectedMappings": [
+      {
+        "figmaAxis": "size",
+        "reactProp": "size",
+        "helperType": "enum",
+        "enumKeys": ["xs", "sm", "md", "lg"]
+      },
+      {
+        "figmaAxis": "variant",
+        "reactProp": "variant",
+        "helperType": "enum",
+        "enumKeys": ["outline", "filled", "Flushed"]
+      },
+      {
+        "figmaAxis": "Label",
+        "reactProp": "label",
+        "helperType": "textContent"
+      },
+      {
+        "figmaAxis": ".helperText?",
+        "reactProp": "helperText",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": ".isRequired?",
+        "reactProp": "isRequired",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": ".isInvalid?",
+        "reactProp": "isInvalid",
+        "helperType": "boolean"
+      }
+    ]
+  },
+  "dialog-conditional-jsx.figma.tsx": {
+    "description": "Dialog with boolean helpers that render JSX components conditionally",
+    "expectedMappings": [
+      {
+        "figmaAxis": "size",
+        "reactProp": "size",
+        "helperType": "enum",
+        "enumKeys": ["xs", "sm", "md", "lg", "xl", "full"]
+      },
+      {
+        "figmaAxis": ".closeTrigger?",
+        "reactProp": "closeTrigger",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": ".footer?",
+        "reactProp": "footer",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": "DialogTitle",
+        "reactProp": "titleText",
+        "helperType": "textContent"
+      },
+      {
+        "figmaAxis": "Text",
+        "reactProp": "descriptionText",
+        "helperType": "textContent"
+      },
+      {
+        "figmaAxis": "DialogBody",
+        "reactProp": "bodyContent",
+        "helperType": "children"
+      }
+    ]
+  },
+  "popover-multi-children.figma.tsx": {
+    "description": "Popover with multiple children slots and conditional booleans",
+    "expectedMappings": [
+      {
+        "figmaAxis": "size",
+        "reactProp": "size",
+        "helperType": "enum",
+        "enumKeys": ["xs", "sm", "md", "lg"]
+      },
+      {
+        "figmaAxis": ".showArrow?",
+        "reactProp": "showArrow",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": ".popoverTitle?",
+        "reactProp": "popoverTitle",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": "PopOver title",
+        "reactProp": "title",
+        "helperType": "textContent"
+      },
+      {
+        "figmaAxis": "PopOver text",
+        "reactProp": "description",
+        "helperType": "textContent"
+      },
+      {
+        "figmaAxis": "PopOver content",
+        "reactProp": "contentSlot",
+        "helperType": "children"
+      },
+      {
+        "figmaAxis": "PopOver footer",
+        "reactProp": "footerSlot",
+        "helperType": "children"
+      }
+    ]
+  },
+  "angular-button-inputs.figma.ts": {
+    "description": "Angular Button with property bindings [variant], [size], [disabled]",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Variant",
+        "reactProp": "variant",
+        "helperType": "enum",
+        "enumKeys": ["Primary", "Secondary", "Danger"]
+      },
+      {
+        "figmaAxis": "Size",
+        "reactProp": "size",
+        "helperType": "enum",
+        "enumKeys": ["Small", "Medium", "Large"]
+      },
+      {
+        "figmaAxis": "Disabled",
+        "reactProp": "disabled",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": "Label",
+        "reactProp": "label",
+        "helperType": "string"
+      }
+    ]
+  },
+  "angular-form-field-directives.figma.ts": {
+    "description": "Angular FormField with directives (zapLabel, zapInput) and *ngIf structural directive",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Input Type",
+        "reactProp": "type",
+        "helperType": "enum",
+        "enumKeys": ["Text", "Email", "Password", "Number"]
+      },
+      {
+        "figmaAxis": "Label",
+        "reactProp": "label",
+        "helperType": "string"
+      },
+      {
+        "figmaAxis": "Placeholder",
+        "reactProp": "placeholder",
+        "helperType": "string"
+      },
+      {
+        "figmaAxis": "Helper Text",
+        "reactProp": "helperText",
+        "helperType": "string"
+      },
+      {
+        "figmaAxis": "Required",
+        "reactProp": "required",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": "Show Error",
+        "reactProp": "showError",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": "Error Message",
+        "reactProp": "errorMessage",
+        "helperType": "string"
+      }
+    ]
+  },
+  "angular-tabs-children-slot.figma.ts": {
+    "description": "Angular Tabs with children slot and [selectedIndex], [orientation] bindings",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Tabs",
+        "reactProp": "tabs",
+        "helperType": "children"
+      },
+      {
+        "figmaAxis": "Active Tab",
+        "reactProp": "activeIndex",
+        "helperType": "enum",
+        "enumKeys": ["First", "Second", "Third"]
+      },
+      {
+        "figmaAxis": "Orientation",
+        "reactProp": "orientation",
+        "helperType": "enum",
+        "enumKeys": ["Horizontal", "Vertical"]
+      }
+    ]
+  },
+  "angular-alert-structural-directive.figma.ts": {
+    "description": "Angular Alert with instance swap, *ngIf directive, and variant enum",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Icon",
+        "reactProp": "icon",
+        "helperType": "instance"
+      },
+      {
+        "figmaAxis": "Text",
+        "reactProp": "text",
+        "helperType": "string"
+      },
+      {
+        "figmaAxis": "Alert Type",
+        "reactProp": "variant",
+        "helperType": "enum",
+        "enumKeys": ["Info", "Success", "Warning", "Error"]
+      },
+      {
+        "figmaAxis": "Can Dismiss",
+        "reactProp": "dismissible",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": "Title",
+        "reactProp": "title",
+        "helperType": "string"
+      }
+    ]
+  },
+  "angular-dialog-multi-slot.figma.ts": {
+    "description": "Angular Dialog with multiple children slots (header, body, footer) and *ngIf backdrop",
+    "expectedMappings": [
+      {
+        "figmaAxis": "Header",
+        "reactProp": "headerContent",
+        "helperType": "children"
+      },
+      {
+        "figmaAxis": "Body",
+        "reactProp": "bodyContent",
+        "helperType": "children"
+      },
+      {
+        "figmaAxis": "Footer Actions",
+        "reactProp": "footerActions",
+        "helperType": "children"
+      },
+      {
+        "figmaAxis": "Size",
+        "reactProp": "size",
+        "helperType": "enum",
+        "enumKeys": ["Small", "Medium", "Large", "Full"]
+      },
+      {
+        "figmaAxis": "Show Backdrop",
+        "reactProp": "showBackdrop",
+        "helperType": "boolean"
+      },
+      {
+        "figmaAxis": "Close On Backdrop Click",
+        "reactProp": "closeOnBackdropClick",
+        "helperType": "boolean"
+      }
+    ]
+  }
+}
