@@ -18,7 +18,8 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/fixtures/zapui/",
-      "/fixtures/chakra-ui/"
+      "/fixtures/chakra-ui/",
+      "/tmp/"
     ]
   },
   "keywords": [
@@ -62,9 +63,6 @@
   },
   "homepage": "https://github.com/bitovi/superconnect",
   "devDependencies": {
-    "@babel/parser": "^7.28.5",
-    "@babel/traverse": "^7.28.5",
-    "@babel/types": "^7.28.5",
     "cross-env": "^10.1.0",
     "jest": "^30.2.0",
     "ts-morph": "^27.0.2"

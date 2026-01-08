@@ -4,9 +4,9 @@
  * Two-tier validation approach:
  *
  * 1. FAST PRE-CHECK (validateCodeConnect):
- *    - Hybrid validation: AST for figma.*() calls, regex for template expressions
- *    - Validates figma.*() calls against Figma evidence using ts-morph AST
- *    - Validates template/JSX expressions using regex patterns
+ *    - AST-based validation using unified IR extractor
+ *    - Validates figma.*() calls against Figma evidence
+ *    - Validates template/JSX expressions for forbidden constructs
  *    - Catches obvious errors before spawning CLI
  *
  * 2. CLI VALIDATION (validateCodeConnectWithCLI):
@@ -31,55 +31,40 @@
  */
 
 const { validateWithFigmaCLI } = require('./validate-with-figma-cli');
-const { Project, SyntaxKind, Node } = require('ts-morph');
+const { extractIR } = require('./code-connect-ir');
 
 /**
- * Extract all figma.*() calls from generated code using AST traversal.
+ * Extract all figma.*() calls from generated code using the IR extractor.
  * @param {string} code - The generated Code Connect file content
  * @returns {Array<{helper: string, key: string, line: number}>}
  */
 function extractFigmaCalls(code) {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const sourceFile = project.createSourceFile('temp.tsx', code, { scriptKind: 2 }); // TSX
-  
-  const calls = [];
-  
-  // Find all call expressions
-  sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).forEach(callExpr => {
-    const expr = callExpr.getExpression();
-    
-    // Check if it's a property access (figma.something)
-    if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
-      const propAccess = expr;
-      const object = propAccess.getExpression().getText();
-      const property = propAccess.getName();
-      
-      if (object === 'figma') {
-        // Skip figma.connect()
-        if (property === 'connect') {
-          return;
-        }
-        
-        // Get the first argument (the key)
-        const args = callExpr.getArguments();
-        if (args.length > 0) {
-          const firstArg = args[0];
-          
-          // Check if it's a string literal
-          if (firstArg.getKind() === SyntaxKind.StringLiteral) {
-            const key = firstArg.getText().replace(/['"]/g, '');
-            calls.push({
-              helper: property,
-              key: key,
-              line: firstArg.getStartLineNumber()
-            });
-          }
+  try {
+    const ir = extractIR(code);
+    const calls = [];
+
+    // Extract helper calls from all figma.connect() calls
+    for (const connect of ir.connects) {
+      if (!connect.config || !connect.config.props) continue;
+      if (!connect.config.props.isObjectLiteral) continue;
+
+      for (const helper of connect.config.props.helpers) {
+        if (helper.key && helper.keyLiteral) {
+          calls.push({
+            helper: helper.helper,
+            key: helper.key,
+            line: helper.loc?.start?.line || 1
+          });
         }
       }
     }
-  });
-  
-  return calls;
+
+    return calls;
+  } catch (err) {
+    // If parsing fails, return empty array - validation will catch it later
+    // This allows tests with code snippets to still run
+    return [];
+  }
 }
 
 /**
@@ -264,6 +249,131 @@ function validateCall(call, keySets) {
 }
 
 /**
+ * Validate structural invariants from IR.
+ * Checks connect call structure, config object, example function, and forbidden expressions.
+ * @param {object} ir - IR from extractIR()
+ * @returns {string[]} - Array of error messages
+ */
+function validateStructuralInvariants(ir) {
+  const errors = [];
+
+  for (const connect of ir.connects) {
+    const loc = connect.loc ? `:${connect.loc.start.line}` : '';
+
+    // Check connect signature
+    if (connect.kind === 'invalid') {
+      errors.push(`${loc} Invalid figma.connect() signature - expected: figma.connect(Component, 'url', config) or figma.connect('url', config)`);
+    }
+
+    // Check URL is a string literal
+    if (connect.url && !connect.url.isLiteral) {
+      const urlLoc = connect.url.loc ? `:${connect.url.loc.start.line}` : '';
+      errors.push(`${urlLoc} URL must be a string literal, not a variable or expression`);
+    }
+
+    // Check config is an object literal
+    if (connect.config && !connect.config.isObjectLiteral) {
+      const configLoc = connect.config.loc ? `:${connect.config.loc.start.line}` : '';
+      errors.push(`${configLoc} Config must be an object literal, not a variable or expression`);
+    }
+
+    // Check example function structure
+    if (connect.config && connect.config.example) {
+      const example = connect.config.example;
+      
+      if (!example.isFunction) {
+        const exLoc = example.loc ? `:${example.loc.start.line}` : '';
+        errors.push(`${exLoc} Example must be a function`);
+      } else {
+        // Check for direct return (arrow function without block)
+        if (example.hasBlock) {
+          const exLoc = example.bodyLoc ? `:${example.bodyLoc.start.line}` : '';
+          errors.push(`${exLoc} Example function must directly return an expression (arrow function without braces). Found block statement. Use: example: (props) => <Component /> not example: (props) => { return <Component /> }`);
+        }
+
+        // Check for forbidden expressions
+        for (const forbidden of example.forbiddenExpressions) {
+          const fLoc = forbidden.loc ? `:${forbidden.loc.start.line}` : '';
+          
+          switch (forbidden.type) {
+            case 'ternary':
+              errors.push(`${fLoc} Ternary expression (? :) not allowed in example. Use figma.boolean() or figma.enum() to map the condition in props instead`);
+              break;
+            case 'logical':
+              errors.push(`${fLoc} Logical operator (${forbidden.operator}) not allowed in example. Use figma.boolean() to map the condition in props instead`);
+              break;
+            case 'binary':
+              errors.push(`${fLoc} Binary expression (${forbidden.operator}) not allowed in example. Compute the value in props instead`);
+              break;
+            case 'unary':
+              errors.push(`${fLoc} Unary operator (${forbidden.operator}) not allowed in example. Compute the value in props instead`);
+              break;
+          }
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Validate enum mappings against Figma evidence.
+ * Ensures that figma.enum() mappings only reference valid Figma variant values.
+ * @param {object} ir - IR from extractIR()
+ * @param {object} figmaEvidence - Figma evidence with variantProperties
+ * @returns {string[]} - Array of error messages
+ */
+function validateEnumMappings(ir, figmaEvidence) {
+  const errors = [];
+  const variantProps = figmaEvidence.variantProperties || {};
+
+  for (const connect of ir.connects) {
+    if (!connect.config || !connect.config.props || !connect.config.props.isObjectLiteral) {
+      continue;
+    }
+
+    for (const helper of connect.config.props.helpers) {
+      if (helper.helper !== 'enum' || !helper.enumMapping) continue;
+      if (!helper.enumMapping.isObjectLiteral) continue;
+
+      const axis = helper.key;
+      const axisNormalized = normalizeKey(axis);
+      
+      // Find the variant property (case-insensitive match)
+      let figmaValues = null;
+      for (const [key, values] of Object.entries(variantProps)) {
+        if (normalizeKey(key) === axisNormalized) {
+          figmaValues = values;
+          break;
+        }
+      }
+
+      if (!figmaValues) {
+        // Axis doesn't exist - this is caught by validateCall, skip here
+        continue;
+      }
+
+      // Validate each mapping key
+      const figmaValuesNormalized = new Set(figmaValues.map(v => String(v).toLowerCase()));
+      
+      for (const mapping of helper.enumMapping.mappings) {
+        const figmaValue = mapping.figmaValue;
+        const figmaValueNormalized = String(figmaValue).toLowerCase();
+        
+        if (!figmaValuesNormalized.has(figmaValueNormalized)) {
+          const loc = helper.loc ? `Line ${helper.loc.start.line}:` : '';
+          const availableValues = figmaValues.join(', ');
+          errors.push(`${loc} figma.enum('${axis}', ...) - '${figmaValue}' is not a valid value for variant '${axis}'. Available values: ${availableValues}`);
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
+/**
  * Validate a generated Code Connect file against Figma evidence.
  *
  * @param {object} options
@@ -283,36 +393,52 @@ function validateCodeConnect({ generatedCode, figmaEvidence, orienterOutput = nu
     return { valid: false, errors: ['Figma evidence is missing or invalid'] };
   }
 
-  // Extract all figma.*() calls
+  // Parse the code using IR extractor
+  let ir;
+  try {
+    ir = extractIR(generatedCode);
+  } catch (err) {
+    // Parse error - return immediately with error details
+    return { valid: false, errors: [err.message] };
+  }
+
+  // Check for figma.connect call
+  if (ir.connects.length === 0) {
+    errors.push('Missing figma.connect() call');
+  }
+
+  // Check for Code Connect import
+  const hasFigmaImport = ir.imports.some(imp => 
+    imp.source === '@figma/code-connect/react' ||
+    imp.source === '@figma/code-connect/html' ||
+    imp.source === '@figma/code-connect'
+  );
+
+  if (!hasFigmaImport) {
+    errors.push('Missing @figma/code-connect import');
+  }
+
+  // Validate structural invariants from IR
+  const structuralErrors = validateStructuralInvariants(ir);
+  errors.push(...structuralErrors);
+
+  // Validate enum mappings against Figma evidence
+  const enumErrors = validateEnumMappings(ir, figmaEvidence);
+  errors.push(...enumErrors);
+
+  // Extract all figma.*() helper calls from IR
   const calls = extractFigmaCalls(generatedCode);
 
   // Build valid key sets
   const keySets = buildValidKeySets(figmaEvidence);
 
-  // Validate each call
+  // Validate each helper call
   calls.forEach((call) => {
     const error = validateCall(call, keySets);
     if (error) {
       errors.push(error);
     }
   });
-
-  // Check for basic structure (has figma.connect call)
-  if (!generatedCode.includes('figma.connect')) {
-    errors.push('Missing figma.connect() call');
-  }
-
-  // Check for Code Connect import
-  const hasReactImport = generatedCode.includes("from '@figma/code-connect/react'") ||
-                          generatedCode.includes('from "@figma/code-connect/react"');
-  const hasHtmlImport = generatedCode.includes("from '@figma/code-connect/html'") ||
-                         generatedCode.includes('from "@figma/code-connect/html"') ||
-                         generatedCode.includes("from '@figma/code-connect'") ||
-                         generatedCode.includes('from "@figma/code-connect"');
-
-  if (!hasReactImport && !hasHtmlImport) {
-    errors.push('Missing @figma/code-connect import');
-  }
 
   // Check for invalid JavaScript expressions in template interpolations
   // Code Connect doesn't allow ternaries, conditionals, or binary operators in ${} placeholders

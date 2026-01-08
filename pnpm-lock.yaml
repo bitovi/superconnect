@@ -51,15 +51,6 @@ importers:
         specifier: ^7.16.0
         version: 7.16.0
     devDependencies:
-      '@babel/parser':
-        specifier: ^7.28.5
-        version: 7.28.5
-      '@babel/traverse':
-        specifier: ^7.28.5
-        version: 7.28.5
-      '@babel/types':
-        specifier: ^7.28.5
-        version: 7.28.5
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
