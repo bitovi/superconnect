@@ -363,8 +363,10 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
     fs.removeSync(path.join(tmpDir, 'codeConnect'));
 
     const superconnectArgs = [superconnectScript, '--framework', 'angular', '--force'];
-    if (Array.isArray(subset) && subset.length > 0) {
+    if (subset && subset.length > 0) {
       superconnectArgs.push('--only', subset.join(','));
+    } else {
+      superconnectArgs.push('--only', 'Button');
     }
     run('node', superconnectArgs, { cwd: tmpDir, env });
 
