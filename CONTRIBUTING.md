@@ -98,43 +98,16 @@ To understand why the agent produced a particular mapping, look at:
 
 ## Tests and fixtures
 
-The test suite is organized to mirror the pipeline and framework support:
+- **Unit tests** (`test/*.test.js`) - Fast validation of pipeline logic
+- **E2E tests** (`test/*-e2e.test.js`) - Full integration with Chakra UI and ZapUI fixtures
+- **Fixtures** (`fixtures/`) - Sample repos for testing React and Angular behaviors
 
-- `test/*.test.js`  
-  Jest tests exercising:
-  - Agent adapters (`agent-adapter.test.js`)
-  - Framework detection and plumbing (`framework-detection.test.js`, `framework-plumbing.test.js`)
-  - React mapping and edge cases (`react-orienter.test.js`, `react-hyphen-prop.test.js`)
-  - Angular discovery and codegen (`angular-component-discovery.test.js`, `angular-codegen-stub.test.js`, `angular-orienter.test.js`, `angular-figma-config.test.js`, `angular-fallback-url-token.test.js`)
-  - Filters and CLI options (`codegen-only-filter.test.js`)
+See `docs/TESTING.md` for test commands and debugging.
 
-- `fixtures/`  
-  Small sample repos and precomputed artifacts used by tests:
-  - `fixtures/react-sample/` and `fixtures/react-hyphen/` for React behaviors
-  - `fixtures/angular-sample/` for Angular behaviors, selectors, and `figma.config.json`
-  - `fixtures/only-filter/` for exercising `--only` / `--exclude` logic
-  Each fixture usually contains a `superconnect/` directory with:
-  - `repo-summary.json`
-  - `figma-components-index.json`
-  - Orientation/mapping fixtures used as stand‑ins for live runs
+## Configuration
 
-To see realistic end‑to‑end output without hitting Figma or LLM APIs, browse the fixtures and their `superconnect/` subdirectories
+- `superconnect.toml` - Config file in target repo (Figma URL, agent backend)
+- Environment variables - `FIGMA_ACCESS_TOKEN` and AI provider keys
 
-## Configuration and environment
-
-Configuration is mostly driven from a config file that's generated if it isn't found. Environment variables are only used for secrets. 
-
-- `superconnect.toml`  
-  Small config file that lives in the target repo and tells Superconnect where to run and which agent backend to use:
-  - `[inputs]` contains `figma_url` and `component_repo_path`
-  - `[agent]` selects backend and model
-
-- Environment variables  
-  - `FIGMA_ACCESS_TOKEN` for `scripts/figma-scan.js`
-  - `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` for the agent adapters
-
-When those values are missing, `scripts/run-pipeline.js` will either:
-
-- Prompt you to create `superconnect.toml`, or
-- Refuse to run agent stages unless you use `--dry-run`
+See `README.md` for configuration details.
 
