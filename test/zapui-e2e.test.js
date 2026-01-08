@@ -218,7 +218,7 @@ maybeTest('runs superconnect with agent exploration mode (anthropic-agents)', ()
       }
     }
 
-    // Alert: Should map "Alert Type" → "variant" (enum with info/success/warning/error)
+    // Alert: Should map "Alert Type" → "type" (enum with info/success/warning/error)
     const alertFile = connectors.find(f => f.toLowerCase().includes('alert'));
     if (alertFile) {
       const code = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
@@ -231,7 +231,7 @@ maybeTest('runs superconnect with agent exploration mode (anthropic-agents)', ()
         );
         if (variantMapping) {
           expect(variantMapping.helper).toBe('enum');
-          expect(variantMapping.propName.toLowerCase()).toBe('variant');
+          expect(variantMapping.propName.toLowerCase()).toBe('type');
         }
       }
     }
@@ -427,7 +427,7 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
       }
     }
 
-    // Alert: Should map "Alert Type" → "variant" (enum with info/success/warning/error)
+    // Alert: Should map "Alert Type" → "type" (enum with info/success/warning/error)
     const alertFile = connectors.find(f => f.toLowerCase().includes('alert'));
     if (alertFile) {
       const code = fs.readFileSync(path.join(outputDir, alertFile), 'utf8');
@@ -440,7 +440,7 @@ maybeTest('runs superconnect against ZapUI and publishes cleanly', () => {
         );
         if (variantMapping) {
           expect(variantMapping.helper).toBe('enum');
-          expect(variantMapping.propName.toLowerCase()).toBe('variant');
+          expect(variantMapping.propName.toLowerCase()).toBe('type');
         }
       }
     }
