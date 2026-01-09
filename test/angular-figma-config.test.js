@@ -1,3 +1,5 @@
+const { describe, it } = require('node:test');
+const assert = require('node:assert');
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
@@ -29,11 +31,9 @@ describe('angular figma config', () => {
     return config;
   };
 
-  test('sets html parser and angular include glob', () => {
+  it('sets html parser and angular include glob', () => {
     const config = runFinalize();
-    expect(config.codeConnect.parser).toBe('html');
-    expect(config.codeConnect.include).toEqual(
-      expect.arrayContaining(['codeConnect/**/*.figma.ts'])
-    );
+    assert.strictEqual(config.codeConnect.parser, 'html');
+    assert.ok(config.codeConnect.include.includes('codeConnect/**/*.figma.ts'));
   });
 });

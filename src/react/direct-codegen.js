@@ -209,7 +209,8 @@ async function processComponent({
   maxRetries,
   maxTokens,
   logDir,
-  includeAgenticTools = false
+  includeAgenticTools = false,
+  validateFn = null
 }) {
   // Build initial messages
   const messages = buildStatelessMessages({
@@ -256,11 +257,13 @@ async function processComponent({
       lastCode = code;
 
       // Validate the generated code using Figma CLI as authoritative source
-      const validationResult = validateCodeConnectWithCLI({
-        generatedCode: code,
-        figmaEvidence,
-        framework: 'react'
-      });
+      const validationResult = validateFn
+        ? validateFn({ generatedCode: code, figmaEvidence })
+        : validateCodeConnectWithCLI({
+            generatedCode: code,
+            figmaEvidence,
+            framework: 'react'
+          });
 
       // Track this attempt
       const attemptRecord = {

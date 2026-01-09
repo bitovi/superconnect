@@ -1,3 +1,5 @@
+const { describe, it } = require('node:test');
+const assert = require('node:assert');
 const {
   validateCodeConnect,
   validateCodeConnectWithCLI,
@@ -17,10 +19,10 @@ describe('validate-code-connect', () => {
 
   describe('normalizeKey', () => {
     it('normalizes Figma keys (strips dots, question marks, lowercases)', () => {
-      expect(normalizeKey('.iconStart')).toBe('iconstart');
-      expect(normalizeKey('iconStart?')).toBe('iconstart');
-      expect(normalizeKey('.iconStart?')).toBe('iconstart');
-      expect(normalizeKey('ColorPalette')).toBe('colorpalette');
+      assert.strictEqual(normalizeKey('.iconStart'), 'iconstart');
+      assert.strictEqual(normalizeKey('iconStart?'), 'iconstart');
+      assert.strictEqual(normalizeKey('.iconStart?'), 'iconstart');
+      assert.strictEqual(normalizeKey('ColorPalette'), 'colorpalette');
     });
   });
 
@@ -38,8 +40,8 @@ figma.connect(Button, 'url', {
   }
 });`;
       const calls = extractFigmaCalls(code);
-      expect(calls).toHaveLength(6);
-      expect(calls.map(c => c.helper)).toEqual(['string', 'boolean', 'enum', 'instance', 'textContent', 'children']);
+      assert.strictEqual(calls.length, 6);
+      assert.deepStrictEqual(calls.map(c => c.helper), ['string', 'boolean', 'enum', 'instance', 'textContent', 'children']);
     });
   });
 
@@ -65,13 +67,13 @@ figma.connect(Button, 'url', {
 
       const keySets = buildValidKeySets(evidence);
 
-      expect(keySets.enumKeys.has('size')).toBe(true);
-      expect(keySets.enumKeys.has('variant')).toBe(true);
-      expect(keySets.stringKeys.has('label')).toBe(true);
-      expect(keySets.booleanKeys.has('iconstart')).toBe(true);
-      expect(keySets.instanceKeys.has('iconstart')).toBe(true);
-      expect(keySets.textLayerNames.has('label')).toBe(true);
-      expect(keySets.slotLayerNames.has('icon')).toBe(true);
+      assert.strictEqual(keySets.enumKeys.has('size'), true);
+      assert.strictEqual(keySets.enumKeys.has('variant'), true);
+      assert.strictEqual(keySets.stringKeys.has('label'), true);
+      assert.strictEqual(keySets.booleanKeys.has('iconstart'), true);
+      assert.strictEqual(keySets.instanceKeys.has('iconstart'), true);
+      assert.strictEqual(keySets.textLayerNames.has('label'), true);
+      assert.strictEqual(keySets.slotLayerNames.has('icon'), true);
     });
   });
 
@@ -98,36 +100,36 @@ figma.connect(Button, 'https://figma.com/design/abc/file?node-id=1-2', {
 
     it('returns valid for correct code', () => {
       const result = validateCodeConnect({ generatedCode: validCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      assert.strictEqual(result.valid, true);
+      assert.strictEqual(result.errors.length, 0);
     });
 
     it('catches invalid property key', () => {
       const badCode = validCode.replace("figma.string('label')", "figma.string('nonexistent')");
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('nonexistent'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('nonexistent')));
     });
 
     it('catches invalid enum key', () => {
       const badCode = validCode.replace("figma.enum('Size'", "figma.enum('InvalidAxis'");
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('InvalidAxis'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('InvalidAxis')));
     });
 
     it('catches missing figma.connect', () => {
       const badCode = `import figma from '@figma/code-connect/react';`;
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('figma.connect'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('figma.connect')));
     });
 
     it('catches missing import', () => {
       const badCode = `figma.connect(Button, 'url', {});`;
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('import'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('import')));
     });
 
     it('validates textContent against textLayers', () => {
@@ -143,7 +145,7 @@ figma.connect(Button, 'url', {
       };
       
       const result = validateCodeConnect({ generatedCode: code, figmaEvidence: evidenceWithTextLayer });
-      expect(result.valid).toBe(true);
+      assert.strictEqual(result.valid, true);
     });
 
     it('catches invalid textContent layer name', () => {
@@ -155,8 +157,8 @@ figma.connect(Button, 'url', {
 });`;
       
       const result = validateCodeConnect({ generatedCode: code, figmaEvidence: evidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('NonexistentLayer'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('NonexistentLayer')));
     });
   });
 
@@ -175,7 +177,7 @@ figma.connect(Button, 'url', {
       slotLayers: []
     };
 
-    it.each([
+    const forbiddenCases = [
       [
         'ternary in Angular template',
         `import figma, { html } from '@figma/code-connect/html';
@@ -254,11 +256,15 @@ figma.connect(Tooltip, 'url', {
         reactEvidence,
         'Logical operator in JSX'
       ]
-    ])('catches %s', (_desc, badCode, evidence, expectedError) => {
-      const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes(expectedError))).toBe(true);
-    });
+    ];
+
+    for (const [desc, badCode, evidence, expectedError] of forbiddenCases) {
+      it(`catches ${desc}`, () => {
+        const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
+        assert.strictEqual(result.valid, false);
+        assert.ok(result.errors.some(e => e.includes(expectedError)));
+      });
+    }
 
     it('catches function body with statements before return', () => {
       const badCode = `
@@ -272,8 +278,8 @@ figma.connect('url', {
 });`;
       
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: angularEvidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Example function has a body'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('Example function has a body')));
     });
   });
 
@@ -285,8 +291,8 @@ const url = 'https://figma.com/file';
 figma.connect(Button, url, {});`;
       
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: basicEvidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('URL must be a string literal'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('URL must be a string literal')));
     });
 
     it('catches non-object-literal config', () => {
@@ -296,8 +302,8 @@ const config = { example: () => <Button /> };
 figma.connect(Button, 'url', config);`;
       
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: basicEvidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Config must be an object literal'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('Config must be an object literal')));
     });
 
     it('catches example function with block body', () => {
@@ -310,8 +316,8 @@ figma.connect(Button, 'url', {
 });`;
       
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: basicEvidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('directly return an expression'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('directly return an expression')));
     });
 
     it('allows valid example with direct return', () => {
@@ -326,7 +332,7 @@ figma.connect(Button, 'url', {
         generatedCode: goodCode,
         figmaEvidence: { componentProperties: [{ name: 'Label', type: 'TEXT' }], variantProperties: {}, textLayers: [], slotLayers: [] }
       });
-      expect(result.valid).toBe(true);
+      assert.strictEqual(result.valid, true);
     });
   });
 
@@ -349,8 +355,8 @@ figma.connect(Button, 'url', {
 });`;
       
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('InvalidOption'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('InvalidOption')));
     });
 
     it('shows available values in error message', () => {
@@ -364,10 +370,10 @@ figma.connect(Button, 'url', {
 });`;
       
       const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Small'))).toBe(true);
-      expect(result.errors.some(e => e.includes('Medium'))).toBe(true);
-      expect(result.errors.some(e => e.includes('Large'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('Small')));
+      assert.ok(result.errors.some(e => e.includes('Medium')));
+      assert.ok(result.errors.some(e => e.includes('Large')));
     });
 
     it('allows valid enum mappings', () => {
@@ -381,7 +387,7 @@ figma.connect(Button, 'url', {
 });`;
       
       const result = validateCodeConnect({ generatedCode: goodCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(true);
+      assert.strictEqual(result.valid, true);
     });
 
     it('allows partial enum mappings (subset of values)', () => {
@@ -395,7 +401,7 @@ figma.connect(Button, 'url', {
 });`;
       
       const result = validateCodeConnect({ generatedCode: goodCode, figmaEvidence: evidence });
-      expect(result.valid).toBe(true);
+      assert.strictEqual(result.valid, true);
     });
   });
 
@@ -424,8 +430,8 @@ figma.connect(Button, 'https://figma.com/file', {
         skipCLI: true
       });
       
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('nonexistent'))).toBe(true);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some(e => e.includes('nonexistent')));
     });
 
     it('catches pre-check errors before CLI validation', () => {
@@ -451,8 +457,8 @@ figma.connect(Button, 'url', {
         skipCLI: true
       });
       
-      expect(result.valid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.length > 0);
     });
   });
 
@@ -490,8 +496,8 @@ figma.connect(Button, 'https://figma.com/design/abc123/file?node-id=1-2', {
       });
 
       // The CLI should successfully parse this file
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      assert.strictEqual(result.valid, true);
+      assert.strictEqual(result.errors.length, 0);
     });
 
     it('detects invalid Code Connect via CLI', () => {
@@ -515,9 +521,9 @@ figma.connect(Button, 'https://figma.com/design/abc/file?node-id=1-2', {
       });
 
       // The CLI should detect the undefined prop reference
-      expect(result.valid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors[0]).toContain('doesNotExist');
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.length > 0);
+      assert.ok(result.errors[0].includes('doesNotExist'));
     });
   });
 });

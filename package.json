@@ -6,17 +6,9 @@
     "superconnect": "scripts/run-pipeline.js"
   },
   "scripts": {
-    "test": "cross-env NODE_NO_WARNINGS=1 jest",
+    "test": "node --test test/*.test.js",
     "test:e2e": "node scripts/test-e2e.js",
     "prepublishOnly": "node scripts/capture-version-sha.js"
-  },
-  "jest": {
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/fixtures/zapui/",
-      "/fixtures/chakra-ui/",
-      "/tmp/"
-    ]
   },
   "keywords": [
     "figma",
@@ -59,8 +51,6 @@
   },
   "homepage": "https://github.com/bitovi/superconnect",
   "devDependencies": {
-    "cross-env": "^10.1.0",
-    "jest": "^30.2.0",
     "ts-morph": "^27.0.2"
   },
   "files": [

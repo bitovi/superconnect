@@ -1,6 +1,7 @@
+const { describe, it } = require('node:test');
+const assert = require('node:assert');
 const fs = require('fs-extra');
 const path = require('path');
-const os = require('os');
 const { spawnSync } = require('child_process');
 
 const finalizeScript = path.join(__dirname, '..', 'scripts', 'finalize.js');
@@ -11,8 +12,8 @@ const writeJson = (file, data) => {
 };
 
 describe('finalize emits figma.config.json with package path aliases', () => {
-  test('adds paths for packages/*/src/index.tsx', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'finalize-paths-'));
+  it('adds paths for packages/*/src/index.tsx', () => {
+    const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'finalize-paths-'));
 
     // Minimal repo layout
     const pkgDir = path.join(tmp, 'packages', 'ui');
@@ -34,17 +35,17 @@ describe('finalize emits figma.config.json with package path aliases', () => {
     }
 
     const configPath = path.join(tmp, 'figma.config.json');
-    expect(fs.existsSync(configPath)).toBe(true);
+    assert.ok(fs.existsSync(configPath));
     const config = fs.readJsonSync(configPath);
-    expect(config.codeConnect.paths).toEqual({
+    assert.deepStrictEqual(config.codeConnect.paths, {
       '@acme/ui': ['packages/ui/src/index.tsx']
     });
 
     fs.removeSync(tmp);
   });
 
-  test('omits paths block when no package entrypoints found', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'finalize-paths-'));
+  it('omits paths block when no package entrypoints found', () => {
+    const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'finalize-paths-'));
 
     // Minimal superconnect artifacts without packages
     const superDir = path.join(tmp, 'superconnect');
@@ -61,7 +62,7 @@ describe('finalize emits figma.config.json with package path aliases', () => {
 
     const configPath = path.join(tmp, 'figma.config.json');
     const config = fs.readJsonSync(configPath);
-    expect(config.codeConnect.paths).toBeUndefined();
+    assert.strictEqual(config.codeConnect.paths, undefined);
 
     fs.removeSync(tmp);
   });
