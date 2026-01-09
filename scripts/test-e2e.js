@@ -110,10 +110,13 @@ const SEMANTIC_ASSERTIONS = {
   // ============================================================================
   chakra: {
     Button: [
-      { figma: 'size', prop: 'size', helper: 'enum' },
-      { figma: 'variant', prop: 'variant', helper: 'enum' },
-      { figma: 'colorPalette', prop: 'colorPalette', helper: 'enum' }
-      // state: NOT enforced — visual state (default/hover), not a code prop
+      { figma: 'size', helper: 'enum' },
+      { figma: 'variant', helper: 'enum' },
+      { figma: 'colorPalette', helper: 'enum' },
+      { figma: 'state', skip: true },  // visual state (default/hover), not a code prop
+      { figma: 'iconStart', helper: 'instance' },
+      { figma: 'iconEnd', helper: 'instance' },
+      { figma: 'label', helper: 'textContent' }
     ],
     Alert: [
       { figma: 'status', prop: 'status', helper: 'enum' },
@@ -302,6 +305,12 @@ function getGeneratedConnectors(outputDir, ext) {
 
 /**
  * Validate semantic assertions for a component.
+ * 
+ * Assertion format:
+ *   { figma, helper }           - prop defaults to figma name
+ *   { figma, prop, helper }     - explicit prop name
+ *   { figma, skip: true }       - documented but not enforced
+ *   { figma, mustBeVariantOnly } - must NOT be a prop mapping
  */
 function validateSemanticAssertions(componentName, ir, designSystem) {
   const assertions = SEMANTIC_ASSERTIONS[designSystem]?.[componentName];
@@ -317,7 +326,12 @@ function validateSemanticAssertions(componentName, ir, designSystem) {
     .filter(Boolean);
 
   for (const assertion of assertions) {
-    const { figma, prop, helper, mustBeVariantOnly } = assertion;
+    const { figma, helper, mustBeVariantOnly, skip } = assertion;
+    // Default prop to figma name if not specified
+    const prop = assertion.prop || figma;
+
+    // Skip: documented but not enforced
+    if (skip) continue;
 
     const propsMapping = allHelpers.find(h => h.key === figma);
     const hasVariantForProperty = allVariantRestrictions.some(r => figma in r);
