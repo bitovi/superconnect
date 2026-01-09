@@ -5,8 +5,6 @@ Before work in this project, read these essential docs:
                             # [optional] Functional & nonfunctional requirements
     ├── ARCHITECTURE.md     # [required] Architecture of the solution, key assumptions 
                             # [optional] Tech choices & rationale, integrations
-    ├── TOOLS-FOR-AGENTS.md         # [required] Brief catalog of relevant, installed 
-                                    # tools agents should use to work efficiently
     └── CODING-RULES-FOR-AGENTS.md  # [optional] Coding style & constraints
 
 # Rules
