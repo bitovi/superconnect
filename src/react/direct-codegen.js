@@ -198,6 +198,7 @@ function buildRepairMessages({ system, originalUser, previousCode, errors }) {
  * @param {number} params.maxRetries - Max retry count
  * @param {number} params.maxTokens - Max tokens per call
  * @param {boolean} params.includeAgenticTools - Whether to include agentic exploration guidance
+ * @param {Function} [params.validateFn] - Custom validator (for testing; defaults to CLI validation)
  * @returns {Promise<{success: boolean, code: string|null, errors: string[]}>}
  */
 async function processComponent({
