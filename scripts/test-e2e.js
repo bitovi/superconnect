@@ -178,7 +178,7 @@ Systems:
 Options:
   --keep          Preserve temp directory after test (always kept on failure)
   --agent-sdk     Use Anthropic Agent SDK instead of Messages API
-  --model <name>  Model to use (default: claude-haiku-4-5)
+  --model <name>  Model to use (default: claude-sonnet-4-5)
   --help          Show this help
 
 Examples:
@@ -245,7 +245,7 @@ function copyFixture(src, dest) {
  */
 function writeSuperconnectConfig(destDir, figmaUrl, agentSdk, model) {
   const api = agentSdk ? 'anthropic-agents' : 'anthropic';
-  const effectiveModel = model || 'claude-haiku-4-5';
+  const effectiveModel = model || 'claude-sonnet-4-5';
 
   const toml = [
     '[inputs]',

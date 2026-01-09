@@ -156,12 +156,12 @@ Configure the `[agent]` section in `superconnect.toml`:
 ```toml
 [agent]
 api = "anthropic"             # or "openai"
-model = "claude-haiku-4-5"    # model to use
+model = "claude-sonnet-4-5"    # model to use
 ```
 
 | API | Environment Variable | Example Models |
 |-----|---------------------|----------------|
-| `anthropic` (default) | `ANTHROPIC_API_KEY` | claude-haiku-4-5, claude-sonnet-4-20250514 |
+| `anthropic` (default) | `ANTHROPIC_API_KEY` | claude-sonnet-4-5, claude-haiku-4-5 |
 | `openai` | `OPENAI_API_KEY` | gpt-5.1-codex-mini |
 
 **Using OpenAI-compatible endpoints:** Set `api = "openai"` and add a `base_url` in the TOML for services like LiteLLM, Azure OpenAI, vLLM, or LocalAI.

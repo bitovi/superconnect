@@ -22,7 +22,7 @@ const toml = require('@iarna/toml');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
-const DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5';
+const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
 const DEFAULT_OPENAI_MODEL = 'gpt-5.1-codex-mini';
 const DEFAULT_API = 'anthropic';
 const DEFAULT_MAX_TOKENS = 16384;

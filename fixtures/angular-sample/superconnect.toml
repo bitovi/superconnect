@@ -8,13 +8,13 @@ component_repo_path = "."
 
 [agent]
 # AI provider options:
-#   "anthropic" (default)       - Fast, uses claude-haiku-4-5
+#   "anthropic" (default)       - Uses claude-sonnet-4-5
 #   "openai"                    - OpenAI or compatible (LiteLLM, Azure, vLLM)
 #   "anthropic-agents" (experimental) - Agent explores repo with Read/Glob/Grep tools
 #                                        Uses claude-sonnet-4-5, more capable but slower
 # All options require appropriate API key env var (ANTHROPIC_API_KEY or OPENAI_API_KEY)
 api = "anthropic"
-model = "claude-haiku-4-5"
+model = "claude-sonnet-4-5"
 
 # To use OpenAI or a compatible service instead:
 # api = "openai"

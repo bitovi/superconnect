@@ -295,7 +295,7 @@ const extractClaudeText = (message) => {
  */
 class ClaudeAgentAdapter {
   constructor(options = {}) {
-    this.model = options.model || 'claude-haiku-4-5';
+    this.model = options.model || 'claude-sonnet-4-5';
     this.maxTokens = parseMaxTokens(options.maxTokens, null);
     this.defaultLogDir = options.logDir || null;
     this.defaultCwd = options.cwd;
@@ -572,7 +572,7 @@ class ClaudeAgentAdapter {
  */
 class AgentSDKAdapter {
   constructor(options = {}) {
-    this.model = options.model || 'claude-haiku-4-5';
+    this.model = options.model || 'claude-sonnet-4-5';
     this.maxTokens = parseMaxTokens(options.maxTokens, 4096);
     this.cwd = options.cwd || process.cwd();
     this.defaultLogDir = options.logDir || null;
