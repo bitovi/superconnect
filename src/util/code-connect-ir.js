@@ -354,11 +354,26 @@ function extractExampleFunction(node, sourceCode) {
  */
 function extractVariant(node) {
   if (!node || node.type !== 'ObjectExpression') {
-    return { isObjectLiteral: false };
+    return { isObjectLiteral: false, restrictions: {} };
   }
 
-  // Variant is just an object literal, we just validate it exists
-  return { isObjectLiteral: true, loc: node.loc };
+  // Extract variant restrictions: { Type: 'Primary', Size: 'Large' }
+  const restrictions = {};
+  
+  for (const prop of node.properties) {
+    if (prop.type !== 'Property') continue;
+    
+    const key = prop.key.type === 'Identifier' 
+      ? prop.key.name 
+      : (prop.key.type === 'Literal' ? prop.key.value : null);
+    
+    if (key === null) continue;
+    
+    const value = prop.value.type === 'Literal' ? prop.value.value : null;
+    restrictions[key] = value;
+  }
+
+  return { isObjectLiteral: true, restrictions, loc: node.loc };
 }
 
 /**

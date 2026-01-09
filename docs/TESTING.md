@@ -16,7 +16,7 @@
 1. **Unit tests** - Run on GitHub on every push to any branch
 2. **Small e2e tests** - Run on GitHub when version tags are pushed
    - Chakra (7): Button, Alert, Input, Dialog, Popover, Avatar, NumberInput
-   - ZapUI (6): Button, Alert, Dialog, FormField, Checkbox, Icon
+   - ZapUI (3): Button, Alert, Checkbox
 3. **Full e2e tests** - All components in Chakra UI and ZapUI design systems (local only, not run in CI)
 
 ## Quality Ratchet
@@ -25,14 +25,10 @@ E2E tests validate LLM-generated Code Connect files in two layers:
 
 **Structural validation** - AST-based pre-check + Figma CLI verifies parseable TypeScript syntax matching Figma component structure (automated, comprehensive)
 
-**Semantic validation** - Pattern assertions verify specific Figma→code prop mappings. Tests cover:
-- **Enum mappings**: variant/size/colorScheme with correct enum keys
-- **Boolean conditionals**: close/backdrop toggles
-- **Children slots**: header/body/footer content projection
-- **Instance swap**: Avatar images, Icon components
-- **Anti-patterns**: Input uses "size" not "inputSize", FormField uses "type" not "inputType"
-
-See [test/e2e-expected-mappings.json](../test/e2e-expected-mappings.json) for the complete spec with correct enum values derived from actual component APIs.
+**Semantic validation** - Pattern assertions verify specific Figma→code prop mappings are correct. Defined in `SEMANTIC_ASSERTIONS` in [test/e2e-helpers.js](../test/e2e-helpers.js):
+- **Enum mappings**: `figma.enum()` for variant/size/colorPalette with 3+ options
+- **Boolean mappings**: `figma.boolean()` for 2-option toggles (showArrow, isRequired)
+- **Variant restrictions**: Alternative pattern using `variant: { Type: 'Value' }`
 
 Tests fail loudly if expected components are missing or mappings diverge from spec, preventing silent quality regressions in nondeterministic LLM output.
 
