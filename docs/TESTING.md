@@ -8,6 +8,7 @@ pnpm test:e2e chakra                    # All Chakra E2E (~30s/component)
 pnpm test:e2e chakra Button             # Single component
 pnpm test:e2e chakra Button Alert Input # Multiple components
 pnpm test:e2e zapui --keep              # Keep temp artifacts
+pnpm test:e2e zapui --agent-sdk         # Use Agent SDK instead of Messages API
 pnpm test:e2e --help                    # Show options
 ```
 
@@ -27,7 +28,7 @@ pnpm test:e2e --help                    # Show options
 ## Semantic Assertions
 
 E2E tests validate that LLM-generated Code Connect has correct Figma→code prop mappings.
-Assertions are defined in `SEMANTIC_ASSERTIONS` in [test/e2e-helpers.js](../test/e2e-helpers.js).
+Assertions are defined in `SEMANTIC_ASSERTIONS` in [scripts/test-e2e.js](../scripts/test-e2e.js).
 
 ## For Agents: Handling Long-Running Tests
 

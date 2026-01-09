@@ -1,33 +1,119 @@
 #!/usr/bin/env node
 /**
- * Unified E2E Test Runner
- * 
+ * E2E Test Runner
+ *
+ * Tests superconnect pipeline against design system fixtures.
+ * Validates generated Code Connect files for structural and semantic correctness.
+ *
  * Usage:
  *   pnpm test:e2e chakra                    # all Chakra components
  *   pnpm test:e2e chakra Button             # single component
  *   pnpm test:e2e chakra Button Alert Input # multiple components
  *   pnpm test:e2e zapui --keep              # preserve artifacts
+ *   pnpm test:e2e zapui --agent-sdk         # use Agent SDK mode
  *   pnpm test:e2e --help                    # show help
  */
 
-const { spawnSync } = require('child_process');
+const fs = require('fs-extra');
 const path = require('path');
-const fs = require('fs');
+const os = require('os');
+const { spawnSync } = require('child_process');
+const { validateCodeConnect } = require('../src/util/validate-code-connect');
+const { extractIR } = require('../src/util/code-connect-ir');
 
 // -----------------------------------------------------------------------------
-// Configuration
+// Design System Configurations
 // -----------------------------------------------------------------------------
 
 const DESIGN_SYSTEMS = {
   chakra: {
-    testFile: 'test/chakra-e2e.test.js',
-    runEnv: 'RUN_CHAKRA_E2E',
-    onlyEnv: 'CHAKRA_E2E_ONLY'
+    name: 'Chakra UI',
+    framework: 'react',
+    fixtureDir: 'fixtures/chakra-ui',
+    figmaUrl: 'https://www.figma.com/design/7jkNETbphjIb9ap1M7H1o4/Chakra-UI----Figma-Kit--v3---Community-?m=auto&t=0XdgVxllEy8vO4w1-6',
+    codeConnectExt: '.figma.tsx'
   },
   zapui: {
-    testFile: 'test/zapui-e2e.test.js',
-    runEnv: 'RUN_ZAPUI_E2E',
-    onlyEnv: 'ZAPUI_E2E_ONLY'
+    name: 'ZapUI',
+    framework: 'angular',
+    fixtureDir: 'fixtures/zapui',
+    figmaUrl: 'https://www.figma.com/design/ChohwrZwvllBgHWzBslmUg/Zap-UI-Kit--Bitovi---Copy-?m=auto&t=0XdgVxllEy8vO4w1-6',
+    codeConnectExt: '.figma.ts'
+  }
+};
+
+// -----------------------------------------------------------------------------
+// Semantic Assertions
+// -----------------------------------------------------------------------------
+// Each component lists required Figma→code mappings.
+// These form the "semantic contract" - if the LLM maps differently, tests fail.
+
+const SEMANTIC_ASSERTIONS = {
+  zapui: {
+    Button: [
+      { figma: 'Status', prop: 'type', helper: 'enum' },
+      { figma: 'Style', prop: 'variant', helper: 'enum' },
+      { figma: 'Size', prop: 'size', helper: 'enum' },
+      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
+      { figma: 'Icon position', prop: 'iconPosition', helper: 'enum' },
+      { figma: 'State', prop: 'disabled', helper: 'enum' }
+    ],
+    Alert: [
+      { figma: 'Type', prop: 'type', helper: 'enum' },
+      { figma: 'Style', prop: 'variant', helper: 'enum' }
+    ],
+    Checkbox: [
+      { figma: 'Check', prop: 'checked', helper: 'enum' }
+    ],
+    Chips: [
+      { figma: 'Size', prop: 'size', helper: 'enum' },
+      { figma: 'Type', prop: 'type', helper: 'enum' },
+      { figma: 'Style', prop: 'variant', helper: 'enum' },
+      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
+      { figma: 'Dismissable', prop: 'dismissible', helper: 'boolean' }
+    ],
+    Badge: [
+      { figma: 'Type', prop: 'type', helper: 'enum' }
+    ],
+    Select: [
+      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
+      { figma: 'Dropdown location', prop: 'position', helper: 'enum' }
+    ],
+    Tooltip: [
+      { figma: 'Corner radsius', prop: 'shape', helper: 'enum' }
+    ]
+  },
+  chakra: {
+    Button: [
+      { figma: 'size', prop: 'size', helper: 'enum' },
+      { figma: 'variant', prop: 'variant', helper: 'enum' },
+      { figma: 'colorPalette', prop: 'colorPalette', helper: 'enum' }
+    ],
+    Alert: [
+      { figma: 'status', prop: 'status', helper: 'enum' },
+      { figma: 'variant', prop: 'variant', helper: 'enum' }
+    ],
+    Input: [
+      { figma: 'size', prop: 'size', helper: 'enum' },
+      { figma: 'variant', prop: 'variant', helper: 'enum' }
+    ],
+    Dialog: [
+      { figma: 'size', prop: 'size', helper: 'enum' }
+    ],
+    Popover: [
+      { figma: 'size', prop: 'size', helper: 'enum' },
+      { figma: '.showArrow?', prop: 'showArrow', helper: 'boolean' }
+    ],
+    Avatar: [
+      { figma: 'size', prop: 'size', helper: 'enum' },
+      { figma: 'shape', prop: 'shape', helper: 'enum' },
+      { figma: 'variant', prop: 'variant', helper: 'enum' }
+    ],
+    NumberInput: [
+      { figma: 'size', prop: 'size', helper: 'enum' },
+      { figma: 'variant', prop: 'variant', helper: 'enum' },
+      { figma: '.isRequired?', prop: 'isRequired', helper: 'boolean' }
+    ]
   }
 };
 
@@ -37,39 +123,42 @@ const DESIGN_SYSTEMS = {
 
 function parseArgs(argv) {
   const args = argv.slice(2);
-  
-  const options = {
+
+  const config = {
     system: null,
     components: [],
     keep: false,
+    agentSdk: false,
     help: false
   };
-  
+
   for (const arg of args) {
     if (arg === '--help' || arg === '-h') {
-      options.help = true;
+      config.help = true;
     } else if (arg === '--keep') {
-      options.keep = true;
+      config.keep = true;
+    } else if (arg === '--agent-sdk') {
+      config.agentSdk = true;
     } else if (arg.startsWith('-')) {
       console.error(`Unknown flag: ${arg}`);
       process.exit(1);
-    } else if (!options.system && DESIGN_SYSTEMS[arg.toLowerCase()]) {
-      options.system = arg.toLowerCase();
-    } else if (options.system) {
-      options.components.push(arg);
+    } else if (!config.system && DESIGN_SYSTEMS[arg.toLowerCase()]) {
+      config.system = arg.toLowerCase();
+    } else if (config.system) {
+      config.components.push(arg);
     } else {
       console.error(`Unknown design system: ${arg}`);
       console.error(`Available: ${Object.keys(DESIGN_SYSTEMS).join(', ')}`);
       process.exit(1);
     }
   }
-  
-  return options;
+
+  return config;
 }
 
 function printHelp() {
   console.log(`
-Unified E2E Test Runner
+E2E Test Runner
 
 Usage:
   pnpm test:e2e <system> [components...] [options]
@@ -79,53 +168,304 @@ Systems:
   zapui     ZapUI (Angular)
 
 Options:
-  --keep      Preserve temp directory after test (always kept on failure)
-  --help      Show this help
+  --keep       Preserve temp directory after test (always kept on failure)
+  --agent-sdk  Use Anthropic Agent SDK instead of Messages API
+  --help       Show this help
 
 Examples:
   pnpm test:e2e chakra                    # Run all Chakra components
   pnpm test:e2e chakra Button             # Test only Button
   pnpm test:e2e chakra Button Alert Input # Test multiple components
   pnpm test:e2e zapui --keep              # Run all ZapUI, keep artifacts
+  pnpm test:e2e zapui --agent-sdk         # Test with Agent SDK mode
 `);
 }
 
 // -----------------------------------------------------------------------------
-// Test Execution
+// Helpers
 // -----------------------------------------------------------------------------
 
-function runTests(options) {
-  const config = DESIGN_SYSTEMS[options.system];
-  
-  // Build environment
-  const env = { ...process.env };
-  env[config.runEnv] = '1';
-  
-  if (options.keep) {
-    env.E2E_KEEP = '1';
-  }
-  
-  // Set component filter if specified
-  if (options.components.length > 0) {
-    env[config.onlyEnv] = options.components.join(',');
-  }
-  
-  // Print what we're doing
-  const systemLabel = options.system === 'chakra' ? 'Chakra UI' : 'ZapUI';
-  const scopeLabel = options.components.length > 0
-    ? options.components.join(', ')
-    : 'all components';
-  console.log(`\nRunning ${systemLabel} E2E tests: ${scopeLabel}\n`);
-  
-  // Run Jest
-  const jestPath = path.join(__dirname, '..', 'node_modules', '.bin', 'jest');
-  const result = spawnSync(jestPath, [config.testFile], {
-    cwd: process.cwd(),
-    env,
-    stdio: 'inherit'
+/**
+ * Read a secret from environment or .env file.
+ */
+function readSecret(key) {
+  if (process.env[key]) return process.env[key];
+  const envPath = path.join(__dirname, '..', '.env');
+  if (!fs.existsSync(envPath)) return null;
+  const match = fs
+    .readFileSync(envPath, 'utf8')
+    .split(/\r?\n/)
+    .find(line => line.startsWith(`${key}=`));
+  if (!match) return null;
+  const [, value] = match.split('=');
+  return value ? value.trim() : null;
+}
+
+/**
+ * Run a command and return its output. Throws on non-zero exit.
+ */
+function run(cmd, args, options = {}) {
+  const result = spawnSync(cmd, args, {
+    ...options,
+    encoding: 'utf8',
+    stdio: 'pipe'
   });
-  
-  process.exit(result.status || 0);
+  const output = `${result.stdout || ''}${result.stderr || ''}`;
+  if (result.status !== 0) {
+    throw new Error(`Command failed: ${[cmd].concat(args).join(' ')}\n${output}`);
+  }
+  return output;
+}
+
+/**
+ * Copy fixture directory, excluding .git and node_modules.
+ */
+function copyFixture(src, dest) {
+  fs.copySync(src, dest, {
+    dereference: true,
+    filter: (srcPath) => {
+      const base = path.basename(srcPath);
+      if (base === '.git' || base === '.husky' || base === 'node_modules') return false;
+      return !srcPath.includes(`${path.sep}.git${path.sep}`);
+    }
+  });
+}
+
+/**
+ * Write superconnect.toml configuration.
+ */
+function writeSuperconnectConfig(destDir, figmaUrl, agentSdk) {
+  const api = agentSdk ? 'anthropic-agents' : 'anthropic';
+  const model = 'claude-haiku-4-5';
+
+  const toml = [
+    '[inputs]',
+    `figma_url = "${figmaUrl}"`,
+    'component_repo_path = "."',
+    '',
+    '[agent]',
+    `api = "${api}"`,
+    `model = "${model}"`,
+    ''
+  ].join('\n');
+  fs.writeFileSync(path.join(destDir, 'superconnect.toml'), toml, 'utf8');
+}
+
+/**
+ * Get generated Code Connect files from output directory.
+ */
+function getGeneratedConnectors(outputDir, ext) {
+  if (!fs.existsSync(outputDir)) return [];
+  return fs.readdirSync(outputDir).filter(file => file.endsWith(ext));
+}
+
+/**
+ * Validate semantic assertions for a component.
+ */
+function validateSemanticAssertions(componentName, ir, designSystem) {
+  const assertions = SEMANTIC_ASSERTIONS[designSystem]?.[componentName];
+  if (!assertions) return; // No assertions defined for this component
+
+  if (ir.connects.length === 0) {
+    throw new Error(`${componentName}: No figma.connect() calls found`);
+  }
+
+  const allHelpers = ir.connects.flatMap(c => c.config?.props?.helpers || []);
+  const allVariantRestrictions = ir.connects
+    .map(c => c.config?.variant?.restrictions)
+    .filter(Boolean);
+
+  for (const assertion of assertions) {
+    const { figma, prop, helper, mustBeVariantOnly } = assertion;
+
+    const propsMapping = allHelpers.find(h => h.key === figma);
+    const hasVariantForProperty = allVariantRestrictions.some(r => figma in r);
+
+    if (mustBeVariantOnly) {
+      if (propsMapping) {
+        throw new Error(
+          `${componentName}: '${figma}' must NOT be a prop mapping (found ${propsMapping.helper})`
+        );
+      }
+      continue;
+    }
+
+    if (propsMapping) {
+      if (propsMapping.propName.toLowerCase() !== prop.toLowerCase()) {
+        throw new Error(
+          `${componentName}: '${figma}' mapped to '${propsMapping.propName}', expected '${prop}'`
+        );
+      }
+      if (propsMapping.helper !== helper) {
+        throw new Error(
+          `${componentName}: '${figma}' used '${propsMapping.helper}', expected '${helper}'`
+        );
+      }
+      continue;
+    }
+
+    if (hasVariantForProperty) {
+      continue; // Valid via variant restrictions
+    }
+
+    throw new Error(
+      `${componentName}: Missing mapping for '${figma}' → '${prop}' (${helper})`
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Main Test Logic
+// -----------------------------------------------------------------------------
+
+function runE2E(config) {
+  const ds = DESIGN_SYSTEMS[config.system];
+  const repoRoot = path.join(__dirname, '..');
+  const fixtureRoot = path.join(repoRoot, ds.fixtureDir);
+  const superconnectScript = path.join(repoRoot, 'scripts', 'run-pipeline.js');
+  const figmaCli = path.join(repoRoot, 'node_modules', '.bin', 'figma');
+
+  // Check prerequisites
+  if (!fs.existsSync(fixtureRoot) || !fs.existsSync(path.join(fixtureRoot, 'package.json'))) {
+    throw new Error(`${ds.name} fixture missing. Run: git submodule update --init ${ds.fixtureDir}`);
+  }
+  if (!fs.existsSync(figmaCli)) {
+    throw new Error('Figma CLI missing. Run: pnpm install');
+  }
+
+  // Check secrets
+  const figmaToken = readSecret('FIGMA_ACCESS_TOKEN');
+  const anthropicKey = readSecret('ANTHROPIC_API_KEY');
+  if (!figmaToken) throw new Error('FIGMA_ACCESS_TOKEN not set');
+  if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not set');
+
+  const env = {
+    ...process.env,
+    FIGMA_ACCESS_TOKEN: figmaToken,
+    ANTHROPIC_API_KEY: anthropicKey
+  };
+
+  // Create temp directory
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `${config.system}-e2e-`));
+  console.log(`Temp directory: ${tmpDir}`);
+
+  try {
+    // Setup
+    copyFixture(fixtureRoot, tmpDir);
+    writeSuperconnectConfig(tmpDir, ds.figmaUrl, config.agentSdk);
+    fs.removeSync(path.join(tmpDir, 'superconnect'));
+    fs.removeSync(path.join(tmpDir, 'codeConnect'));
+
+    // Run superconnect
+    const args = [superconnectScript, '--framework', ds.framework, '--force'];
+    if (config.components.length > 0) {
+      args.push('--only', config.components.join(','));
+    }
+    console.log(`Running: node ${args.join(' ')}`);
+    run('node', args, { cwd: tmpDir, env });
+
+    // Verify files were generated
+    const outputDir = path.join(tmpDir, 'codeConnect');
+    const connectors = getGeneratedConnectors(outputDir, ds.codeConnectExt);
+
+    if (connectors.length === 0) {
+      throw new Error('No Code Connect files were generated');
+    }
+    console.log(`Generated ${connectors.length} connector(s): ${connectors.join(', ')}`);
+
+    if (config.components.length > 0 && connectors.length < config.components.length) {
+      throw new Error(
+        `Expected at least ${config.components.length} connectors, got ${connectors.length}`
+      );
+    }
+
+    // Layer 1: Structural validation
+    const figmaDir = path.join(tmpDir, 'superconnect', 'figma-components');
+    const structuralErrors = [];
+    for (const file of connectors) {
+      const code = fs.readFileSync(path.join(outputDir, file), 'utf8');
+      const slug = file.replace(ds.codeConnectExt, '');
+      const evidencePath = path.join(figmaDir, `${slug}.json`);
+
+      if (fs.existsSync(evidencePath)) {
+        const figmaEvidence = fs.readJsonSync(evidencePath);
+        const validation = validateCodeConnect({ generatedCode: code, figmaEvidence });
+        if (!validation.valid) {
+          structuralErrors.push({ file, errors: validation.errors });
+        }
+      }
+    }
+
+    if (structuralErrors.length > 0) {
+      console.error('\nStructural validation errors:');
+      structuralErrors.forEach(({ file, errors }) => {
+        console.error(`  ${file}:`);
+        errors.forEach(err => console.error(`    - ${err}`));
+      });
+      throw new Error('Structural validation failed');
+    }
+
+    // Layer 2: Semantic validation
+    const semanticErrors = [];
+    const componentsToValidate = config.components.length > 0
+      ? config.components
+      : Object.keys(SEMANTIC_ASSERTIONS[config.system] || {});
+
+    for (const componentName of componentsToValidate) {
+      const file = connectors.find(f =>
+        f.toLowerCase().includes(componentName.toLowerCase())
+      );
+      if (!file) {
+        if (SEMANTIC_ASSERTIONS[config.system]?.[componentName]) {
+          semanticErrors.push({ component: componentName, error: 'Not generated' });
+        }
+        continue;
+      }
+
+      try {
+        const code = fs.readFileSync(path.join(outputDir, file), 'utf8');
+        const ir = extractIR(code, file);
+        validateSemanticAssertions(componentName, ir, config.system);
+      } catch (err) {
+        semanticErrors.push({ component: componentName, error: err.message });
+      }
+    }
+
+    if (semanticErrors.length > 0) {
+      console.error('\nSemantic validation errors:');
+      semanticErrors.forEach(({ component, error }) => {
+        console.error(`  ${component}: ${error}`);
+      });
+      throw new Error('Semantic validation failed');
+    }
+
+    // Layer 3: Figma CLI validation
+    console.log('\nRunning Figma CLI validation...');
+    const publishOutput = run(
+      figmaCli,
+      [
+        'connect', 'publish',
+        '--dry-run',
+        '--exit-on-unreadable-files',
+        '--skip-update-check',
+        '--outDir', path.join(tmpDir, 'superconnect', 'code-connect-json')
+      ],
+      { cwd: tmpDir, env }
+    );
+
+    if (!publishOutput.includes('All Code Connect files are valid')) {
+      throw new Error(`Figma CLI validation failed:\n${publishOutput}`);
+    }
+
+    console.log('\n✅ All validations passed');
+    return { success: true, tmpDir };
+
+  } catch (error) {
+    console.error(`\n❌ ${error.message}`);
+    // Always keep on failure
+    console.error(`Artifacts preserved at: ${tmpDir}`);
+    return { success: false, tmpDir, error };
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -133,20 +473,37 @@ function runTests(options) {
 // -----------------------------------------------------------------------------
 
 function main() {
-  const options = parseArgs(process.argv);
-  
-  if (options.help) {
+  const config = parseArgs(process.argv);
+
+  if (config.help) {
     printHelp();
     process.exit(0);
   }
-  
-  if (!options.system) {
+
+  if (!config.system) {
     console.error('Error: Please specify a design system (chakra or zapui)');
     console.error('Run with --help for usage');
     process.exit(1);
   }
-  
-  runTests(options);
+
+  const ds = DESIGN_SYSTEMS[config.system];
+  const scopeLabel = config.components.length > 0
+    ? config.components.join(', ')
+    : 'all components';
+  const modeLabel = config.agentSdk ? ' (agent SDK)' : '';
+  console.log(`\n🧪 ${ds.name} E2E: ${scopeLabel}${modeLabel}\n`);
+
+  const result = runE2E(config);
+
+  // Cleanup on success unless --keep
+  if (result.success && !config.keep) {
+    fs.removeSync(result.tmpDir);
+    console.log('Temp directory cleaned up');
+  } else if (result.success && config.keep) {
+    console.log(`Artifacts preserved at: ${result.tmpDir}`);
+  }
+
+  process.exit(result.success ? 0 : 1);
 }
 
 main();
