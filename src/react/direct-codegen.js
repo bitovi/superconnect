@@ -320,7 +320,7 @@ async function processAllComponents({
   createAgent,
   components,
   maxRetries = DEFAULT_MAX_RETRIES,
-  maxTokens = 2048,
+  maxTokens = 16384,
   onProgress
 }) {
   const results = [];
