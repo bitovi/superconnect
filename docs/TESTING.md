@@ -3,13 +3,14 @@
 ## Quick Reference
 
 ```bash
-pnpm test                               # Unit tests (~4s)
-pnpm test:e2e chakra                    # All Chakra E2E (~30s/component)
-pnpm test:e2e chakra Button             # Single component
-pnpm test:e2e chakra Button Alert Input # Multiple components
-pnpm test:e2e zapui --keep              # Keep temp artifacts
-pnpm test:e2e zapui --agent-sdk         # Use Agent SDK instead of Messages API
-pnpm test:e2e --help                    # Show options
+pnpm test                                       # Unit tests (~4s)
+pnpm test:e2e chakra                            # All Chakra E2E (~30s/component)
+pnpm test:e2e chakra Button                     # Single component
+pnpm test:e2e chakra Button Alert Input         # Multiple components
+pnpm test:e2e zapui --keep                      # Keep temp artifacts
+pnpm test:e2e zapui --agent-sdk                 # Use Agent SDK instead of Messages API
+pnpm test:e2e zapui --model claude-sonnet-4-5   # Use specific model
+pnpm test:e2e --help                            # Show options
 ```
 
 ## Prerequisites

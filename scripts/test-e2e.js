@@ -129,16 +129,24 @@ function parseArgs(argv) {
     components: [],
     keep: false,
     agentSdk: false,
+    model: null,
     help: false
   };
 
-  for (const arg of args) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
     if (arg === '--help' || arg === '-h') {
       config.help = true;
     } else if (arg === '--keep') {
       config.keep = true;
     } else if (arg === '--agent-sdk') {
       config.agentSdk = true;
+    } else if (arg === '--model') {
+      config.model = args[++i];
+      if (!config.model) {
+        console.error('--model requires a value');
+        process.exit(1);
+      }
     } else if (arg.startsWith('-')) {
       console.error(`Unknown flag: ${arg}`);
       process.exit(1);
@@ -168,9 +176,10 @@ Systems:
   zapui     ZapUI (Angular)
 
 Options:
-  --keep       Preserve temp directory after test (always kept on failure)
-  --agent-sdk  Use Anthropic Agent SDK instead of Messages API
-  --help       Show this help
+  --keep          Preserve temp directory after test (always kept on failure)
+  --agent-sdk     Use Anthropic Agent SDK instead of Messages API
+  --model <name>  Model to use (default: claude-haiku-4-5)
+  --help          Show this help
 
 Examples:
   pnpm test:e2e chakra                    # Run all Chakra components
@@ -234,9 +243,9 @@ function copyFixture(src, dest) {
 /**
  * Write superconnect.toml configuration.
  */
-function writeSuperconnectConfig(destDir, figmaUrl, agentSdk) {
+function writeSuperconnectConfig(destDir, figmaUrl, agentSdk, model) {
   const api = agentSdk ? 'anthropic-agents' : 'anthropic';
-  const model = 'claude-haiku-4-5';
+  const effectiveModel = model || 'claude-haiku-4-5';
 
   const toml = [
     '[inputs]',
@@ -245,7 +254,7 @@ function writeSuperconnectConfig(destDir, figmaUrl, agentSdk) {
     '',
     '[agent]',
     `api = "${api}"`,
-    `model = "${model}"`,
+    `model = "${effectiveModel}"`,
     ''
   ].join('\n');
   fs.writeFileSync(path.join(destDir, 'superconnect.toml'), toml, 'utf8');
@@ -352,7 +361,7 @@ function runE2E(config) {
   try {
     // Setup
     copyFixture(fixtureRoot, tmpDir);
-    writeSuperconnectConfig(tmpDir, ds.figmaUrl, config.agentSdk);
+    writeSuperconnectConfig(tmpDir, ds.figmaUrl, config.agentSdk, config.model);
     fs.removeSync(path.join(tmpDir, 'superconnect'));
     fs.removeSync(path.join(tmpDir, 'codeConnect'));
 
