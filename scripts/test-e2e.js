@@ -109,14 +109,37 @@ const SEMANTIC_ASSERTIONS = {
   // NOTE: Chakra uses camelCase for Figma property names (e.g., "size" not "Size")
   // ============================================================================
   chakra: {
+    Accordion: [
+      { figma: 'size', helper: 'enum' },
+      { figma: 'variant', helper: 'enum' }
+    ],
+    Avatar: [
+      { figma: 'size', helper: 'enum' },
+      { figma: 'variant', helper: 'enum' },
+      { figma: 'shape', helper: 'enum' },
+      { figma: 'colorPalette', helper: 'enum' },
+      { figma: '.showImage?', skip: true },   // visual toggle, not a code prop
+      { figma: 'Avatar-item', skip: true },   // design variant (image vs initials)
+      { figma: 'Initials', helper: 'textContent', nested: true }  // prop name varies
+      // .badge?, .ring?: BOOLEAN componentProperties, unclear mapping — not enforced
+    ],
+    Badge: [
+      { figma: 'size', helper: 'enum' },
+      { figma: 'variant', helper: 'enum' },
+      { figma: 'color', prop: 'colorPalette', helper: 'enum' },
+      { figma: 'Label', helper: 'textContent', nested: true }  // prop name varies (children/label)
+      // .iconStart?, .iconEnd?: BOOLEAN controls structure, no instance to map
+    ],
     Button: [
       { figma: 'size', helper: 'enum' },
       { figma: 'variant', helper: 'enum' },
       { figma: 'colorPalette', helper: 'enum' },
-      { figma: 'state', skip: true },  // visual state (default/hover), not a code prop
-      { figma: 'iconStart', helper: 'instance' },
-      { figma: 'iconEnd', helper: 'instance' },
-      { figma: 'label', helper: 'textContent' }
+      { figma: 'state', skip: true },           // visual state (default/hover), not a code prop
+      { figma: '.iconStart?', skip: true },     // judgment call: variant restriction OR boolean wrapper
+      { figma: '.iconEnd?', skip: true },
+      { figma: 'iconStart', helper: 'instance', nested: true },  // may be nested in boolean
+      { figma: 'iconEnd', helper: 'instance', nested: true }
+      // Button text: should be textContent("Button") but LLM inconsistent — not enforced
     ],
     Alert: [
       { figma: 'status', prop: 'status', helper: 'enum' },
@@ -307,12 +330,13 @@ function getGeneratedConnectors(outputDir, ext) {
  * Validate semantic assertions for a component.
  * 
  * Assertion format:
- *   { figma, helper }           - prop defaults to figma name
- *   { figma, prop, helper }     - explicit prop name
- *   { figma, skip: true }       - documented but not enforced
- *   { figma, mustBeVariantOnly } - must NOT be a prop mapping
+ *   { figma, helper }                    - prop defaults to figma name
+ *   { figma, prop, helper }              - explicit prop name
+ *   { figma, skip: true }                - documented but not enforced
+ *   { figma, helper, nested: true }      - helper can appear nested (e.g. instance inside boolean)
+ *   { figma, mustBeVariantOnly }         - must NOT be a prop mapping
  */
-function validateSemanticAssertions(componentName, ir, designSystem) {
+function validateSemanticAssertions(componentName, ir, designSystem, code = '') {
   const assertions = SEMANTIC_ASSERTIONS[designSystem]?.[componentName];
   if (!assertions) return; // No assertions defined for this component
 
@@ -326,12 +350,24 @@ function validateSemanticAssertions(componentName, ir, designSystem) {
     .filter(Boolean);
 
   for (const assertion of assertions) {
-    const { figma, helper, mustBeVariantOnly, skip } = assertion;
+    const { figma, helper, mustBeVariantOnly, skip, nested } = assertion;
     // Default prop to figma name if not specified
     const prop = assertion.prop || figma;
 
     // Skip: documented but not enforced
     if (skip) continue;
+
+    // Nested: search for helper call anywhere in the code
+    if (nested && code) {
+      const helperPattern = `figma.${helper}("${figma}"`;
+      const altPattern = `figma.${helper}('${figma}'`;
+      if (code.includes(helperPattern) || code.includes(altPattern)) {
+        continue; // Found nested helper
+      }
+      throw new Error(
+        `${componentName}: Missing figma.${helper}("${figma}") (may be nested)`
+      );
+    }
 
     const propsMapping = allHelpers.find(h => h.key === figma);
     const hasVariantForProperty = allVariantRestrictions.some(r => figma in r);
@@ -480,7 +516,7 @@ function runE2E(config) {
       try {
         const code = fs.readFileSync(path.join(outputDir, file), 'utf8');
         const ir = extractIR(code, file);
-        validateSemanticAssertions(componentName, ir, config.system);
+        validateSemanticAssertions(componentName, ir, config.system, code);
       } catch (err) {
         semanticErrors.push({ component: componentName, error: err.message });
       }
