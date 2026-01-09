@@ -45,10 +45,24 @@ const DESIGN_SYSTEMS = {
 // -----------------------------------------------------------------------------
 // Semantic Assertions
 // -----------------------------------------------------------------------------
-// Each component lists required Figma→code mappings.
-// These form the "semantic contract" - if the LLM maps differently, tests fail.
+// 
+// Each component lists the mappings we REQUIRE to exist.
+// Format: { figma: 'FigmaPropertyName', prop: 'codePropName', helper: 'helperType' }
+//
+// - `figma`: Exact Figma property name as it appears in the Figma file
+// - `prop`: Expected code prop name in the generated Code Connect
+// - `helper`: Expected figma helper type (enum, boolean, string, children, instance)
+//
+// These are human-authored expectations based on inspecting the Figma files.
+// They form the "semantic contract" - if the LLM maps to different props, tests fail.
+// -----------------------------------------------------------------------------
 
 const SEMANTIC_ASSERTIONS = {
+  // ============================================================================
+  // ZapUI - Angular design system
+  // Figma file: https://www.figma.com/design/ChohwrZwvllBgHWzBslmUg/Zap-UI-Kit--Bitovi---Copy-
+  // NOTE: ZapUI uses Title Case for Figma property names (e.g., "Size" not "size")
+  // ============================================================================
   zapui: {
     Button: [
       { figma: 'Status', prop: 'type', helper: 'enum' },
@@ -57,10 +71,12 @@ const SEMANTIC_ASSERTIONS = {
       { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
       { figma: 'Icon position', prop: 'iconPosition', helper: 'enum' },
       { figma: 'State', prop: 'disabled', helper: 'enum' }
+      // Icon, Image: NOT enforced — multiple valid approaches (input vs projection)
     ],
     Alert: [
       { figma: 'Type', prop: 'type', helper: 'enum' },
       { figma: 'Style', prop: 'variant', helper: 'enum' }
+      // Icon: NOT enforced — component has default icons per type
     ],
     Checkbox: [
       { figma: 'Check', prop: 'checked', helper: 'enum' }
@@ -71,23 +87,33 @@ const SEMANTIC_ASSERTIONS = {
       { figma: 'Style', prop: 'variant', helper: 'enum' },
       { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
       { figma: 'Dismissable', prop: 'dismissible', helper: 'boolean' }
+      // Icon: NOT enforced — multiple valid approaches
     ],
     Badge: [
+      // Note: Figma has typo "Succcess" (3 c's)
       { figma: 'Type', prop: 'type', helper: 'enum' }
+      // Filled, Style: NOT enforced — many-to-one mapping to variant
     ],
     Select: [
       { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
       { figma: 'Dropdown location', prop: 'position', helper: 'enum' }
     ],
     Tooltip: [
+      // Note: Figma has typo "Corner radsius"
       { figma: 'Corner radsius', prop: 'shape', helper: 'enum' }
     ]
   },
+  // ============================================================================
+  // Chakra UI - React design system  
+  // Figma file: https://www.figma.com/design/7jkNETbphjIb9ap1M7H1o4/Chakra-UI----Figma-Kit--v3---Community-
+  // NOTE: Chakra uses camelCase for Figma property names (e.g., "size" not "Size")
+  // ============================================================================
   chakra: {
     Button: [
       { figma: 'size', prop: 'size', helper: 'enum' },
       { figma: 'variant', prop: 'variant', helper: 'enum' },
       { figma: 'colorPalette', prop: 'colorPalette', helper: 'enum' }
+      // state: NOT enforced — visual state (default/hover), not a code prop
     ],
     Alert: [
       { figma: 'status', prop: 'status', helper: 'enum' },
@@ -96,23 +122,29 @@ const SEMANTIC_ASSERTIONS = {
     Input: [
       { figma: 'size', prop: 'size', helper: 'enum' },
       { figma: 'variant', prop: 'variant', helper: 'enum' }
+      // state: NOT enforced — visual (default/disabled/focus)
+      // type: NOT enforced — addon variant, not semantic
     ],
     Dialog: [
       { figma: 'size', prop: 'size', helper: 'enum' }
+      // .closeTrigger?, .footer?: NOT enforced — slot visibility
     ],
     Popover: [
       { figma: 'size', prop: 'size', helper: 'enum' },
       { figma: '.showArrow?', prop: 'showArrow', helper: 'boolean' }
+      // .popoverTitle?, .popoverText?, .inputField?: NOT enforced — slot visibility
     ],
     Avatar: [
       { figma: 'size', prop: 'size', helper: 'enum' },
       { figma: 'shape', prop: 'shape', helper: 'enum' },
       { figma: 'variant', prop: 'variant', helper: 'enum' }
+      // .badge?, .ring?, .showImage?: NOT enforced — slot visibility
     ],
     NumberInput: [
       { figma: 'size', prop: 'size', helper: 'enum' },
       { figma: 'variant', prop: 'variant', helper: 'enum' },
       { figma: '.isRequired?', prop: 'isRequired', helper: 'boolean' }
+      // state, orientation, .isFilled?, .isInvalid?: NOT enforced — visual/addon
     ]
   }
 };
