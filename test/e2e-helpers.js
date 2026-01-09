@@ -20,11 +20,20 @@ const { extractIR } = require('../src/util/code-connect-ir');
 // -----------------------------------------------------------------------------
 // 
 // Each component lists the mappings we REQUIRE to exist.
-// Format: { figma: 'FigmaPropertyName', prop: 'codePropName', helper: 'helperType' }
+// 
+// POSITIVE ASSERTION (property must map to a prop):
+//   { figma: 'FigmaPropertyName', prop: 'codePropName', helper: 'helperType' }
 //
+// NEGATIVE ASSERTION (property must NOT be a prop mapping):
+//   { figma: 'FigmaPropertyName', mustBeVariantOnly: true }
+//
+// Fields:
 // - `figma`: Exact Figma property name as it appears in the Figma file
 // - `prop`: Expected code prop name in the generated Code Connect
 // - `helper`: Expected figma helper type (enum, boolean, string, children, instance)
+// - `mustBeVariantOnly`: If true, this property must ONLY appear in variant restrictions,
+//                        not as a prop mapping. Use for properties that control child
+//                        element presence (e.g., Icon: Yes/No) rather than attribute values.
 //
 // These are human-authored expectations based on inspecting the Figma files.
 // They form the "semantic contract" - if the LLM maps to different props, tests fail.
@@ -33,32 +42,47 @@ const { extractIR } = require('../src/util/code-connect-ir');
 const SEMANTIC_ASSERTIONS = {
   // ============================================================================
   // ZapUI - Angular design system
-  // Figma file: https://www.figma.com/design/ChohwrZwvllBgHWzBslmUg/Zap-UI-Kit--Bitovi---Copy-
+  // Figma: https://www.figma.com/design/ChohwrZwvllBgHWzBslmUg/Zap-UI-Kit--Bitovi---Copy-
   // NOTE: ZapUI uses Title Case for Figma property names (e.g., "Size" not "size")
-  // 
-  // Verified from:
-  // - Figma evidence JSON (superconnect/figma-components/*.json)
-  // - ZapUI component source (projects/zap/core/*/*.component.ts)
   // ============================================================================
   zapui: {
     Button: [
-      // Figma: Size, Status, Style, Icon, Icon position, Image, Mode, State, Corner radius
-      // Code (button.component.ts): size, type, shape, variant, icon, iconPosition
-      // Verified: Figma "Status" (Primary/Secondary/etc) → code "type" input
+      { figma: 'Status', prop: 'type', helper: 'enum' },
+      { figma: 'Style', prop: 'variant', helper: 'enum' },
       { figma: 'Size', prop: 'size', helper: 'enum' },
-      { figma: 'Status', prop: 'type', helper: 'enum' }
+      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
+      { figma: 'Icon position', prop: 'iconPosition', helper: 'enum' },
+      { figma: 'State', prop: 'disabled', helper: 'enum' }
+      // Icon, Image: NOT enforced — multiple valid approaches (input vs projection)
     ],
     Alert: [
-      // Figma: Type, Style, Icon, Mode, Supporting text
-      // Code (alert.component.ts): type, shape, variant, icon
-      // Verified: Figma "Type" (Basic/Error/Info/Success/Warning) → code "type" input
-      { figma: 'Type', prop: 'type', helper: 'enum' }
+      { figma: 'Type', prop: 'type', helper: 'enum' },
+      { figma: 'Style', prop: 'variant', helper: 'enum' }
+      // Icon: NOT enforced — component has default icons per type
     ],
     Checkbox: [
-      // Figma: Check (Checked/Indeterminate/Unchecked), Mode, State, Text
-      // Code (checkbox.component.ts): checked = model<boolean>()
-      // Verified: Figma "Check" → code "checked" binding via variant restrictions
       { figma: 'Check', prop: 'checked', helper: 'enum' }
+    ],
+    Chips: [
+      { figma: 'Size', prop: 'size', helper: 'enum' },
+      { figma: 'Type', prop: 'type', helper: 'enum' },
+      { figma: 'Style', prop: 'variant', helper: 'enum' },
+      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
+      { figma: 'Dismissable', prop: 'dismissible', helper: 'boolean' }
+      // Icon: NOT enforced — multiple valid approaches
+    ],
+    Badge: [
+      // Note: Figma has typo "Succcess" (3 c's)
+      { figma: 'Type', prop: 'type', helper: 'enum' }
+      // Filled, Style: NOT enforced — many-to-one mapping to variant
+    ],
+    Select: [
+      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
+      { figma: 'Dropdown location', prop: 'position', helper: 'enum' }
+    ],
+    Tooltip: [
+      // Note: Figma has typo "Corner radsius"
+      { figma: 'Corner radsius', prop: 'shape', helper: 'enum' }
     ]
   },
   
@@ -179,9 +203,30 @@ function validateSemanticAssertions(componentName, ir, designSystem) {
     );
   }
   
-  for (const { figma, prop, helper } of assertions) {
-    // First, check props-based approach
+  for (const assertion of assertions) {
+    const { figma } = assertion;
+    
+    // Check if this property appears in props helpers
     const propsMapping = allHelpers.find(h => h.key === figma);
+    
+    // Check if this property appears in variant restrictions
+    const hasVariantForProperty = allVariantRestrictions.some(r => figma in r);
+    
+    // Handle negative assertion: mustBeVariantOnly
+    if (assertion.mustBeVariantOnly) {
+      if (propsMapping) {
+        throw new Error(
+          `${designSystem}/${componentName}: Figma property '${figma}' must NOT be a prop mapping. ` +
+          `It controls child element presence, not attribute values. ` +
+          `Use variant restriction instead. Found: ${propsMapping.helper}('${figma}', ...)`
+        );
+      }
+      // Variant restriction is acceptable (or not present at all - that's fine too)
+      continue;
+    }
+    
+    // Handle positive assertion: must map to prop
+    const { prop, helper } = assertion;
     
     if (propsMapping) {
       // Found in props - validate prop name and helper
@@ -200,9 +245,6 @@ function validateSemanticAssertions(componentName, ir, designSystem) {
       }
       continue; // Assertion satisfied via props
     }
-    
-    // Second, check variant-based approach
-    const hasVariantForProperty = allVariantRestrictions.some(r => figma in r);
     
     if (hasVariantForProperty) {
       // Figma property is used in variant restrictions
