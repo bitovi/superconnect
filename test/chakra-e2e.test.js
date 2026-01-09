@@ -24,7 +24,6 @@ const {
   validateSemanticAssertions,
   getOnlyList,
   shouldKeepArtifacts,
-  isVerbose,
   readEnvValue,
   run,
   writeConfig,
@@ -166,7 +165,7 @@ maybeTest('generates valid Code Connect with correct semantic mappings', () => {
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chakra-e2e-'));
-  const keepArtifacts = shouldKeepArtifacts('CHAKRA_E2E_KEEP');
+  const keepArtifacts = shouldKeepArtifacts();
   
   if (keepArtifacts) {
     console.log(`\nTemp directory (will be preserved): ${tmpDir}`);

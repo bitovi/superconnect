@@ -24,7 +24,6 @@ const {
   validateSemanticAssertions,
   getOnlyList,
   shouldKeepArtifacts,
-  isVerbose,
   readEnvValue,
   run,
   writeConfig,
@@ -166,7 +165,7 @@ maybeTest('generates valid Code Connect with correct semantic mappings', () => {
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zapui-e2e-'));
-  const keepArtifacts = shouldKeepArtifacts('ZAPUI_E2E_KEEP');
+  const keepArtifacts = shouldKeepArtifacts();
   
   if (keepArtifacts) {
     console.log(`\nTemp directory (will be preserved): ${tmpDir}`);
@@ -256,7 +255,7 @@ maybeTest('agent SDK mode generates valid Code Connect', () => {
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zapui-agent-sdk-'));
-  const keepArtifacts = shouldKeepArtifacts('ZAPUI_E2E_KEEP');
+  const keepArtifacts = shouldKeepArtifacts();
   
   if (keepArtifacts) {
     console.log(`\nTemp directory (will be preserved): ${tmpDir}`);

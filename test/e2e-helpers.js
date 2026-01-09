@@ -226,7 +226,7 @@ function validateSemanticAssertions(componentName, ir, designSystem) {
  * @returns {string[]|null} Array of component names, or null if not set
  */
 function getOnlyList(envVarName) {
-  const raw = process.env[envVarName] || process.env[`npm_config_${envVarName.toLowerCase()}`];
+  const raw = process.env[envVarName];
   if (!raw) return null;
   return String(raw)
     .split(/[, ]+/)
@@ -236,21 +236,11 @@ function getOnlyList(envVarName) {
 
 /**
  * Check if we should preserve test artifacts after run.
- * @param {string} envVarName - e.g., 'ZAPUI_E2E_KEEP' or 'CHAKRA_E2E_KEEP'
+ * Uses unified E2E_KEEP env var (set by test-e2e.js script).
  */
-function shouldKeepArtifacts(envVarName) {
-  const val = process.env[envVarName] || process.env[`npm_config_${envVarName.toLowerCase()}`];
+function shouldKeepArtifacts() {
+  const val = process.env.E2E_KEEP;
   if (!val) return false;
-  const normalized = String(val).toLowerCase();
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
-}
-
-/**
- * Check if verbose output is requested.
- */
-function isVerbose() {
-  const val = process.env.SUPERCONNECT_E2E_VERBOSE;
-  if (val === undefined || val === null) return false;
   const normalized = String(val).toLowerCase();
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
@@ -287,10 +277,6 @@ function run(cmd, args, options) {
     stdio: 'pipe'
   });
   const output = `${result.stdout || ''}${result.stderr || ''}`;
-  if (isVerbose()) {
-    console.log(`$ ${[cmd].concat(args).join(' ')}`);
-    if (output.trim()) console.log(output.trim());
-  }
   if (result.status !== 0) {
     throw new Error(`Command failed: ${[cmd].concat(args).join(' ')}\n${output}`);
   }
@@ -376,7 +362,6 @@ module.exports = {
   validateComponent,
   getOnlyList,
   shouldKeepArtifacts,
-  isVerbose,
   readEnvValue,
   run,
   writeConfig,
