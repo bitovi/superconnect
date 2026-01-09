@@ -1,5 +1,7 @@
 # Connecting Web components
 
+**Source:** https://developers.figma.com/docs/code-connect/html/
+
 This guide helps you connect your HTML components to Figma components using Code Connect. This lets you document Web Components, Angular, Vue, and any other framework that uses HTML syntax. See the examples section for examples of using Code Connect with various HTML-based frameworks.
 
 > **Important:** Code Connect files are not executed. While they're written using real components from your codebase, the Figma CLI essentially treats code snippets as strings. This means you can, for example, use hooks without needing to mock data.
@@ -7,8 +9,6 @@ This guide helps you connect your HTML components to Figma components using Code
 > However, this also means that logical operators such as ternaries or conditionals will be output verbatim in your example code rather than executed to show the result. You aren't able to dynamically construct `figma.connect` calls in a for-loop, as another example.
 
 ## Dynamic code snippets
-
-If you completed Getting Started with Code Connect, you should have a connected code snippet visible in Dev Mode when inspecting instances of that component. However, the code snippet doesn't yet reflect the entirety of the design.
 
 To ensure the connected code snippet accurately reflects the design, you need to make use of property mappings. This enables you to link specific props in the design to props in code. In most cases, design and code props don't match 1:1, so it's necessary for us to configure this to ensure the correct code is shown in Dev Mode.
 
@@ -223,7 +223,7 @@ figma.connect("https://...", {
     })
   },
   example: ({ buttonShape }) => html`<ds-button size=${buttonShape.size}></ds-button>`
-})
+}
 ```
 
 ### Text Content
@@ -236,7 +236,7 @@ figma.connect("https://...", {
     label: figma.textContent("Text Layer")
   },
   example: ({ label }) => html`<ds-button>${label}</ds-button>`
-})
+}
 ```
 
 ### className
@@ -253,7 +253,7 @@ figma.connect("https://...", {
     ])
   },
   example: ({ className }) => html`<button class=${className}></button>`
-})
+}
 ```
 
 In Dev Mode, this snippet appears as:
@@ -307,41 +307,7 @@ figma.connect('https://...', {
 
 Code Connect HTML supports any valid HTML markup, and so in addition to documenting plain HTML and Web Components, can also be used for documenting HTML-based frameworks such as Angular and Vue. Any JavaScript/TypeScript code accompanying the HTML code must be enclosed in a `<script>` tag.
 
-Angular and Vue projects will be auto-detected based on their presence in `package.json`, and the default label for your examples will be set appropriately.
-
-### Web Components example
-
-```typescript
-import figma, { html } from '@figma/code-connect/html';
-
-figma.connect('https://...', {
-  props: {
-    text: figma.string('Text'),
-    disabled: figma.boolean('Disabled'),
-    size: figma.enum('Size', {
-      'small': 'sm',
-      'large': 'lg'
-    })
-  },
-  example: (props) =>
-      html`
-<ds-button
-  disabled=${props.disabled}
-  size=${props.size}
->
-  ${props.text}
-</ds-button>
-
-<script>
-  document.querySelector('ds-button')
-    .addEventListener('click', () => {
-      alert("You clicked ${props.text}");
-    })
-</script>`,
-    imports: ['<script type="module" src="https://my.domain/js/ds-button.min.js">'],
-  }
-)
-```
+Angular and Vue projects will be auto-detected based on their presence in `package.json`, and the default label for your examples will be set appropriately (see label docs for more information).
 
 ### Angular example
 
@@ -358,7 +324,7 @@ figma.connect('https://...', {
     })
   },
   example: (props) =>
-      html`
+      html`\
 <button
   dsButton
   disabled=${props.disabled}
@@ -395,7 +361,7 @@ figma.connect('https://...', {
     })
   },
   example: (props) =>
-      html`
+      html`\
 <script setup>
   function onClick() {
     alert('You clicked ${props.text}');
@@ -414,9 +380,7 @@ figma.connect('https://...', {
 )
 ```
 
-### Lit example
-
-As the example code is written in a template string, you need to escape any `$` symbols which you want to render verbatim in your example, otherwise they'll be interpreted as placeholders.
+### Web Components example
 
 ```typescript
 import figma, { html } from '@figma/code-connect/html';
@@ -424,66 +388,28 @@ import figma, { html } from '@figma/code-connect/html';
 figma.connect('https://...', {
   props: {
     text: figma.string('Text'),
-    disabled: figma.boolean('Disabled')
+    disabled: figma.boolean('Disabled'),
+    size: figma.enum('Size', {
+      'small': 'sm',
+      'large': 'lg'
+    })
   },
   example: (props) =>
-      html`
+      html`\
 <ds-button
   disabled=${props.disabled}
   size=${props.size}
-  ?litSyntaxExample=\${booleanVar}
 >
   ${props.text}
-</ds-button>`,
-    imports: ["import '@ds-lit/button'"],
+</ds-button>
+
+<script>
+  document.querySelector('ds-button')
+    .addEventListener('click', () => {
+      alert("You clicked ${props.text}");
+    })
+</script>`,
+    imports: ['<script type="module" src="https://my.domain/js/ds-button.min.js">'],
   }
 )
-```
-
-## Connecting Icons
-
-Icons can be configured in many different ways in Figma and code. We recommend using instance-swap props in Figma for icons so you're able to access the nested Code Connect icon using a stable instance-swap prop ID.
-
-> **Important:** Design Systems usually contain plenty of icons. It's possible to automate the generation of Code Connect documents using a script that adds them to a new file. For example, an `icons.figma.ts` file.
-
-### Icons as strings
-
-It's common to use IDs instead of passing around components for icons. In this case, you'll want your icon Code Connect files to just return that string. `figma.instance` takes a `type` parameter that's used to match what the nested template returns. You can then have a generic icon component that consumes the icon ID of the inner instance.
-
-```typescript
-// Icon ID
-figma.connect("my-icon-url", {
-  example: () => "icon-heart"
-})
-
-// Icon component
-figma.connect("my-icon-component-url", {
-  props: {
-    iconId: figma.instance<string>("InstanceSwapPropName")
-  },
-  example: ({ iconId }) => html`<ds-icon iconId=${iconId} />`
-})
-
-// renders in Dev Mode
-<ds-icon iconId="icon-heart" />
-```
-
-Or, as in another common use case, consume the ID directly in other design system components, such as a button.
-
-```typescript
-// Icon ID
-figma.connect("my-icon-url", {
-  example: () => "icon-heart"
-})
-
-// Button component
-figma.connect("my-button-url", {
-  props: {
-    iconId: figma.instance<string>("InstanceSwapPropName")
-  },
-  example: ({ iconId }) => html`<ds-button iconId=${iconId} />`
-})
-
-// renders in Dev Mode
-<ds-button iconId="icon-heart" />
 ```

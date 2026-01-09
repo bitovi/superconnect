@@ -1,6 +1,6 @@
 # Code Exploration Tools
 
-You have access to codebase exploration tools that you may use at your discretion to improve output quality or resolve ambiguities.
+You have access to codebase exploration tools that you may use at your discretion to improve the Code Connect mapping or resolve ambiguities.
 
 ## Available Tools
 

@@ -45,15 +45,24 @@ function extractCodeFromResponse(responseText) {
  */
 function buildSystemPrompt(includeAgenticTools = false) {
   const promptsDir = path.join(__dirname, '..', '..', 'prompts');
+  const refDocsDir = path.join(promptsDir, 'reference-docs');
   const guidancePath = path.join(promptsDir, 'react-direct-codegen.md');
-  const apiDocsPath = path.join(promptsDir, 'figma-code-connect-react.md');
   const agenticPath = path.join(promptsDir, 'agentic-exploration.md');
+  
+  // Reference docs: common (01, 02) + React-specific (03)
+  const refDocFiles = [
+    '01-quickstart.md',
+    '02-config-file.md',
+    '03-react.md'
+  ];
   
   try {
     const guidance = fs.readFileSync(guidancePath, 'utf8');
-    const apiDocs = fs.readFileSync(apiDocsPath, 'utf8');
+    const refDocs = refDocFiles
+      .map(f => fs.readFileSync(path.join(refDocsDir, f), 'utf8'))
+      .join('\n\n---\n\n');
     
-    let systemPrompt = `${guidance}\n\n---\n\n${apiDocs}`;
+    let systemPrompt = `${guidance}\n\n---\n\n${refDocs}`;
     
     if (includeAgenticTools) {
       const agenticGuidance = fs.readFileSync(agenticPath, 'utf8');
