@@ -165,11 +165,20 @@ const SEMANTIC_ASSERTIONS = {
       { figma: '.showArrow?', prop: 'showArrow', helper: 'boolean' }
       // .popoverTitle?, .popoverText?, .inputField?: NOT enforced — slot visibility
     ],
-    Avatar: [
-      { figma: 'size', prop: 'size', helper: 'enum' },
-      { figma: 'shape', prop: 'shape', helper: 'enum' },
-      { figma: 'variant', prop: 'variant', helper: 'enum' }
-      // .badge?, .ring?, .showImage?: NOT enforced — slot visibility
+    Progress: [
+      { figma: 'size', helper: 'enum' },
+      { figma: 'variant', helper: 'enum' },
+      { figma: 'shape', helper: 'enum' },
+      { figma: 'colorPalette', helper: 'enum' }
+    ],
+    Spinner: [
+      { figma: 'size', helper: 'enum' },
+      { figma: 'colorPalette', helper: 'enum' }
+    ],
+    Switch: [
+      { figma: 'size', helper: 'enum' },
+      { figma: 'variant', helper: 'enum' },
+      { figma: 'colorPalette', helper: 'enum' }
     ],
     NumberInput: [
       { figma: 'size', prop: 'size', helper: 'enum' },
