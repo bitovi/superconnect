@@ -49,9 +49,11 @@ function buildSystemPrompt(includeAgenticTools = false) {
   const guidancePath = path.join(promptsDir, 'angular-direct-codegen.md');
   const agenticPath = path.join(promptsDir, 'agentic-exploration.md');
   
-  // Reference docs: common (01, 02) + Angular/HTML-specific (04)
+  // Reference docs: config (02) + Angular/HTML-specific (04)
+  // NOTE: 01-quickstart.md is excluded because it shows React's 3-arg form
+  // figma.connect(Component, url, config) which confuses the LLM.
+  // Angular uses the 2-arg form: figma.connect(url, config)
   const refDocFiles = [
-    '01-quickstart.md',
     '02-config-file.md',
     '04-html-angular.md'
   ];

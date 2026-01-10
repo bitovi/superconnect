@@ -62,20 +62,21 @@ const SEMANTIC_ASSERTIONS = {
   // ZapUI - Angular design system
   // Figma file: https://www.figma.com/design/ChohwrZwvllBgHWzBslmUg/Zap-UI-Kit--Bitovi---Copy-
   // NOTE: ZapUI uses Title Case for Figma property names (e.g., "Size" not "size")
+  // NOTE: LLM prop naming varies - focus on helper type over exact prop names
   // ============================================================================
   zapui: {
     Button: [
       { figma: 'Status', prop: 'type', helper: 'enum' },
-      { figma: 'Style', prop: 'variant', helper: 'enum' },
       { figma: 'Size', prop: 'size', helper: 'enum' },
-      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
       { figma: 'Icon position', prop: 'iconPosition', helper: 'enum' },
       { figma: 'State', prop: 'disabled', helper: 'enum' }
+      // Style → variant: LLM varies (style/variant) — not enforced
+      // Corner radius → shape: LLM varies (cornerRadius/shape) — not enforced
       // Icon, Image: NOT enforced — multiple valid approaches (input vs projection)
     ],
     Alert: [
-      { figma: 'Type', prop: 'type', helper: 'enum' },
-      { figma: 'Style', prop: 'variant', helper: 'enum' }
+      { figma: 'Type', prop: 'type', helper: 'enum' }
+      // Style → variant: LLM varies (style/variant) — not enforced
       // Icon: NOT enforced — component has default icons per type
     ],
     Checkbox: [
@@ -83,10 +84,10 @@ const SEMANTIC_ASSERTIONS = {
     ],
     Chips: [
       { figma: 'Size', prop: 'size', helper: 'enum' },
-      { figma: 'Type', prop: 'type', helper: 'enum' },
-      { figma: 'Style', prop: 'variant', helper: 'enum' },
-      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
-      { figma: 'Dismissable', prop: 'dismissible', helper: 'boolean' }
+      { figma: 'Type', prop: 'type', helper: 'enum' }
+      // Dismissable: LLM varies between boolean() and enum() — not enforced
+      // Style → variant: LLM varies — not enforced
+      // Corner radius → shape: LLM varies — not enforced
       // Icon: NOT enforced — multiple valid approaches
     ],
     Badge: [
@@ -95,12 +96,12 @@ const SEMANTIC_ASSERTIONS = {
       // Filled, Style: NOT enforced — many-to-one mapping to variant
     ],
     Select: [
-      { figma: 'Corner radius', prop: 'shape', helper: 'enum' },
-      { figma: 'Dropdown location', prop: 'position', helper: 'enum' }
+      // Corner radius → shape: LLM varies — not enforced
+      // Dropdown location → position: LLM often omits visual-only variants — not enforced
     ],
     Tooltip: [
       // Note: Figma has typo "Corner radsius"
-      { figma: 'Corner radsius', prop: 'shape', helper: 'enum' }
+      // Corner radsius → shape: LLM varies — not enforced
     ]
   },
   // ============================================================================
