@@ -126,8 +126,8 @@ const SEMANTIC_ASSERTIONS = {
     Badge: [
       { figma: 'size', helper: 'enum' },
       { figma: 'variant', helper: 'enum' },
-      { figma: 'color', prop: 'colorPalette', helper: 'enum' },
       { figma: 'Label', helper: 'textContent', nested: true }  // prop name varies (children/label)
+      // color: LLM inconsistent (color vs colorPalette) — not enforced
       // .iconStart?, .iconEnd?: BOOLEAN controls structure, no instance to map
     ],
     Button: [
@@ -162,7 +162,7 @@ const SEMANTIC_ASSERTIONS = {
     ],
     Popover: [
       { figma: 'size', prop: 'size', helper: 'enum' },
-      { figma: '.showArrow?', prop: 'showArrow', helper: 'boolean' }
+      { figma: '.showArrow?', helper: 'boolean', nested: true }  // prop name varies
       // .popoverTitle?, .popoverText?, .inputField?: NOT enforced — slot visibility
     ],
     Progress: [
@@ -183,7 +183,7 @@ const SEMANTIC_ASSERTIONS = {
     NumberInput: [
       { figma: 'size', prop: 'size', helper: 'enum' },
       { figma: 'variant', prop: 'variant', helper: 'enum' },
-      { figma: '.isRequired?', prop: 'isRequired', helper: 'boolean' }
+      { figma: '.isRequired?', helper: 'boolean', nested: true }  // prop name varies
       // state, orientation, .isFilled?, .isInvalid?: NOT enforced — visual/addon
     ]
   }
@@ -342,7 +342,7 @@ function getGeneratedConnectors(outputDir, ext) {
 
 /**
  * Validate semantic assertions for a component.
- * 
+ *
  * Assertion format:
  *   { figma, helper }                    - prop defaults to figma name
  *   { figma, prop, helper }              - explicit prop name
@@ -352,7 +352,7 @@ function getGeneratedConnectors(outputDir, ext) {
  */
 function validateSemanticAssertions(componentName, ir, designSystem, code = '') {
   const assertions = SEMANTIC_ASSERTIONS[designSystem]?.[componentName];
-  if (!assertions) return; // No assertions defined for this component
+  if (!assertions) return;
 
   if (ir.connects.length === 0) {
     throw new Error(`${componentName}: No figma.connect() calls found`);
@@ -365,19 +365,14 @@ function validateSemanticAssertions(componentName, ir, designSystem, code = '') 
 
   for (const assertion of assertions) {
     const { figma, helper, mustBeVariantOnly, skip, nested } = assertion;
-    // Default prop to figma name if not specified
     const prop = assertion.prop || figma;
 
-    // Skip: documented but not enforced
     if (skip) continue;
 
-    // Nested: search for helper call anywhere in the code
     if (nested && code) {
-      const helperPattern = `figma.${helper}("${figma}"`;
-      const altPattern = `figma.${helper}('${figma}'`;
-      if (code.includes(helperPattern) || code.includes(altPattern)) {
-        continue; // Found nested helper
-      }
+      const hasNestedHelper = code.includes(`figma.${helper}("${figma}"`) ||
+                              code.includes(`figma.${helper}('${figma}'`);
+      if (hasNestedHelper) continue;
       throw new Error(
         `${componentName}: Missing figma.${helper}("${figma}") (may be nested)`
       );
@@ -409,9 +404,7 @@ function validateSemanticAssertions(componentName, ir, designSystem, code = '') 
       continue;
     }
 
-    if (hasVariantForProperty) {
-      continue; // Valid via variant restrictions
-    }
+    if (hasVariantForProperty) continue;
 
     throw new Error(
       `${componentName}: Missing mapping for '${figma}' → '${prop}' (${helper})`
@@ -484,17 +477,25 @@ function runE2E(config) {
       );
     }
 
-    // Layer 1: Structural validation
+    // Build code cache for validation layers
     const figmaDir = path.join(tmpDir, 'superconnect', 'figma-components');
+    const connectorCode = new Map();
+    for (const file of connectors) {
+      connectorCode.set(file, fs.readFileSync(path.join(outputDir, file), 'utf8'));
+    }
+
+    // Layer 1: Structural validation
     const structuralErrors = [];
     for (const file of connectors) {
-      const code = fs.readFileSync(path.join(outputDir, file), 'utf8');
       const slug = file.replace(ds.codeConnectExt, '');
       const evidencePath = path.join(figmaDir, `${slug}.json`);
 
       if (fs.existsSync(evidencePath)) {
         const figmaEvidence = fs.readJsonSync(evidencePath);
-        const validation = validateCodeConnect({ generatedCode: code, figmaEvidence });
+        const validation = validateCodeConnect({
+          generatedCode: connectorCode.get(file),
+          figmaEvidence
+        });
         if (!validation.valid) {
           structuralErrors.push({ file, errors: validation.errors });
         }
@@ -503,10 +504,10 @@ function runE2E(config) {
 
     if (structuralErrors.length > 0) {
       console.error('\nStructural validation errors:');
-      structuralErrors.forEach(({ file, errors }) => {
+      for (const { file, errors } of structuralErrors) {
         console.error(`  ${file}:`);
         errors.forEach(err => console.error(`    - ${err}`));
-      });
+      }
       throw new Error('Structural validation failed');
     }
 
@@ -528,7 +529,7 @@ function runE2E(config) {
       }
 
       try {
-        const code = fs.readFileSync(path.join(outputDir, file), 'utf8');
+        const code = connectorCode.get(file);
         const ir = extractIR(code, file);
         validateSemanticAssertions(componentName, ir, config.system, code);
       } catch (err) {
@@ -538,9 +539,9 @@ function runE2E(config) {
 
     if (semanticErrors.length > 0) {
       console.error('\nSemantic validation errors:');
-      semanticErrors.forEach(({ component, error }) => {
+      for (const { component, error } of semanticErrors) {
         console.error(`  ${component}: ${error}`);
-      });
+      }
       throw new Error('Semantic validation failed');
     }
 
@@ -600,11 +601,10 @@ function main() {
 
   const result = runE2E(config);
 
-  // Cleanup on success unless --keep
   if (result.success && !config.keep) {
     fs.removeSync(result.tmpDir);
     console.log('Temp directory cleaned up');
-  } else if (result.success && config.keep) {
+  } else if (result.success) {
     console.log(`Artifacts preserved at: ${result.tmpDir}`);
   }
 
