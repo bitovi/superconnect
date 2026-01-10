@@ -146,10 +146,15 @@ const SEMANTIC_ASSERTIONS = {
       { figma: 'variant', prop: 'variant', helper: 'enum' }
     ],
     Input: [
-      { figma: 'size', prop: 'size', helper: 'enum' },
-      { figma: 'variant', prop: 'variant', helper: 'enum' }
-      // state: NOT enforced — visual (default/disabled/focus)
-      // type: NOT enforced — addon variant, not semantic
+      { figma: 'size', helper: 'enum' },
+      { figma: 'variant', helper: 'enum' },
+      { figma: 'state', skip: true },        // visual state
+      { figma: '.isFilled?', skip: true },   // visual state
+      { figma: 'orientation', skip: true }   // single value
+      // NOT TESTED - judgment calls for composite component:
+      // placeholder, Label, errorText, helperText (string vs textContent)
+      // type, .label?, .helperText?, .isInvalid?, .isRequired?, .isOptional?,
+      // .leftElement?, .rightElement? (structural coverage)
     ],
     Dialog: [
       { figma: 'size', prop: 'size', helper: 'enum' }
