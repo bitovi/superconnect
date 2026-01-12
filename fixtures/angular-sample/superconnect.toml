@@ -7,24 +7,18 @@ component_repo_path = "."
 # Also requires FIGMA_ACCESS_TOKEN env var
 
 [agent]
-# AI provider options:
-#   "anthropic" (default)       - Uses claude-sonnet-4-5
-#   "openai"                    - OpenAI or compatible (LiteLLM, Azure, vLLM)
-#   "anthropic-agents" (experimental) - Agent explores repo with Read/Glob/Grep tools
-#                                        Uses claude-sonnet-4-5, more capable but slower
-# All options require appropriate API key env var (ANTHROPIC_API_KEY or OPENAI_API_KEY)
+# Provider: "anthropic" (default), "openai", or "anthropic-agents" (experimental)
+# Requires ANTHROPIC_API_KEY or OPENAI_API_KEY env var
 api = "anthropic"
 model = "claude-sonnet-4-5"
 
-# To use OpenAI or a compatible service instead:
-# api = "openai"
-# model = "gpt-5.1-codex-mini"
-# base_url = "http://localhost:4000/v1"  # custom endpoint (LiteLLM, Azure, vLLM, LocalAI)
-# api_key = "your-key-here"              # if your endpoint needs a different key
+# OpenAI example:
+#   api = "openai"
+#   model = "gpt-5.2-codex"
+#   base_url = "http://localhost:4000/v1"  # optional: LiteLLM, Azure, vLLM
 
-# To use experimental agent exploration mode (requires ANTHROPIC_API_KEY):
-# api = "anthropic-agents"
-# model = "claude-sonnet-4-5"  # recommended for agent mode
+# Experimental agent mode (explores repo before generating, slower but smarter):
+#   api = "anthropic-agents"
 
 [codegen]
 # How many times to retry if generated code fails validation (0-10)

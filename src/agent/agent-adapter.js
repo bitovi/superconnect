@@ -68,7 +68,7 @@ const extractResponseText = (response) => {
  */
 class OpenAIAgentAdapter {
   constructor(options = {}) {
-    this.model = options.model || 'gpt-5.1-codex-mini';
+    this.model = options.model || 'gpt-5.2-codex';
     this.maxTokens = parseMaxTokens(options.maxTokens, null);
     this.defaultLogDir = options.logDir || null;
     this.defaultCwd = options.cwd;

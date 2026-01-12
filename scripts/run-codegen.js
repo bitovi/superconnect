@@ -941,7 +941,7 @@ const parseArgs = (argv) => {
     .option('--repo-summary <file>', 'Path to repo-summary.json', null)
     .option('--force', 'Overwrite existing *.figma.tsx files', false)
     .option('--agent-api <value>', 'Agent API format (openai|anthropic|anthropic-agents)', 'anthropic')
-    .option('--agent-model <value>', 'Model name (e.g., gpt-5.1-codex-mini, claude-haiku-4-5)')
+    .option('--agent-model <value>', 'Model name (e.g., gpt-5.2-codex, claude-haiku-4-5)')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
     .option('--agent-base-url <value>', 'Base URL for OpenAI-compatible API (e.g., LiteLLM, Azure, vLLM)')
     .option('--agent-api-key <value>', 'API key for custom endpoint (overrides OPENAI_API_KEY env var)')
