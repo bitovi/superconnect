@@ -2,9 +2,14 @@
 
 Generate a `.figma.ts` file from the Figma component metadata and Angular component info provided.
 
-The Figma Code Connect API docs follow this prompt—use them as the API reference.
-
 ## Rules
+
+Code Connect examples are **static templates**, not executable code. They will be displayed as-is in Figma's Dev Mode. This means:
+
+- Examples don't need to actually run or compile
+- It's OK to omit required props if they can't be mapped from Figma
+- Some components need data props (collections, arrays, items) that can't come from Figma. **Hardcode example data inline** rather than trying to compute it
+
 
 **Only use properties from the Figma Component Data section.**
 - `componentProperties[]` → `figma.boolean()`, `figma.string()`, `figma.instance()`

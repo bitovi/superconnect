@@ -640,19 +640,41 @@ class AgentSDKAdapter {
           maxTokens: maxTokens || this.maxTokens
         }
       })) {
-        // Log tool usage for observability
+        // Log assistant messages (tool calls and text responses)
         if (message.type === 'assistant' && message.message?.content) {
           for (const block of message.message.content) {
             if (block.type === 'tool_use') {
-              const toolLog = `[Tool: ${block.name}(${JSON.stringify(block.input).slice(0, 100)}...)]\n`;
-              writeLog(toolLog);
+              writeLog(`\n--- TOOL CALL: ${block.name} ---\n`);
+              writeLog(`Input: ${JSON.stringify(block.input, null, 2)}\n`);
               
               // Count tool usage
               if (toolCounts[block.name] !== undefined) {
                 toolCounts[block.name]++;
               }
+            } else if (block.type === 'text') {
+              // Log assistant's thinking/reasoning text
+              writeLog(`\n--- ASSISTANT ---\n`);
+              writeLog(block.text);
+              writeLog('\n');
             }
           }
+        }
+
+        // Log tool results (returned in synthetic user messages)
+        if (message.type === 'user' && message.tool_use_result !== undefined) {
+          writeLog(`\n--- TOOL RESULT ---\n`);
+          const resultStr = typeof message.tool_use_result === 'string' 
+            ? message.tool_use_result 
+            : JSON.stringify(message.tool_use_result, null, 2);
+          // Truncate very long results (e.g., large file reads)
+          const maxResultLen = 2000;
+          if (resultStr.length > maxResultLen) {
+            writeLog(resultStr.slice(0, maxResultLen));
+            writeLog(`\n... [truncated ${resultStr.length - maxResultLen} chars]\n`);
+          } else {
+            writeLog(resultStr);
+          }
+          writeLog('\n');
         }
 
         // Capture final result
@@ -669,6 +691,7 @@ class AgentSDKAdapter {
         }
       }
 
+      writeLog('\n--- FINAL OUTPUT ---\n');
       writeLog(resultText);
       
       // Log tool usage summary

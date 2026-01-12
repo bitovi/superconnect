@@ -62,7 +62,8 @@ function buildSystemPrompt(includeAgenticTools = false) {
       .map(f => fs.readFileSync(path.join(refDocsDir, f), 'utf8'))
       .join('\n\n---\n\n');
     
-    let systemPrompt = `${guidance}\n\n---\n\n${refDocs}`;
+    // Reference docs first (background knowledge), then guidance (rules)
+    let systemPrompt = `${refDocs}\n\n---\n\n${guidance}`;
     
     if (includeAgenticTools) {
       const agenticGuidance = fs.readFileSync(agenticPath, 'utf8');

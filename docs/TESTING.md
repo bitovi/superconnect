@@ -13,6 +13,30 @@ pnpm test:e2e zapui --model claude-sonnet-4-5   # Use specific model
 pnpm test:e2e --help                            # Show options
 ```
 
+## Comparing Backends
+
+To evaluate Messages API vs Agent SDK, run the same tests with each backend:
+
+```bash
+# Messages API (default)
+pnpm test:e2e chakra --keep
+# Note the temp dir path, e.g. /tmp/chakra-e2e-abc123
+
+# Agent SDK
+pnpm test:e2e chakra --agent-sdk --keep
+# Note the temp dir path, e.g. /tmp/chakra-e2e-xyz789
+
+# Compare metrics
+cat /tmp/chakra-e2e-abc123/metrics.json
+cat /tmp/chakra-e2e-xyz789/metrics.json
+```
+
+The `metrics.json` includes:
+- **timing**: Pipeline duration, avg time per component
+- **tokens**: Input/output/cache tokens, totals and averages
+- **quality**: Pass rates (structural, semantic), retry counts
+- **components**: Per-component breakdown
+
 ## Prerequisites
 
 **Unit tests:** Node.js ≥ 22 + `pnpm install`

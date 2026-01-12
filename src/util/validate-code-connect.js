@@ -476,9 +476,11 @@ function checkTemplateInterpolations(code) {
     }
 
     // Check for ternary expressions in JSX context (both inside {} and bare)
-    const hasTernary = line.includes('?') && line.includes(':');
+    // Exclude ? inside string literals (e.g., ".isCompact?" in variant restrictions)
+    const lineWithoutStrings = line.replace(/["'][^"']*["']/g, '""');
+    const hasTernary = lineWithoutStrings.includes('?') && lineWithoutStrings.includes(':');
     if (hasTernary) {
-      const inJsxContext = /</.test(line) || /\{[^}]*\?/.test(line);
+      const inJsxContext = /</.test(lineWithoutStrings) || /\{[^}]*\?/.test(lineWithoutStrings);
       const isUrl = /https?:\/\//.test(line);
       
       if (inJsxContext && !isUrl) {

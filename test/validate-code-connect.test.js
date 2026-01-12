@@ -266,6 +266,32 @@ figma.connect(Tooltip, 'url', {
       });
     }
 
+    it('does not flag Figma property names containing "?" in variant restrictions', () => {
+      // Regression test: variant: { ".isCompact?": "False" } was incorrectly flagged as ternary
+      const validCode = `
+import figma from '@figma/code-connect/react';
+import { Pagination } from './Pagination';
+
+figma.connect(Pagination, 'https://figma.com/design/abc/file?node-id=1-2', {
+  variant: { ".isCompact?": "False" },
+  props: {
+    attached: figma.boolean(".isAttached?", {
+      true: true,
+      false: undefined,
+    }),
+  },
+  example: ({ attached }) => <Pagination attached={attached} />
+});`;
+      const evidence = {
+        componentProperties: [{ name: '.isAttached?', type: 'BOOLEAN' }],
+        variantProperties: { '.isCompact?': ['True', 'False'] },
+        textLayers: [],
+        slotLayers: []
+      };
+      const result = validateCodeConnect({ generatedCode: validCode, figmaEvidence: evidence });
+      assert.strictEqual(result.valid, true, `Expected valid but got errors: ${result.errors.join(', ')}`);
+    });
+
     it('catches function body with statements before return', () => {
       const badCode = `
 import figma, { html } from '@figma/code-connect/html';

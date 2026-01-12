@@ -2,9 +2,13 @@
 
 Generate a `.figma.tsx` file from the Figma component metadata and React component info provided.
 
-The Figma Code Connect API docs follow this prompt—use them as the API reference.
-
 ## Rules
+
+Code Connect examples are **static templates**, not executable code. They will be displayed as-is in Figma's Dev Mode. This means:
+
+- Examples don't need to actually run or compile
+- It's OK to omit required props if they can't be mapped from Figma
+- Some components need data props (collections, arrays, items) that can't come from Figma. **Hardcode example data inline** rather than trying to compute it
 
 **In import statements, do not use internal import paths.** In production, consumers typically install via npm. The internal paths only exist in the monorepo source tree — they'd break if someone tried to use these Code Connect files in a consuming project. Our goal is to create Code Connect files that can be used in production. You should package.json exports or the package name, understand the monorepo's publish structure, and map internal paths → published package names.
 

@@ -4,6 +4,7 @@
  *
  * Tests superconnect pipeline against design system fixtures.
  * Validates generated Code Connect files for structural and semantic correctness.
+ * Outputs metrics.json for backend comparison (pass rates, tokens, latency).
  *
  * Usage:
  *   pnpm test:e2e chakra                    # all Chakra components
@@ -12,6 +13,13 @@
  *   pnpm test:e2e zapui --keep              # preserve artifacts
  *   pnpm test:e2e zapui --agent-sdk         # use Agent SDK mode
  *   pnpm test:e2e --help                    # show help
+ *
+ * Metrics output (metrics.json in temp dir):
+ *   - backend: which API was used (anthropic vs anthropic-agents)
+ *   - model: model name
+ *   - totalDurationMs: pipeline run time
+ *   - components: per-component results with tokens and attempts
+ *   - aggregate: totals for pass rate, tokens, retries
  */
 
 const fs = require('fs-extra');
@@ -300,6 +308,131 @@ function run(cmd, args, options = {}) {
 }
 
 /**
+ * Extract metrics from codegen summary files.
+ * Returns per-component token usage and attempt counts.
+ */
+function extractCodegenMetrics(superconnectDir) {
+  const summariesDir = path.join(superconnectDir, 'codegen-summaries');
+  if (!fs.existsSync(summariesDir)) return [];
+
+  const summaryFiles = fs.readdirSync(summariesDir)
+    .filter(f => f.endsWith('-codegen-summary.json'));
+
+  return summaryFiles.map(file => {
+    try {
+      const data = fs.readJsonSync(path.join(summariesDir, file));
+      const attempts = data.attempts || [];
+      
+      // Sum tokens across all attempts
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let cacheReadTokens = 0;
+      let cacheWriteTokens = 0;
+      
+      for (const attempt of attempts) {
+        if (attempt.usage) {
+          inputTokens += attempt.usage.inputTokens || 0;
+          outputTokens += attempt.usage.outputTokens || 0;
+          cacheReadTokens += attempt.usage.cacheReadTokens || 0;
+          cacheWriteTokens += attempt.usage.cacheWriteTokens || 0;
+        }
+      }
+
+      return {
+        component: data.figmaName || file.replace('-codegen-summary.json', ''),
+        status: data.status,
+        attemptCount: attempts.length,
+        tokens: { inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens },
+        totalTokens: inputTokens + outputTokens
+      };
+    } catch {
+      return null;
+    }
+  }).filter(Boolean);
+}
+
+/**
+ * Build metrics summary from collected data.
+ */
+function buildMetrics({ backend, model, system, pipelineDurationMs, codegenMetrics, 
+                        structuralErrors, semanticErrors, componentCount, failed, failureReason }) {
+  // Aggregate token usage
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalCacheReadTokens = 0;
+  let totalCacheWriteTokens = 0;
+  let totalAttempts = 0;
+  let builtCount = 0;
+
+  for (const m of codegenMetrics) {
+    totalInputTokens += m.tokens.inputTokens;
+    totalOutputTokens += m.tokens.outputTokens;
+    totalCacheReadTokens += m.tokens.cacheReadTokens;
+    totalCacheWriteTokens += m.tokens.cacheWriteTokens;
+    totalAttempts += m.attemptCount;
+    if (m.status === 'built') builtCount++;
+  }
+
+  const structuralPassCount = componentCount - (structuralErrors?.length || 0);
+  const semanticPassCount = componentCount - (semanticErrors?.length || 0);
+
+  return {
+    timestamp: new Date().toISOString(),
+    backend,
+    model,
+    system,
+    failed: failed || false,
+    failureReason: failureReason || null,
+    
+    timing: {
+      pipelineDurationMs,
+      pipelineDurationSec: Math.round(pipelineDurationMs / 1000 * 10) / 10,
+      avgPerComponentMs: componentCount > 0 ? Math.round(pipelineDurationMs / componentCount) : 0
+    },
+    
+    tokens: {
+      input: totalInputTokens,
+      output: totalOutputTokens,
+      cacheRead: totalCacheReadTokens,
+      cacheWrite: totalCacheWriteTokens,
+      total: totalInputTokens + totalOutputTokens,
+      avgPerComponent: componentCount > 0 ? Math.round((totalInputTokens + totalOutputTokens) / componentCount) : 0
+    },
+    
+    quality: {
+      componentCount,
+      builtCount,
+      structuralPassCount,
+      semanticPassCount,
+      totalAttempts,
+      avgAttemptsPerComponent: componentCount > 0 ? Math.round(totalAttempts / componentCount * 10) / 10 : 0,
+      structuralPassRate: componentCount > 0 ? Math.round(structuralPassCount / componentCount * 100) : 0,
+      semanticPassRate: componentCount > 0 ? Math.round(semanticPassCount / componentCount * 100) : 0
+    },
+    
+    components: codegenMetrics
+  };
+}
+
+/**
+ * Print a human-readable metrics summary.
+ */
+function printMetricsSummary(metrics) {
+  console.log('\n┌─────────────────────────────────────────────────────┐');
+  console.log(`│  Backend: ${metrics.backend.padEnd(20)} Model: ${metrics.model.slice(0, 18).padEnd(18)} │`);
+  console.log('├─────────────────────────────────────────────────────┤');
+  console.log(`│  Duration: ${String(metrics.timing.pipelineDurationSec + 's').padEnd(10)} (${metrics.timing.avgPerComponentMs}ms/component)`.padEnd(54) + '│');
+  console.log(`│  Tokens:   ${String(metrics.tokens.total).padEnd(10)} (${metrics.tokens.avgPerComponent}/component)`.padEnd(54) + '│');
+  console.log(`│  Cache:    ${metrics.tokens.cacheRead} read, ${metrics.tokens.cacheWrite} write`.padEnd(42) + '│');
+  console.log('├─────────────────────────────────────────────────────┤');
+  console.log(`│  Components: ${metrics.quality.builtCount}/${metrics.quality.componentCount} built`.padEnd(42) + '│');
+  console.log(`│  Structural: ${metrics.quality.structuralPassRate}% pass`.padEnd(42) + '│');
+  console.log(`│  Semantic:   ${metrics.quality.semanticPassRate}% pass`.padEnd(42) + '│');
+  console.log(`│  Retries:    ${metrics.quality.avgAttemptsPerComponent} avg attempts/component`.padEnd(42) + '│');
+  console.log('└─────────────────────────────────────────────────────┘');
+}
+
+/**
  * Copy fixture directory, excluding .git and node_modules.
  */
 function copyFixture(src, dest) {
@@ -455,13 +588,16 @@ function runE2E(config) {
     fs.removeSync(path.join(tmpDir, 'superconnect'));
     fs.removeSync(path.join(tmpDir, 'codeConnect'));
 
-    // Run superconnect
+    // Run superconnect with timing
     const args = [superconnectScript, '--framework', ds.framework, '--force'];
     if (config.components.length > 0) {
       args.push('--only', config.components.join(','));
     }
     console.log(`Running: node ${args.join(' ')}`);
+    const pipelineStart = Date.now();
     run('node', args, { cwd: tmpDir, env });
+    const pipelineDurationMs = Date.now() - pipelineStart;
+    console.log(`Pipeline completed in ${(pipelineDurationMs / 1000).toFixed(1)}s`);
 
     // Verify files were generated
     const outputDir = path.join(tmpDir, 'codeConnect');
@@ -565,13 +701,52 @@ function runE2E(config) {
     }
 
     console.log('\n✅ All validations passed');
-    return { success: true, tmpDir };
+
+    // Collect and write metrics
+    const codegenMetrics = extractCodegenMetrics(path.join(tmpDir, 'superconnect'));
+    const metrics = buildMetrics({
+      backend: config.agentSdk ? 'anthropic-agents' : 'anthropic',
+      model: config.model || 'claude-sonnet-4-5',
+      system: config.system,
+      pipelineDurationMs,
+      codegenMetrics,
+      structuralErrors: [],
+      semanticErrors: [],
+      componentCount: connectors.length
+    });
+    
+    const metricsPath = path.join(tmpDir, 'metrics.json');
+    fs.writeJsonSync(metricsPath, metrics, { spaces: 2 });
+    console.log(`\n📊 Metrics written to: ${metricsPath}`);
+    printMetricsSummary(metrics);
+
+    return { success: true, tmpDir, metrics };
 
   } catch (error) {
     console.error(`\n❌ ${error.message}`);
+    
+    // Still collect metrics on failure for comparison
+    const codegenMetrics = extractCodegenMetrics(path.join(tmpDir, 'superconnect'));
+    const metrics = buildMetrics({
+      backend: config.agentSdk ? 'anthropic-agents' : 'anthropic',
+      model: config.model || 'claude-sonnet-4-5',
+      system: config.system,
+      pipelineDurationMs: typeof pipelineDurationMs !== 'undefined' ? pipelineDurationMs : 0,
+      codegenMetrics,
+      structuralErrors: typeof structuralErrors !== 'undefined' ? structuralErrors : [],
+      semanticErrors: typeof semanticErrors !== 'undefined' ? semanticErrors : [],
+      componentCount: typeof connectors !== 'undefined' ? connectors.length : 0,
+      failed: true,
+      failureReason: error.message
+    });
+    
+    const metricsPath = path.join(tmpDir, 'metrics.json');
+    fs.writeJsonSync(metricsPath, metrics, { spaces: 2 });
+    console.log(`\n📊 Metrics written to: ${metricsPath}`);
+    
     // Always keep on failure
     console.error(`Artifacts preserved at: ${tmpDir}`);
-    return { success: false, tmpDir, error };
+    return { success: false, tmpDir, error, metrics };
   }
 }
 
