@@ -33,7 +33,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Model selection and `maxTokens` from config
     - Writing `=== AGENT INPUT ===` and `=== AGENT OUTPUT ===` logs to disk
     - Returning `{ text, usage }` or `{ code, stdout, stderr, logFile }` to callers
-  - `AgentSDKAdapter` (experimental) allows agent to explore codebase using Read, Glob, and Grep tools before generating Code Connect files
+  - `AgentSDKAdapter` allows agent to explore codebase using Read, Glob, and Grep tools before generating Code Connect files
 
 ## Pipeline stages and data flow
 
@@ -180,7 +180,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 - **Config file**: `superconnect.toml`
   - `[inputs]` – `figma_url`, `component_repo_path`
   - `[agent]` – `api`, `model`, `max_tokens`, `base_url`, `api_key`
-    - `api` – `"openai"` or `"anthropic"` (default: anthropic)
+    - `api` – `"anthropic-agents"`, `"anthropic"`, or `"openai"` (default: anthropic-agents)
     - `model` – model name (e.g., `"gpt-5.2-codex"`, `"claude-sonnet-4-5"`)
     - `max_tokens` – max output tokens (default: 2048 for codegen, 32768 for orientation)
     - `base_url` – (optional) base URL for OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)

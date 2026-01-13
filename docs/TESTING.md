@@ -4,26 +4,26 @@
 
 ```bash
 pnpm test                                       # Unit tests (~4s)
-pnpm test:e2e chakra                            # All Chakra E2E (~30s/component)
+pnpm test:e2e chakra                            # All Chakra E2E (~10s/component)
 pnpm test:e2e chakra Button                     # Single component
 pnpm test:e2e chakra Button Alert Input         # Multiple components
 pnpm test:e2e zapui --keep                      # Keep temp artifacts
-pnpm test:e2e zapui --agent-sdk                 # Use Agent SDK instead of Messages API
+pnpm test:e2e zapui --no-agent-sdk              # Use Messages API instead of Agent SDK
 pnpm test:e2e zapui --model claude-sonnet-4-5   # Use specific model
 pnpm test:e2e --help                            # Show options
 ```
 
 ## Comparing Backends
 
-To evaluate Messages API vs Agent SDK, run the same tests with each backend:
+To evaluate Agent SDK vs Messages API, run the same tests with each backend:
 
 ```bash
-# Messages API (default)
+# Agent SDK (default)
 pnpm test:e2e chakra --keep
 # Note the temp dir path, e.g. /tmp/chakra-e2e-abc123
 
-# Agent SDK
-pnpm test:e2e chakra --agent-sdk --keep
+# Messages API
+pnpm test:e2e chakra --no-agent-sdk --keep
 # Note the temp dir path, e.g. /tmp/chakra-e2e-xyz789
 
 # Compare metrics

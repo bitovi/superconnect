@@ -209,7 +209,7 @@ function parseArgs(argv) {
     system: null,
     components: [],
     keep: false,
-    agentSdk: false,
+    agentSdk: true,  // Agent SDK is now the default
     model: null,
     help: false
   };
@@ -221,7 +221,9 @@ function parseArgs(argv) {
     } else if (arg === '--keep') {
       config.keep = true;
     } else if (arg === '--agent-sdk') {
-      config.agentSdk = true;
+      config.agentSdk = true;  // Explicit enable (already default)
+    } else if (arg === '--no-agent-sdk') {
+      config.agentSdk = false;  // Use Messages API instead
     } else if (arg === '--model') {
       config.model = args[++i];
       if (!config.model) {
@@ -257,17 +259,17 @@ Systems:
   zapui     ZapUI (Angular)
 
 Options:
-  --keep          Preserve temp directory after test (always kept on failure)
-  --agent-sdk     Use Anthropic Agent SDK instead of Messages API
-  --model <name>  Model to use (default: claude-sonnet-4-5)
-  --help          Show this help
+  --keep            Preserve temp directory after test (always kept on failure)
+  --no-agent-sdk    Use Messages API instead of Agent SDK (default)
+  --model <name>    Model to use (default: claude-sonnet-4-5)
+  --help            Show this help
 
 Examples:
   pnpm test:e2e chakra                    # Run all Chakra components
   pnpm test:e2e chakra Button             # Test only Button
   pnpm test:e2e chakra Button Alert Input # Test multiple components
   pnpm test:e2e zapui --keep              # Run all ZapUI, keep artifacts
-  pnpm test:e2e zapui --agent-sdk         # Test with Agent SDK mode
+  pnpm test:e2e zapui --no-agent-sdk      # Test with Messages API
 `);
 }
 

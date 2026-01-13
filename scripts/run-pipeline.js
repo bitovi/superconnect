@@ -24,7 +24,7 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
 const DEFAULT_OPENAI_MODEL = 'gpt-5.2-codex';
-const DEFAULT_API = 'anthropic';
+const DEFAULT_API = 'anthropic-agents';
 const DEFAULT_MAX_TOKENS = 16384;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
 const DEFAULT_MAX_RETRIES = 2;
@@ -188,19 +188,21 @@ async function promptForConfig() {
 
   const agentSection = [];
   
-  if (active === 'anthropic') {
+  if (active === 'anthropic' || active === 'anthropic-agents') {
+    const apiValue = active === 'anthropic-agents' ? 'anthropic-agents' : 'anthropic';
     agentSection.push(
-      '# AI provider: "anthropic" (default) or "openai"',
-      '# Anthropic requires ANTHROPIC_API_KEY env var',
-      '# OpenAI requires OPENAI_API_KEY env var (or use base_url for LiteLLM, Azure, etc.)',
-      'api = "anthropic"',
+      '# Backend for code generation:',
+      '#   "anthropic-agents" (default) — Claude explores your codebase using tools',
+      '#   "anthropic"       — Context curated upfront (Messages API)',
+      '#   "openai"          — OpenAI or compatible provider',
+      `api = "${apiValue}"`,
       `model = "${model}"`,
       '',
-      '# To use OpenAI or a compatible service instead, comment out the above and uncomment:',
-      `# api = "openai"`,
-      `# model = "${DEFAULT_OPENAI_MODEL}"`,
-      '# base_url = "http://localhost:4000/v1"  # custom endpoint (LiteLLM, Azure, vLLM, LocalAI)',
-      '# api_key = "your-key-here"              # if your endpoint needs a different key'
+      '# Alternative backends:',
+      '#   api = "anthropic"   # Messages API (deterministic context, any provider)',
+      '#   api = "openai"',
+      `#   model = "${DEFAULT_OPENAI_MODEL}"`,
+      '#   base_url = "http://localhost:4000/v1"  # LiteLLM, Azure, vLLM, LocalAI'
     );
   } else if (active === 'openai') {
     const lines = [

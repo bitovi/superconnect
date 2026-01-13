@@ -7,18 +7,18 @@ component_repo_path = "."
 # Also requires FIGMA_ACCESS_TOKEN env var
 
 [agent]
-# Provider: "anthropic" (default), "openai", or "anthropic-agents" (experimental)
-# Requires ANTHROPIC_API_KEY or OPENAI_API_KEY env var
-api = "anthropic"
+# Backend for code generation:
+#   "anthropic-agents" (default) — Claude explores your codebase using tools
+#   "anthropic"       — Context curated upfront (Messages API)
+#   "openai"          — OpenAI or compatible provider
+api = "anthropic-agents"
 model = "claude-sonnet-4-5"
 
-# OpenAI example:
+# Alternative backends:
+#   api = "anthropic"   # Messages API (deterministic context, any provider)
 #   api = "openai"
 #   model = "gpt-5.2-codex"
-#   base_url = "http://localhost:4000/v1"  # optional: LiteLLM, Azure, vLLM
-
-# Experimental agent mode (explores repo before generating, slower but smarter):
-#   api = "anthropic-agents"
+#   base_url = "http://localhost:4000/v1"  # LiteLLM, Azure, vLLM, LocalAI
 
 [codegen]
 # How many times to retry if generated code fails validation (0-10)

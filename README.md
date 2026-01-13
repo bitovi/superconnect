@@ -149,22 +149,32 @@ All artifacts are written to `superconnect/` and `codeConnect/` directories in y
 
 # Agent Configuration
 
-Superconnect uses AI to generate Code Connect mappings. By default it uses Anthropic's Claude, but you can switch to OpenAI or OpenAI-compatible services.
+Superconnect uses Claude's Agent SDK by default, which allows the model to intelligently explore your codebase using tools. This typically results in lower token usage and better context selection.
 
 Configure the `[agent]` section in `superconnect.toml`:
 
 ```toml
 [agent]
-api = "anthropic"             # or "openai"
-model = "claude-sonnet-4-5"    # model to use
+# Backend for code generation:
+#   "anthropic-agents" (default) — Claude explores your codebase using tools
+#   "anthropic"       — Context curated upfront (Messages API)
+#   "openai"          — OpenAI or compatible provider
+api = "anthropic-agents"
+model = "claude-sonnet-4-5"
 ```
 
-| API | Environment Variable | Example Models |
-|-----|---------------------|----------------|
-| `anthropic` (default) | `ANTHROPIC_API_KEY` | claude-sonnet-4-5, claude-haiku-4-5 |
-| `openai` | `OPENAI_API_KEY` | gpt-5.2-codex |
+| API | Environment Variable | Description |
+|-----|---------------------|-------------|
+| `anthropic-agents` (default) | `ANTHROPIC_API_KEY` | Agent SDK with tool-based exploration |
+| `anthropic` | `ANTHROPIC_API_KEY` | Messages API (deterministic context) |
+| `openai` | `OPENAI_API_KEY` | OpenAI or compatible endpoint |
 
-**Using OpenAI-compatible endpoints:** Set `api = "openai"` and add a `base_url` in the TOML for services like LiteLLM, Azure OpenAI, vLLM, or LocalAI.
+**When to use `anthropic` (Messages API):**
+- Provider flexibility — works with OpenAI, local models, or other LLM providers
+- Deterministic context — you control exactly what the model sees
+- Restricted AI access — model cannot explore beyond curated files
+
+**Using OpenAI-compatible endpoints:** Set `api = "openai"` and add a `base_url` for services like LiteLLM, Azure OpenAI, vLLM, or LocalAI.
 
 # Output Files
 
