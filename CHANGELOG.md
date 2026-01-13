@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-13
+
+### Changed
+- **Agent SDK is now the default backend** — 33% faster, 6x fewer tokens vs Messages API
+- Default model changed to `claude-sonnet-4-5`
+- Default max tokens increased from 2048 to 16384
+
+### Added
+- Agent SDK mode with autonomous codebase exploration (Read, Glob, Grep tools)
+- `--no-agent-sdk` flag to use Messages API instead
+- Expanded E2E test coverage (7 Chakra + 6 ZapUI components with semantic assertions)
+
+### Fixed
+- Validation false positives on valid Code Connect files
+- Angular codegen confusion when React quickstart docs present
+- Agent SDK thinking text leaking into generated code
+
+### Internal
+- Migrated from Jest to `node:test` (faster, zero deps)
+- Consolidated utilities into `src/util/naming.js` and `src/util/fs-helpers.js`
+- Streamlined documentation
+
 ## [0.2.10] - 2025-12-18
 
 ### Fixed
