@@ -260,7 +260,7 @@ Systems:
 
 Options:
   --keep            Preserve temp directory after test (always kept on failure)
-  --no-agent-sdk    Use Messages API instead of Agent SDK (default)
+  --no-agent-sdk    Use Messages API instead of Agent SDK
   --model <name>    Model to use (default: claude-sonnet-4-5)
   --help            Show this help
 
