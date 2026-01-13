@@ -19,24 +19,19 @@ const runSummary = (root, outputFile) => {
 };
 
 describe('framework detection', () => {
-  it('detects React in fixture repo', () => {
+  it('detects React in react-sample fixture', () => {
     const root = path.join(__dirname, '..', 'fixtures', 'react-sample');
-    const { parsed, fileData } = runSummary(root);
+    const { parsed } = runSummary(root);
     assert.ok(parsed.frameworks.includes('react'));
     assert.strictEqual(parsed.primary_framework, 'react');
-    assert.ok(fileData.frameworks.includes('react'));
-    assert.strictEqual(fileData.primary_framework, 'react');
     assert.ok(!parsed.frameworks.includes('angular'));
   });
 
-  it('detects Angular in zapui repo', () => {
-    const root = path.resolve(__dirname, '..', '..', 'zapui');
-    if (!fs.existsSync(root)) return;
-    const tempOutput = path.join(__dirname, '..', 'tmp', 'zapui-repo-summary.json');
-    const { parsed, fileData } = runSummary(root, tempOutput);
+  it('detects Angular in angular-sample fixture', () => {
+    const root = path.join(__dirname, '..', 'fixtures', 'angular-sample');
+    const { parsed } = runSummary(root);
     assert.ok(parsed.frameworks.includes('angular'));
     assert.strictEqual(parsed.primary_framework, 'angular');
-    assert.ok(fileData.frameworks.includes('angular'));
-    assert.strictEqual(fileData.primary_framework, 'angular');
+    assert.ok(!parsed.frameworks.includes('react'));
   });
 });

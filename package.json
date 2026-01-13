@@ -39,8 +39,7 @@
     "fs-extra": "^11.3.2",
     "json-stringify-pretty-compact": "^4.0.0",
     "openai": "^6.14.0",
-    "p-limit": "^3.1.0",
-    "undici": "^7.16.0"
+    "p-limit": "^3.1.0"
   },
   "repository": {
     "type": "git",
@@ -50,9 +49,6 @@
     "url": "https://github.com/bitovi/superconnect/issues"
   },
   "homepage": "https://github.com/bitovi/superconnect",
-  "devDependencies": {
-    "ts-morph": "^27.0.2"
-  },
   "files": [
     "scripts",
     "src",

@@ -94,7 +94,25 @@ function buildSystemPrompt(includeAgenticTools = false) {
  */
 function buildStatelessMessages({ figmaEvidence, orientation, figmaUrl, sourceContext, includeAgenticTools = false }) {
   const system = buildSystemPrompt(includeAgenticTools);
-  const user = buildComponentPrompt({ figmaEvidence, orientation, figmaUrl, sourceContext });
+  // ARCHITECTURE NOTE: Agent SDK vs Messages API context strategy
+  //
+  // Messages API (includeAgenticTools=false):
+  //   - Include full source file contents in the user prompt
+  //   - Model gets everything upfront in a single call
+  //   - Faster (no tool round-trips) but uses more non-cached tokens
+  //
+  // Agent SDK (includeAgenticTools=true):
+  //   - Only include file PATHS, not contents
+  //   - Agent uses Read/Glob/Grep tools to fetch files as needed
+  //   - Better cache utilization (tool results may be cached internally)
+  //   - Agent can explore beyond the files we pre-select
+  const user = buildComponentPrompt({ 
+    figmaEvidence, 
+    orientation, 
+    figmaUrl, 
+    sourceContext,
+    omitSourceContents: includeAgenticTools  // Agent SDK reads files via tools
+  });
   return { system, user };
 }
 
@@ -105,9 +123,10 @@ function buildStatelessMessages({ figmaEvidence, orientation, figmaUrl, sourceCo
  * @param {object} params.orientation - Orienter output for this component
  * @param {string} params.figmaUrl - The Figma URL for this component
  * @param {object} params.sourceContext - Source file contents (optional)
+ * @param {boolean} params.omitSourceContents - If true, list file paths only (for Agent SDK)
  * @returns {string}
  */
-function buildComponentPrompt({ figmaEvidence, orientation, figmaUrl, sourceContext }) {
+function buildComponentPrompt({ figmaEvidence, orientation, figmaUrl, sourceContext, omitSourceContents = false }) {
   const sections = [];
 
   sections.push('## Figma Component Data\n');
@@ -134,14 +153,26 @@ function buildComponentPrompt({ figmaEvidence, orientation, figmaUrl, sourceCont
   sections.push(`\`${figmaUrl}\`\n`);
 
   if (sourceContext && Object.keys(sourceContext).length > 0) {
-    sections.push('## Source File Context\n');
-    for (const [filePath, content] of Object.entries(sourceContext)) {
-      sections.push(`### ${filePath}\n`);
-      sections.push('```typescript');
-      // Allow generous source context - models have large context windows
-      // and truncating too aggressively cuts off important export declarations
-      sections.push(content.slice(0, 20000));
-      sections.push('```\n');
+    if (omitSourceContents) {
+      // Agent SDK mode: list paths only, agent will use Read tool to fetch contents
+      // This enables better caching and lets the agent explore beyond pre-selected files
+      sections.push('## Source Files (use Read tool to examine)\n');
+      sections.push('The following source files are relevant to this component. Use the Read tool to examine them:\n');
+      for (const filePath of Object.keys(sourceContext)) {
+        sections.push(`- \`${filePath}\``);
+      }
+      sections.push('');
+    } else {
+      // Messages API mode: include full contents inline
+      sections.push('## Source File Context\n');
+      for (const [filePath, content] of Object.entries(sourceContext)) {
+        sections.push(`### ${filePath}\n`);
+        sections.push('```typescript');
+        // Allow generous source context - models have large context windows
+        // and truncating too aggressively cuts off important export declarations
+        sections.push(content.slice(0, 20000));
+        sections.push('```\n');
+      }
     }
   }
 

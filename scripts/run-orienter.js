@@ -19,6 +19,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const { Command } = require('commander');
 const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
+const { parseMaxTokens } = require('../src/util/naming');
 
 const promptPath = path.join(__dirname, '..', 'prompts', 'orienter.md');
 const defaultOutput = path.join(process.cwd(), 'superconnect', 'orientation.jsonl');
@@ -76,11 +77,6 @@ const buildPayload = (promptText, figmaIndex, repoSummary, targetFramework = nul
     JSON.stringify(targetFramework || null, null, 2),
     ''
   ].join('\n');
-
-const parseMaxTokens = (value) => {
-  const parsed = value ? parseInt(value, 10) : NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
-};
 
 const buildAdapter = (config) => {
   const api = config.agentApi;

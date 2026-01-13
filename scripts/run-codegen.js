@@ -27,30 +27,13 @@ const path = require('path');
 const { Command } = require('commander');
 const { OpenAIAgentAdapter, ClaudeAgentAdapter, AgentSDKAdapter } = require('../src/agent/agent-adapter');
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
+const { sanitizeSlug, toTokenName } = require('../src/util/naming');
+const { readJsonSafe } = require('../src/util/fs-helpers');
 const { processComponent: processReactComponent } = require('../src/react/direct-codegen');
 const { processComponent: processAngularComponent } = require('../src/angular/direct-codegen');
 const pLimit = require('p-limit');
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
-
-const readJsonSafe = async (filePath) => {
-  try {
-    return await fs.readJson(filePath);
-  } catch {
-    return null;
-  }
-};
-
-const sanitizeSlug = (value, fallback = 'component') => {
-  const base = (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  return base || fallback;
-};
-
-const toTokenName = (value) =>
-  `<FIGMA_${(value || 'node')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .toUpperCase()}>`;
 
 const stripExtension = (p) => p.replace(/\.[^/.]+$/, '');
 const importExists = (repoRoot, importPath) => {

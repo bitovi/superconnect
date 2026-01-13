@@ -1,15 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const fg = require('fast-glob');
-
-const readTextIfExists = async (filePath) => {
-  try {
-    return await fs.readFile(filePath, 'utf8');
-  } catch (err) {
-    if (err.code === 'ENOENT') return null;
-    throw err;
-  }
-};
+const { readFileSafe } = require('./fs-helpers');
 
 const hasDep = (pkg = null, names = []) => {
   if (!pkg) return false;
@@ -49,7 +41,7 @@ const detectAngular = async (root, pkg, ignore) => {
 
 const fileHasReactImport = async (root, relPath) => {
   const full = path.join(root, relPath);
-  const content = await readTextIfExists(full);
+  const content = await readFileSafe(full);
   if (!content) return false;
   const trimmed = content.slice(0, 4000); // only the top of the file to keep it fast
   const reactImport = /\bfrom\s+['"]react['"]|require\(['"]react['"]\)|^import\s+React\b/m;

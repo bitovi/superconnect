@@ -1,16 +1,8 @@
-const fs = require('fs/promises');
 const path = require('path');
 const fg = require('fast-glob');
+const { readFileSafe } = require('./fs-helpers');
 
 const toPosix = (value) => value.replace(/\\/g, '/');
-
-const readFileSafe = async (fullPath) => {
-  try {
-    return await fs.readFile(fullPath, 'utf8');
-  } catch {
-    return null;
-  }
-};
 
 const extractSelector = (source) => {
   if (!source) return null;

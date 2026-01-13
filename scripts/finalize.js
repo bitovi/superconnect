@@ -19,10 +19,10 @@ const chalk = require('chalk');
 const fg = require('fast-glob');
 
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
+const { toTokenName } = require('../src/util/naming');
+const { readJsonSafe } = require('../src/util/fs-helpers');
 const stripAnsi = (value = '') => value.replace(/\u001b\[[0-9;]*m/g, '');
 const METADATA_FILE_NAME = 'figma.config.json';
-
-const readJsonSafe = (filePath) => fs.readJson(filePath).catch(() => null);
 
 const readJsonLines = async (filePath) => {
   try {
@@ -65,12 +65,6 @@ const listCodeConnectFiles = (dir) => {
   const pattern = path.join(dir, '**', '*.figma.{ts,tsx}');
   return fg.sync(pattern.replace(/\\/g, '/')).map((p) => path.resolve(p));
 };
-
-const toTokenName = (value) =>
-  `<FIGMA_${(value || 'node')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .toUpperCase()}>`;
 
 const VALUE_COL = 50;
 
