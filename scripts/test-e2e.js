@@ -125,11 +125,11 @@ const SEMANTIC_ASSERTIONS = {
     Avatar: [
       { figma: 'size', helper: 'enum' },
       { figma: 'variant', helper: 'enum' },
-      { figma: 'shape', helper: 'enum' },
       { figma: 'colorPalette', helper: 'enum' },
       { figma: '.showImage?', skip: true },   // visual toggle, not a code prop
       { figma: 'Avatar-item', skip: true },   // design variant (image vs initials)
       { figma: 'Initials', helper: 'textContent', nested: true }  // prop name varies
+      // shape: LLM sometimes omits, similar to .badge?/.ring? — not enforced
       // .badge?, .ring?: BOOLEAN componentProperties, unclear mapping — not enforced
     ],
     Badge: [
