@@ -181,7 +181,17 @@ class OpenAIAgentAdapter {
       } else if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
         message = `OpenAI API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify OPENAI_API_KEY is set correctly in your environment or .env file\n  - Check that your API key is valid at https://platform.openai.com/api-keys\n  - Ensure your .env file is in the project root directory`;
       } else if (err?.status === 429 || message.includes('rate limit')) {
-        message = `OpenAI API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://platform.openai.com/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes`;
+        message = `OpenAI API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Lower concurrency in superconnect.toml: concurrency = 1\n  - Check your usage at https://platform.openai.com/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes`;
+      } else if (err?.status === 402 || message.includes('insufficient_quota') || message.includes('billing') || message.includes('exceeded your current quota')) {
+        message = `OpenAI API billing/quota error: ${message}\n\n💡 Troubleshooting:\n  - Check your billing status at https://platform.openai.com/account/billing\n  - Add payment method or increase spending limit\n  - Your free tier credits may have expired`;
+      } else if (err?.status === 408 || message.includes('timeout') || message.includes('timed out')) {
+        message = `OpenAI API request timed out: ${message}\n\n💡 Troubleshooting:\n  - The request took too long to complete\n  - Try again - this may be a temporary issue\n  - If persistent, check your network connection`;
+      } else if (err?.status === 413 || message.includes('too large') || message.includes('maximum context length')) {
+        message = `Request too large for model: ${message}\n\n💡 Troubleshooting:\n  - The component context exceeds the model's token limit\n  - Try a model with larger context (e.g., gpt-4-turbo with 128k tokens)\n  - Reduce component complexity or split into smaller components`;
+      } else if (message.includes('content_policy') || message.includes('content policy') || message.includes('flagged')) {
+        message = `Content policy violation: ${message}\n\n💡 This error usually means:\n  - The model detected potentially problematic content in the request\n  - Check component names and properties for unusual text\n  - This is sometimes a false positive - try again`;
+      } else if (err?.status === 502 || err?.status === 503 || message.includes('Service Unavailable') || message.includes('Bad Gateway')) {
+        message = `API service unavailable (${err?.status || 503}): ${message}\n\n💡 Troubleshooting:\n  - If using LiteLLM, Bedrock, or another proxy: lower concurrency in superconnect.toml:\n      [codegen]\n      concurrency = 1\n  - Check that your LLM proxy/server is running and healthy\n  - The upstream provider may be experiencing issues - try again shortly`;
       } else if (err?.status === 403) {
         message = `OpenAI API access denied: ${message}\n\n💡 Troubleshooting:\n  - Your API key may not have access to the requested model\n  - Check your organization settings at https://platform.openai.com/account/organization`;
       } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' || 
@@ -420,7 +430,19 @@ class ClaudeAgentAdapter {
       } else if (err?.status === 401 || message.includes('authentication') || message.includes('API key')) {
         message = `Claude API authentication failed: ${message}\n\n💡 Troubleshooting:\n  - Verify ANTHROPIC_API_KEY is set correctly in your environment or .env file\n  - Get your API key from https://console.anthropic.com/settings/keys\n  - Ensure your .env file is in the project root directory`;
       } else if (err?.status === 429 || message.includes('rate limit')) {
-        message = `Claude API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Check your usage at https://console.anthropic.com/settings/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes or reduce concurrency`;
+        message = `Claude API rate limit exceeded: ${message}\n\n💡 Troubleshooting:\n  - Lower concurrency in superconnect.toml: concurrency = 1\n  - Check your usage at https://console.anthropic.com/settings/usage\n  - Consider upgrading your API plan\n  - Try again in a few minutes`;
+      } else if (err?.status === 529 || message.includes('overloaded')) {
+        message = `Claude API is overloaded: ${message}\n\n💡 Troubleshooting:\n  - The API is experiencing high demand\n  - Lower concurrency in superconnect.toml: concurrency = 1\n  - Wait a few minutes and try again`;
+      } else if (err?.status === 402 || message.includes('billing') || message.includes('credit')) {
+        message = `Claude API billing error: ${message}\n\n💡 Troubleshooting:\n  - Check your billing status at https://console.anthropic.com/settings/billing\n  - Add credits or payment method\n  - Your account may need a spending limit increase`;
+      } else if (err?.status === 408 || message.includes('timeout') || message.includes('timed out')) {
+        message = `Claude API request timed out: ${message}\n\n💡 Troubleshooting:\n  - The request took too long to complete\n  - Try again - this may be a temporary issue\n  - If persistent, check your network connection`;
+      } else if (message.includes('too large') || message.includes('maximum') || message.includes('context length') || message.includes('token limit')) {
+        message = `Request too large for model: ${message}\n\n💡 Troubleshooting:\n  - The component context exceeds the model's token limit\n  - Try claude-sonnet (200k context) or reduce component complexity\n  - Split large components into smaller pieces`;
+      } else if (message.includes('content_policy') || message.includes('content policy') || message.includes('flagged') || message.includes('safety')) {
+        message = `Content policy violation: ${message}\n\n💡 This error usually means:\n  - The model detected potentially problematic content in the request\n  - Check component names and properties for unusual text\n  - This is sometimes a false positive - try again`;
+      } else if (err?.status === 502 || err?.status === 503 || message.includes('Service Unavailable') || message.includes('Bad Gateway')) {
+        message = `API service unavailable (${err?.status || 503}): ${message}\n\n💡 Troubleshooting:\n  - If using LiteLLM, Bedrock, or another proxy: lower concurrency in superconnect.toml:\n      [codegen]\n      concurrency = 1\n  - Check that your LLM proxy/server is running and healthy\n  - The upstream provider may be experiencing issues - try again shortly`;
       } else if (err?.status === 403) {
         message = `Claude API access denied: ${message}\n\n💡 Troubleshooting:\n  - Your API key may not have access to the requested model\n  - Verify your account status at https://console.anthropic.com`;
       } else if (err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT' || 
@@ -717,9 +739,62 @@ class AgentSDKAdapter {
         throw new Error(
           `Anthropic API rate limit exceeded: ${errorMsg}\n\n` +
           '💡 Troubleshooting:\n' +
+          '  - Lower concurrency in superconnect.toml: concurrency = 1\n' +
           '  - Wait a few minutes and try again\n' +
           '  - Check your usage at https://console.anthropic.com/settings/usage\n' +
           '  - Consider upgrading your API plan'
+        );
+      }
+      
+      if (err?.status === 502 || err?.status === 503 || errorMsg.includes('Service Unavailable') || errorMsg.includes('Bad Gateway')) {
+        throw new Error(
+          `API service unavailable (${err?.status || 503}): ${errorMsg}\n\n` +
+          '💡 Troubleshooting:\n' +
+          '  - If using LiteLLM, Bedrock, or another proxy: lower concurrency in superconnect.toml:\n' +
+          '      [codegen]\n' +
+          '      concurrency = 1\n' +
+          '  - Check that your LLM proxy/server is running and healthy\n' +
+          '  - The upstream provider may be experiencing issues - try again shortly'
+        );
+      }
+      
+      if (err?.status === 529 || errorMsg.includes('overloaded')) {
+        throw new Error(
+          `Claude API is overloaded: ${errorMsg}\n\n` +
+          '💡 Troubleshooting:\n' +
+          '  - The API is experiencing high demand\n' +
+          '  - Lower concurrency in superconnect.toml: concurrency = 1\n' +
+          '  - Wait a few minutes and try again'
+        );
+      }
+      
+      if (err?.status === 402 || errorMsg.includes('billing') || errorMsg.includes('credit')) {
+        throw new Error(
+          `Claude API billing error: ${errorMsg}\n\n` +
+          '💡 Troubleshooting:\n' +
+          '  - Check your billing at https://console.anthropic.com/settings/billing\n' +
+          '  - Add credits or payment method\n' +
+          '  - Your account may need a spending limit increase'
+        );
+      }
+      
+      if (errorMsg.includes('too large') || errorMsg.includes('maximum') || errorMsg.includes('context length') || errorMsg.includes('token limit')) {
+        throw new Error(
+          `Request too large for model: ${errorMsg}\n\n` +
+          '💡 Troubleshooting:\n' +
+          '  - The component context exceeds the model\'s token limit\n' +
+          '  - Try claude-sonnet (200k context) or reduce component complexity\n' +
+          '  - Split large components into smaller pieces'
+        );
+      }
+      
+      if (errorMsg.includes('content_policy') || errorMsg.includes('content policy') || errorMsg.includes('flagged') || errorMsg.includes('safety')) {
+        throw new Error(
+          `Content policy violation: ${errorMsg}\n\n` +
+          '💡 This error usually means:\n' +
+          '  - The model detected potentially problematic content\n' +
+          '  - Check component names and properties for unusual text\n' +
+          '  - This is sometimes a false positive - try again'
         );
       }
       

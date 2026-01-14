@@ -29,7 +29,7 @@ const DEFAULT_MAX_TOKENS = 16384;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
 const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_LAYER_DEPTH = 3;
-const DEFAULT_CONCURRENCY = 8;
+const DEFAULT_CONCURRENCY = 5;
 
 const parseMaybeInt = (value) => {
   const n = value ? parseInt(value, 10) : NaN;
@@ -243,8 +243,10 @@ async function promptForConfig() {
     '# How many times to retry if generated code fails validation (0-10)',
     'max_retries = 4',
     '',
-    '# Parallel LLM requests during code generation (1-16, higher = faster but more API load)',
-    'concurrency = 8',
+    '# Number of components to process in parallel (1-16)',
+    '# Higher = faster, but may cause errors with some LLM proxies (LiteLLM, Bedrock, etc.)',
+    '# If you see 503/rate-limit errors, try lowering this to 1',
+    'concurrency = 5',
     '',
     '[figma]',
     "# How deep to scan Figma's component tree. Increase if nested variants aren't detected.",

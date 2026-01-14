@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-01-14
+
+### Changed
+- Default concurrency reduced from 8 to 5 for better compatibility with LLM proxies
+- Improved TOML comments for `concurrency` setting to explain its purpose and troubleshooting
+
+### Fixed
+- Added comprehensive error handling for common API errors:
+  - 402 billing/quota errors with links to billing dashboards
+  - 408 timeout errors with retry guidance
+  - 413/context length errors with model suggestions
+  - 502/503 service unavailable with concurrency advice (helps LiteLLM/Bedrock users)
+  - 529 overloaded (Anthropic-specific) with wait guidance
+  - Content policy violations with troubleshooting tips
+- Rate limit (429) errors now suggest lowering concurrency as first troubleshooting step
+
 ## [0.3.1] - 2026-01-14
 
 ### Changed
