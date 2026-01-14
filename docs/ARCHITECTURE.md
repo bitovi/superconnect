@@ -17,7 +17,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
 - **CLI orchestrator** (`scripts/run-pipeline.js`)
   - Parses CLI flags (`--figma-url`, `--figma-token`, `--target`, `--framework`, `--only`, `--exclude`, `--force`, `--dry-run`)
   - Loads configuration from `superconnect.toml`, prompting the user to create it if missing
-  - Resolves a target repo, validates access, and computes paths under `superconnect/` and `codeConnect/`
+  - Resolves a target repo, validates access, and computes paths under `superconnect-logs/` and `codeConnect/`
   - Reads `FIGMA_ACCESS_TOKEN` and agent API keys from the environment or a `.env` file in the target repo
   - Decides which stages to run based on existing artifacts and `--force`, and blocks agent stages when API keys are missing unless `--dry-run` is set
   - When `SUPERCONNECT_E2E_VERBOSE` is truthy, captures stage stdout/stderr for easier test debugging
@@ -49,7 +49,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Collects TypeScript/TSX files under those roots
   - For each file:
     - Reads content and extracts exported identifiers using regexes
-  - Produces `superconnect/repo-summary.json` with:
+  - Produces `superconnect-logs/repo-summary.json` with:
     - Package.json summary
     - TS config locations
     - Detected frameworks (`frameworks`, `primary_framework` via heuristics for React/Angular)
@@ -74,14 +74,14 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Normalizes variant keys/values and computes enum shapes
     - Extracts component property definitions and references
     - Computes a stable checksum
-  - Writes `superconnect/figma-components/<slug>.json`
-  - Writes `superconnect/figma-components-index.json` summarizing the file and components
+  - Writes `superconnect-logs/figma-components/<slug>.json`
+  - Writes `superconnect-logs/figma-components-index.json` summarizing the file and components
 
 ### 3. Orienter (`scripts/run-orienter.js`)
 
 - Inputs:
-  - `superconnect/figma-components-index.json`
-  - `superconnect/repo-summary.json`
+  - `superconnect-logs/figma-components-index.json`
+  - `superconnect-logs/repo-summary.json`
   - Agent backend, model, and max tokens (from CLI and `superconnect.toml`)
   - Optional target framework hint (`--target-framework`) and dry-run/fake output flags
 - Behavior:
@@ -93,9 +93,9 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - Target framework hint for downstream codegen
   - Calls the configured agent via `AgentAdapter.orient`, or writes payload-only/fake outputs when `--dry-run`/`--fake-orienter-output` are set
   - Streams agent stdout into:
-    - `superconnect/orientation.jsonl` (one JSON object per component)
-    - A log file at `superconnect/orienter-agent.log`
-  - For `--dry-run` and `--fake-orienter-output`, writes the payload preview to `superconnect/orienter-agent-payload.txt`
+    - `superconnect-logs/orientation.jsonl` (one JSON object per component)
+    - A log file at `superconnect-logs/orienter-agent.log`
+  - For `--dry-run` and `--fake-orienter-output`, writes the payload preview to `superconnect-logs/orienter-agent-payload.txt`
 - Position in pipeline:
   - Executed immediately before codegen and grouped with codegen in run output/log coloring to reflect it as part of the generation phase
 - Output data model (per line, JSON):
@@ -109,10 +109,10 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
 Uses direct codegen approach where agents generate complete Code Connect files with built-in validation and retry logic.
 
 - Inputs:
-  - `superconnect/figma-components-index.json`
-  - `superconnect/figma-components/*.json`
-  - `superconnect/orientation.jsonl`
-  - `superconnect/repo-summary.json` (framework hints and Angular component metadata)
+  - `superconnect-logs/figma-components-index.json`
+  - `superconnect-logs/figma-components/*.json`
+  - `superconnect-logs/orientation.jsonl`
+  - `superconnect-logs/repo-summary.json` (framework hints and Angular component metadata)
   - Agent backend configuration (same as Orienter)
 
 - Architecture:
@@ -148,8 +148,8 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 
 - Output:
   - `codeConnect/<Component>.figma.tsx` or `.figma.ts` (unless skipped or blocked by existing file and no `--force`)
-  - `superconnect/codegen-summaries/*-codegen-summary.json` (per‑component results)
-  - `superconnect/codegen-agent-transcripts/*-attempt*.log` (full agent I/O transcripts)
+  - `superconnect-logs/codegen-summaries/*-codegen-summary.json` (per‑component results)
+  - `superconnect-logs/codegen-agent-transcripts/*-attempt*.log` (full agent I/O transcripts)
 - Codegen respects:
   - `--only` / `--exclude` filters (names/IDs/globs)
   - `--force` for overwriting existing mapping files
@@ -157,9 +157,9 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 ### 5. Finalizer (`scripts/finalize.js`)
 
 - Inputs:
-  - `superconnect/figma-components-index.json`
-  - `superconnect/orientation.jsonl`
-  - `superconnect/codegen-summaries/*.json`
+  - `superconnect-logs/figma-components-index.json`
+  - `superconnect-logs/orientation.jsonl`
+  - `superconnect-logs/codegen-summaries/*.json`
   - `codeConnect/*.figma.tsx` / `*.figma.ts`
 - Behavior:
   - Correlates Figma components with codegen results

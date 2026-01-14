@@ -25,22 +25,22 @@ The `scripts/` directory contains the executable pieces of the pipeline:
 
 - `scripts/summarize-repo.js`  
   Stage 1: repo summarizer  
-  Scans a React or Angular repo, detects frameworks, finds component roots, and writes `superconnect/repo-summary.json`
+  Scans a React or Angular repo, detects frameworks, finds component roots, and writes `superconnect-logs/repo-summary.json`
 
 - `scripts/figma-scan.js`  
   Stage 2: Figma scan  
-  Talks to the Figma API, extracts component metadata, and writes `superconnect/figma-components-index.json` plus per‑component JSON
+  Talks to the Figma API, extracts component metadata, and writes `superconnect-logs/figma-components-index.json` plus per‑component JSON
 
 - `scripts/run-orienter.js`  
   Stage 3: orienter  
-  Builds the orienter payload (prompt + Figma index + repo summary + target framework), calls the LLM via adapters, and writes `superconnect/orientation.jsonl`
+  Builds the orienter payload (prompt + Figma index + repo summary + target framework), calls the LLM via adapters, and writes `superconnect-logs/orientation.jsonl`
 
 - `scripts/run-codegen.js`  
   Stage 4: codegen  
   Reads Figma metadata, orientation output, repo summary, and prompts, then asks the LLM to produce mappings and renders:
   - React `.figma.tsx` files
   - Angular `.figma.ts` files (using `lit-html` templates)
-  Also writes per‑component summaries in `superconnect/codegen-summaries/`
+  Also writes per‑component summaries in `superconnect-logs/codegen-summaries/`
 
 - `scripts/finalize.js`  
   Stage 5: finalizer  
@@ -94,7 +94,7 @@ Prompts live in `prompts/` and define how the agents should behave:
 To understand why the agent produced a particular mapping, look at:
 
 - The relevant prompt in `prompts/`
-- The agent logs in `superconnect/orienter-agent.log`, `superconnect/codegen-summaries/*.json`, and `superconnect/codegen-agent-transcripts/*.log`
+- The agent logs in `superconnect-logs/orienter-agent.log`, `superconnect-logs/codegen-summaries/*.json`, and `superconnect-logs/codegen-agent-transcripts/*.log`
 
 ## Tests and fixtures
 

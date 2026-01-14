@@ -1337,14 +1337,14 @@ main().catch((err) => {
   if (err.code === 'ENOENT') {
     console.error('\n💡 File not found - ensure orienter step completed successfully');
     console.error('   Check that these files exist:');
-    console.error('   - superconnect/figma-components-index.json');
-    console.error('   - superconnect/repo-summary.json');
-    console.error('   - superconnect/orientation.jsonl');
+    console.error('   - superconnect-logs/figma-components-index.json');
+    console.error('   - superconnect-logs/repo-summary.json');
+    console.error('   - superconnect-logs/orientation.jsonl');
   } else if (err.message.includes('Network') || err.message.includes('certificate') || 
              err.message.includes('TLS') || err.message.includes('SSL')) {
     console.error('\n💡 Network/certificate error detected');
     console.error('   See docs/NETWORK-TROUBLESHOOTING.md for detailed help');
-    console.error('   Check component log files in superconnect/codegen-agent-transcripts/ for specifics');
+    console.error('   Check component log files in superconnect-logs/codegen-agent-transcripts/ for specifics');
   } else if (err.message.includes('API') || err.message.includes('authentication')) {
     console.error('\n💡 API error - verify your ANTHROPIC_API_KEY or OPENAI_API_KEY');
   } else if (err.message.includes('JSON')) {

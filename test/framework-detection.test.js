@@ -7,7 +7,7 @@ const { execFileSync } = require('child_process');
 const summarizeScript = path.join(__dirname, '..', 'scripts', 'summarize-repo.js');
 
 const runSummary = (root, outputFile) => {
-  const output = outputFile || path.join(root, 'superconnect', 'repo-summary.json');
+  const output = outputFile || path.join(root, 'superconnect-logs', 'repo-summary.json');
   fs.removeSync(output);
   fs.ensureDirSync(path.dirname(output));
   execFileSync('node', [summarizeScript, '--root', root, '--output', output], {

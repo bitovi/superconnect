@@ -23,8 +23,8 @@ describe('finalize.js', () => {
       fs.writeFileSync(path.join(pkgDir, 'src', 'index.tsx'), '// entry');
       writeJson(path.join(pkgDir, 'package.json'), { name: '@acme/ui', version: '0.0.0' });
 
-      // Minimal superconnect artifacts
-      const superDir = path.join(tmp, 'superconnect');
+      // Minimal superconnect-logs artifacts
+      const superDir = path.join(tmp, 'superconnect-logs');
       writeJson(path.join(superDir, 'figma-components-index.json'), { fileKey: 'file', components: [] });
       fs.writeFileSync(path.join(superDir, 'orientation.jsonl'), '');
       fs.ensureDirSync(path.join(tmp, 'codeConnect'));
@@ -49,8 +49,8 @@ describe('finalize.js', () => {
     it('omits paths block when no package entrypoints found', () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'finalize-paths-'));
 
-      // Minimal superconnect artifacts without packages
-      const superDir = path.join(tmp, 'superconnect');
+      // Minimal superconnect-logs artifacts without packages
+      const superDir = path.join(tmp, 'superconnect-logs');
       writeJson(path.join(superDir, 'figma-components-index.json'), { fileKey: 'file', components: [] });
       fs.writeFileSync(path.join(superDir, 'orientation.jsonl'), '');
       fs.ensureDirSync(path.join(tmp, 'codeConnect'));
@@ -79,8 +79,8 @@ describe('finalize.js', () => {
         dereference: true,
         filter: (src) => !src.endsWith(`${path.sep}repo-summary.json`)
       });
-      const repoSummarySrc = path.join(fixtureDir, 'superconnect', 'repo-summary.json');
-      const repoSummaryDest = path.join(tmpDir, 'superconnect', 'repo-summary.json');
+      const repoSummarySrc = path.join(fixtureDir, 'superconnect-logs', 'repo-summary.json');
+      const repoSummaryDest = path.join(tmpDir, 'superconnect-logs', 'repo-summary.json');
       if (fs.existsSync(repoSummarySrc)) {
         fs.ensureDirSync(path.dirname(repoSummaryDest));
         fs.writeFileSync(repoSummaryDest, fs.readFileSync(repoSummarySrc));

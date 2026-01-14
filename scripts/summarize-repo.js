@@ -57,7 +57,7 @@ const parseArgs = (argv) => {
   const root = flagRoot || positionalRoot || process.cwd();
   return {
     root: path.resolve(root),
-    output: output ? path.resolve(output) : path.join(path.resolve(root), 'superconnect', 'repo-summary.json'),
+    output: output ? path.resolve(output) : path.join(path.resolve(root), 'superconnect-logs', 'repo-summary.json'),
   };
 };
 

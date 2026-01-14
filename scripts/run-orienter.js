@@ -6,7 +6,7 @@
  * Inputs (named):
  *  - --figma-index <file>: path to figma-components-index.json
  *  - --repo-summary <file>: path to repo-summary.json
- *  - --output <file>: path for orientation JSONL (default: superconnect/orientation.jsonl)
+ *  - --output <file>: path for orientation JSONL (default: superconnect-logs/orientation.jsonl)
  *
  * Behavior:
  *  - Reads the orienter prompt (prompts/orienter.md)
@@ -22,7 +22,7 @@ const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-a
 const { parseMaxTokens } = require('../src/util/naming');
 
 const promptPath = path.join(__dirname, '..', 'prompts', 'orienter.md');
-const defaultOutput = path.join(process.cwd(), 'superconnect', 'orientation.jsonl');
+const defaultOutput = path.join(process.cwd(), 'superconnect-logs', 'orientation.jsonl');
 
 const readJson = (filePath) => fs.readJson(filePath);
 
@@ -163,8 +163,8 @@ main().catch((err) => {
   
   if (err.code === 'ENOENT') {
     console.error('\n💡 File not found - check that these files exist:');
-    console.error('   - superconnect/figma-components-index.json (from Figma scan)');
-    console.error('   - superconnect/repo-summary.json (from repo analysis)');
+    console.error('   - superconnect-logs/figma-components-index.json (from Figma scan)');
+    console.error('   - superconnect-logs/repo-summary.json (from repo analysis)');
     console.error('   Run the full pipeline: npx superconnect');
   } else if (err.message.includes('API') || err.message.includes('authentication')) {
     console.error('\n💡 API error - verify your ANTHROPIC_API_KEY or OPENAI_API_KEY');

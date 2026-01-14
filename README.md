@@ -144,7 +144,7 @@ Superconnect runs a five-stage pipeline:
 4. **Codegen** - AI generates `.figma.tsx` (React) or `.figma.ts` (Angular) mappings
 5. **Finalizer** - Writes `figma.config.json` and prints a summary
 
-All artifacts are written to `superconnect/` and `codeConnect/` directories in your repo. For implementation details, see `docs/ARCHITECTURE.md`.
+All artifacts are written to `superconnect-logs/` and `codeConnect/` directories in your repo. For implementation details, see `docs/ARCHITECTURE.md`.
 
 
 # Agent Configuration
@@ -180,7 +180,7 @@ model = "claude-sonnet-4-5"
 
 Generated files in your repo:
 
-**superconnect/** - Pipeline artifacts
+**superconnect-logs/** - Pipeline artifacts
 - `repo-summary.json` - Detected components and framework info
 - `figma-components-index.json` - Figma component catalog
 - `figma-components/*.json` - Per-component Figma metadata
@@ -200,7 +200,7 @@ The pipeline is designed for graceful partial runs:
 
 - Ctrl+C during codegen
     - Codegen finishes the current component, then stops processing more
-    - superconnect/codegen-summaries/, codegen-agent-transcripts/, and codeConnect/ contain whatever was completed so far
+    - superconnect-logs/codegen-summaries/, codegen-agent-transcripts/, and codeConnect/ contain whatever was completed so far
     - The pipeline still runs the finalizer, so you get an accurate summary of what was built versus skipped
 - Rerunning without `--force`
     - Repo summary, Figma scan, and orienter are skipped if their outputs already exist

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-01-14
+
+### Changed
+- Renamed intermediate results directory from `superconnect/` to `superconnect-logs/` for clarity
+  - All pipeline artifacts (repo-summary.json, figma-components-index.json, orientation.jsonl, codegen-summaries/, etc.) now written to `superconnect-logs/`
+  - Updated documentation, scripts, tests, and .gitignore to reflect new naming
+  - No changes to config file name (`superconnect.toml`) or package/binary names
+
 ## [0.3.0] - 2026-01-13
 
 ### Changed

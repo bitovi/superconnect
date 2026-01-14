@@ -11,14 +11,14 @@ pnpm-debug.log*
 .DS_Store
 .jest-localstorage*
 tmp/
-superconnect/
+superconnect-logs/
 codeConnect/
-*/superconnect/codegen-summaries/
-*/superconnect/codegen-agent-transcripts/
-!fixtures/**/superconnect/
-!fixtures/**/superconnect/**
-fixtures/**/superconnect/codegen-summaries/
-fixtures/**/superconnect/codegen-agent-transcripts/
+*/superconnect-logs/codegen-summaries/
+*/superconnect-logs/codegen-agent-transcripts/
+!fixtures/**/superconnect-logs/
+!fixtures/**/superconnect-logs/**
+fixtures/**/superconnect-logs/codegen-summaries/
+fixtures/**/superconnect-logs/codegen-agent-transcripts/
 
 # Env/config (keep sample)
 .env

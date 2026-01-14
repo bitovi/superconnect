@@ -386,7 +386,7 @@ function loadAgentToken(backend) {
 function resolvePaths(config) {
   const target = config.target;
   const scriptDir = __dirname;
-  const superconnectDir = path.join(target, 'superconnect');
+  const superconnectDir = path.join(target, 'superconnect-logs');
   const figmaDir = path.join(superconnectDir, 'figma-components');
   const figmaIndex = path.join(superconnectDir, 'figma-components-index.json');
   const repoSummary = path.join(superconnectDir, 'repo-summary.json');
@@ -421,7 +421,7 @@ async function main() {
 
   const args = parseArgv(process.argv);
   const prospectiveTarget = args.target ? path.resolve(args.target) : path.resolve('.');
-  const prospectiveFigmaIndex = path.join(prospectiveTarget, 'superconnect', 'figma-components-index.json');
+  const prospectiveFigmaIndex = path.join(prospectiveTarget, 'superconnect-logs', 'figma-components-index.json');
   const figmaIndexMissing = !fs.existsSync(prospectiveFigmaIndex);
 
   if (figmaIndexMissing && !args.figmaToken && !loadEnvToken()) {

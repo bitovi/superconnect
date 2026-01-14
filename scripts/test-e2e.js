@@ -587,7 +587,7 @@ function runE2E(config) {
     // Setup
     copyFixture(fixtureRoot, tmpDir);
     writeSuperconnectConfig(tmpDir, ds.figmaUrl, config.agentSdk, config.model);
-    fs.removeSync(path.join(tmpDir, 'superconnect'));
+    fs.removeSync(path.join(tmpDir, 'superconnect-logs'));
     fs.removeSync(path.join(tmpDir, 'codeConnect'));
 
     // Run superconnect with timing
@@ -617,7 +617,7 @@ function runE2E(config) {
     }
 
     // Build code cache for validation layers
-    const figmaDir = path.join(tmpDir, 'superconnect', 'figma-components');
+    const figmaDir = path.join(tmpDir, 'superconnect-logs', 'figma-components');
     const connectorCode = new Map();
     for (const file of connectors) {
       connectorCode.set(file, fs.readFileSync(path.join(outputDir, file), 'utf8'));
@@ -693,7 +693,7 @@ function runE2E(config) {
         '--dry-run',
         '--exit-on-unreadable-files',
         '--skip-update-check',
-        '--outDir', path.join(tmpDir, 'superconnect', 'code-connect-json')
+        '--outDir', path.join(tmpDir, 'superconnect-logs', 'code-connect-json')
       ],
       { cwd: tmpDir, env }
     );
@@ -705,7 +705,7 @@ function runE2E(config) {
     console.log('\n✅ All validations passed');
 
     // Collect and write metrics
-    const codegenMetrics = extractCodegenMetrics(path.join(tmpDir, 'superconnect'));
+    const codegenMetrics = extractCodegenMetrics(path.join(tmpDir, 'superconnect-logs'));
     const metrics = buildMetrics({
       backend: config.agentSdk ? 'anthropic-agents' : 'anthropic',
       model: config.model || 'claude-sonnet-4-5',
@@ -728,7 +728,7 @@ function runE2E(config) {
     console.error(`\n❌ ${error.message}`);
     
     // Still collect metrics on failure for comparison
-    const codegenMetrics = extractCodegenMetrics(path.join(tmpDir, 'superconnect'));
+    const codegenMetrics = extractCodegenMetrics(path.join(tmpDir, 'superconnect-logs'));
     const metrics = buildMetrics({
       backend: config.agentSdk ? 'anthropic-agents' : 'anthropic',
       model: config.model || 'claude-sonnet-4-5',

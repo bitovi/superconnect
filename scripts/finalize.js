@@ -4,7 +4,7 @@
  * Finalizer: summarize a Superconnect run.
  *
  * Inputs:
- *  - superconnect directory (figma-components-index.json, codegen-summaries, codegen-agent-transcripts, orientation.jsonl)
+ *  - superconnect-logs directory (figma-components-index.json, codegen-summaries, codegen-agent-transcripts, orientation.jsonl)
  *  - codeConnect directory (generated *.figma.tsx)
  *
  * Outputs:
@@ -227,7 +227,7 @@ const parseArgs = (argv) => {
   const program = new Command();
   program
     .name('finalize')
-    .option('--superconnect <dir>', 'Superconnect directory containing pipeline artifacts', 'superconnect')
+    .option('--superconnect <dir>', 'Superconnect directory containing pipeline artifacts', 'superconnect-logs')
     .option('--codeConnect <dir>', 'CodeConnect directory', 'codeConnect')
     .option('--cwd <dir>', 'Working directory to resolve paths from', '.')
     .option('--target-framework <value>', 'Target framework hint (react|angular)')
