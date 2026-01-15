@@ -15,7 +15,7 @@
  *   pnpm test:e2e --help                    # show help
  *
  * Metrics output (metrics.json in temp dir):
- *   - backend: which API was used (anthropic vs anthropic-agents)
+ *   - backend: which API was used (anthropic vs claude-agent-sdk)
  *   - model: model name
  *   - totalDurationMs: pipeline run time
  *   - components: per-component results with tokens and attempts
@@ -452,7 +452,7 @@ function copyFixture(src, dest) {
  * Write superconnect.toml configuration.
  */
 function writeSuperconnectConfig(destDir, figmaUrl, agentSdk, model) {
-  const api = agentSdk ? 'anthropic-agents' : 'anthropic';
+  const api = agentSdk ? 'claude-agent-sdk' : 'anthropic';
   const effectiveModel = model || 'claude-sonnet-4-5';
 
   const toml = [
@@ -707,7 +707,7 @@ function runE2E(config) {
     // Collect and write metrics
     const codegenMetrics = extractCodegenMetrics(path.join(tmpDir, 'superconnect-logs'));
     const metrics = buildMetrics({
-      backend: config.agentSdk ? 'anthropic-agents' : 'anthropic',
+      backend: config.agentSdk ? 'claude-agent-sdk' : 'anthropic',
       model: config.model || 'claude-sonnet-4-5',
       system: config.system,
       pipelineDurationMs,
@@ -730,7 +730,7 @@ function runE2E(config) {
     // Still collect metrics on failure for comparison
     const codegenMetrics = extractCodegenMetrics(path.join(tmpDir, 'superconnect-logs'));
     const metrics = buildMetrics({
-      backend: config.agentSdk ? 'anthropic-agents' : 'anthropic',
+      backend: config.agentSdk ? 'claude-agent-sdk' : 'anthropic',
       model: config.model || 'claude-sonnet-4-5',
       system: config.system,
       pipelineDurationMs: typeof pipelineDurationMs !== 'undefined' ? pipelineDurationMs : 0,

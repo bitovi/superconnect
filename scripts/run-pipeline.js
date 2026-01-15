@@ -24,7 +24,7 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
 const DEFAULT_OPENAI_MODEL = 'gpt-5.2-codex';
-const DEFAULT_API = 'anthropic-agents';
+const DEFAULT_API = 'claude-agent-sdk';
 const DEFAULT_MAX_TOKENS = 16384;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
 const DEFAULT_MAX_RETRIES = 2;
@@ -53,52 +53,34 @@ function loadSuperconnectConfig(filePath = 'superconnect.toml') {
 }
 
 function normalizeAgentConfig(agentSection = {}) {
-  // Check for deprecated config keys and warn
-  if (agentSection.backend) {
-    const suggestion = agentSection.backend === 'claude' ? 'anthropic' : agentSection.backend;
-    console.warn(
-      `${chalk.yellow('⚠️  Deprecated config:')} backend = "${agentSection.backend}" → api = "${suggestion}"\n` +
-      `   ${chalk.dim('Update your superconnect.toml to use the new "api" key.')}`
-    );
-  }
-  if (agentSection.sdk_model) {
-    console.warn(
-      `${chalk.yellow('⚠️  Deprecated config:')} sdk_model → model\n` +
-      `   ${chalk.dim('Update your superconnect.toml to use the new "model" key.')}`
-    );
-  }
-  
-  // Support both old and new keys (with new keys taking precedence)
-  const rawApi = agentSection.api || agentSection.backend || DEFAULT_API;
-  // Normalize 'claude' → 'anthropic' for backward compatibility
-  const apiRaw = (rawApi === 'claude' ? 'anthropic' : rawApi).toLowerCase();
-  const api = ['openai', 'anthropic', 'anthropic-agents'].includes(apiRaw) ? apiRaw : DEFAULT_API;
+  const rawApi = (agentSection.api || DEFAULT_API).toLowerCase();
+  const api = ['openai', 'anthropic', 'claude-agent-sdk'].includes(rawApi) ? rawApi : DEFAULT_API;
   const model =
-    agentSection.model || agentSection.sdk_model ||
+    agentSection.model ||
     (api === 'openai'
       ? DEFAULT_OPENAI_MODEL
-      : api === 'anthropic-agents'
+      : api === 'claude-agent-sdk'
       ? 'claude-sonnet-4-5'
       : DEFAULT_ANTHROPIC_MODEL);
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
-  const resolvedMaxTokens = (api === 'anthropic' || api === 'anthropic-agents') ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
+  const resolvedMaxTokens = (api === 'anthropic' || api === 'claude-agent-sdk') ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
   
-  // Support for custom OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
-  const baseUrl = agentSection.base_url || null;
-  const apiKey = agentSection.api_key || null;  // Optional override
+  // Custom OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
+  const baseUrl = agentSection.llm_proxy_url || null;
+  const apiKey = agentSection.api_key || null;
   
-  // Warn if base_url is set with non-OpenAI api
+  // Warn if llm_proxy_url is set with non-OpenAI api
   if (baseUrl && api !== 'openai') {
     console.warn(
-      `${chalk.yellow('⚠️  base_url is set but api is "')}${api}${chalk.yellow('". base_url is only used with api = "openai".')}\n` +
+      `${chalk.yellow('⚠️  llm_proxy_url is set but api is "')}${api}${chalk.yellow('". llm_proxy_url is only used with api = "openai".')}\n` +
       `   ${chalk.yellow('Did you mean to set api = "openai"?')}`
     );
   }
   
-  // Warn if using custom base_url without explicitly setting model
-  if (baseUrl && !agentSection.model && !agentSection.sdk_model) {
+  // Warn if using custom llm_proxy_url without explicitly setting model
+  if (baseUrl && !agentSection.model) {
     console.warn(
-      `${chalk.yellow('⚠️  Using custom base_url but no model specified.')}\n` +
+      `${chalk.yellow('⚠️  Using custom llm_proxy_url but no model specified.')}\n` +
       `   ${chalk.yellow(`Default model "${DEFAULT_OPENAI_MODEL}" may not exist on your endpoint.`)}\n` +
       `   ${chalk.dim('Add to superconnect.toml: model = "your-model-name"')}`
     );
@@ -110,12 +92,13 @@ function normalizeAgentConfig(agentSection = {}) {
 /**
  * Normalize [codegen] section from TOML config.
  * @param {object} codegenSection - The [codegen] section from TOML
- * @returns {{ maxRetries: number, concurrency: number }}
+ * @returns {{ maxRetries: number, concurrency: number, outputDir: string|null }}
  */
 function normalizeCodegenConfig(codegenSection = {}) {
   const maxRetries = parseMaybeInt(codegenSection.max_retries) ?? DEFAULT_MAX_RETRIES;
   const concurrency = parseMaybeInt(codegenSection.concurrency) ?? DEFAULT_CONCURRENCY;
-  return { maxRetries, concurrency };
+  const outputDir = codegenSection.code_connect_output_dir || null;
+  return { maxRetries, concurrency, outputDir };
 }
 
 /**
@@ -188,32 +171,33 @@ async function promptForConfig() {
 
   const agentSection = [];
   
-  if (active === 'anthropic' || active === 'anthropic-agents') {
-    const apiValue = active === 'anthropic-agents' ? 'anthropic-agents' : 'anthropic';
+  if (active === 'anthropic' || active === 'claude-agent-sdk') {
+    const apiValue = active === 'claude-agent-sdk' ? 'claude-agent-sdk' : 'anthropic';
     agentSection.push(
       '# Backend for code generation:',
-      '#   "anthropic-agents" (default) — Claude explores your codebase using tools',
-      '#   "anthropic"       — Context curated upfront (Messages API)',
-      '#   "openai"          — OpenAI or compatible provider',
+      '#   "claude-agent-sdk" (default) — Claude explores your codebase using tools',
+      '#   "anthropic"        — Anthropic Messages API (curated context)',
+      '#   "openai"           — OpenAI Chat Completions API or compatible provider',
       `api = "${apiValue}"`,
       `model = "${model}"`,
       '',
       '# Alternative backends:',
-      '#   api = "anthropic"   # Messages API (deterministic context, any provider)',
+      '#   api = "anthropic"   # Messages API (deterministic context)',
       '#   api = "openai"',
       `#   model = "${DEFAULT_OPENAI_MODEL}"`,
-      '#   base_url = "http://localhost:4000/v1"  # LiteLLM, Azure, vLLM, LocalAI'
+      '#   llm_proxy_url = "http://localhost:4000/v1"  # LiteLLM, Azure, vLLM, LocalAI'
     );
   } else if (active === 'openai') {
     const lines = [
       '# AI provider: "anthropic" (default) or "openai"',
       '# Anthropic requires ANTHROPIC_API_KEY env var',
-      '# OpenAI requires OPENAI_API_KEY env var (or use base_url for LiteLLM, Azure, etc.)',
+      '# OpenAI requires OPENAI_API_KEY env var (or use llm_proxy_url for LiteLLM, Azure, etc.)',
       'api = "openai"',
       `model = "${model}"`
     ];
     if (baseUrl) {
-      lines.push(`base_url = "${baseUrl}"`);
+      lines.push(`llm_proxy_url = "${baseUrl}"`);
+    }
     }
     if (apiKey) {
       lines.push(`api_key = "${apiKey}"`);
@@ -247,6 +231,9 @@ async function promptForConfig() {
     '# Higher = faster, but may cause errors with some LLM proxies (LiteLLM, Bedrock, etc.)',
     '# If you see 503/rate-limit errors, try lowering this to 1',
     'concurrency = 5',
+    '',
+    '# Where to write generated Code Connect files (default: codeConnect/)',
+    '# code_connect_output_dir = "codeConnect"',
     '',
     '[figma]',
     "# How deep to scan Figma's component tree. Increase if nested variants aren't detected.",
@@ -395,7 +382,10 @@ function resolvePaths(config) {
   const orientation = path.join(superconnectDir, 'orientation.jsonl');
   const agentLogDir = path.join(superconnectDir, 'orienter-agent.log');
   const codegenTranscriptDir = path.join(superconnectDir, 'codegen-agent-transcripts');
-  const codeConnectDir = path.join(target, 'codeConnect');
+  // Use config.outputDir if set, otherwise default to 'codeConnect'
+  const codeConnectDir = config.outputDir 
+    ? path.resolve(target, config.outputDir)
+    : path.join(target, 'codeConnect');
   const summaryFile = path.join(config.target, 'SUPERCONNECT_SUMMARY.md');
 
   return {
@@ -456,13 +446,13 @@ async function main() {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
   }
-  const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken });
+  const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken, outputDir: codegenConfig.outputDir });
 
   const agentLabel =
     agentConfig.api === 'openai'
       ? `openai${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : agentConfig.api === 'anthropic-agents'
-      ? `anthropic-agents${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
+      : agentConfig.api === 'claude-agent-sdk'
+      ? `claude-agent-sdk${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
       : `anthropic${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
   console.log(`${chalk.dim('•')} ${highlight('Agent API')}: ${highlight(agentLabel)}`);
 

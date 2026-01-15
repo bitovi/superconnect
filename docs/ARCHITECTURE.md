@@ -179,11 +179,11 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 
 - **Config file**: `superconnect.toml`
   - `[inputs]` – `figma_url`, `component_repo_path`
-  - `[agent]` – `api`, `model`, `max_tokens`, `base_url`, `api_key`
-    - `api` – `"anthropic-agents"`, `"anthropic"`, or `"openai"` (default: anthropic-agents)
+  - `[agent]` – `api`, `model`, `max_tokens`, `llm_proxy_url`, `api_key`
+    - `api` – `"claude-agent-sdk"`, `"anthropic"`, or `"openai"` (default: claude-agent-sdk)
     - `model` – model name (e.g., `"gpt-5.2-codex"`, `"claude-sonnet-4-5"`)
     - `max_tokens` – max output tokens (default: 2048 for codegen, 32768 for orientation)
-    - `base_url` – (optional) base URL for OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
+    - `llm_proxy_url` – (optional) base URL for OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
     - `api_key` – (optional) API key override (takes precedence over environment variables)
   - Parsed via a lightweight TOML parser that supports:
     - Top‑level keys
@@ -195,7 +195,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
     - Development: `file_code_connect:write`, `file_dev_resources:read`, `file_dev_resources:write`
   - `ANTHROPIC_API_KEY` – for Anthropic API, read from the process environment or `.env` in the target repo
   - `OPENAI_API_KEY` – for OpenAI API, read from the process environment or `.env` in the target repo
-  - `OPENAI_BASE_URL` – (optional) base URL for OpenAI-compatible endpoints, can be overridden by `base_url` in TOML
+  - `OPENAI_BASE_URL` – (optional) base URL for OpenAI-compatible endpoints, can be overridden by `llm_proxy_url` in TOML
 
 Assumptions:
 - Target repos are React/TypeScript or Angular projects with components under conventional roots (`src/components`, `packages/*/src/components`, `src/app/**/*.component.ts`, etc.)

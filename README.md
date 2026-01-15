@@ -16,8 +16,13 @@ Figma Code Connect [also offers an interactive setup to help create Code Connect
 
 # Installation
 
-- Install from npm
+- Run directly with npx (recommended for one-off use)
+  - `npx @bitovi/superconnect@latest`
+
+- Install globally from npm
   - `pnpm add -g @bitovi/superconnect`
+  - `npm install -g @bitovi/superconnect`
+  - `yarn global add @bitovi/superconnect`
 
 - Install from git
   - clone this repo
@@ -156,25 +161,25 @@ Configure the `[agent]` section in `superconnect.toml`:
 ```toml
 [agent]
 # Backend for code generation:
-#   "anthropic-agents" (default) — Claude explores your codebase using tools
+#   "claude-agent-sdk" (default) — Claude explores your codebase using tools
 #   "anthropic"       — Context curated upfront (Messages API)
-#   "openai"          — OpenAI or compatible provider
-api = "anthropic-agents"
+#   "openai"          — OpenAI Chat Completions API or compatible provider
+api = "claude-agent-sdk"
 model = "claude-sonnet-4-5"
 ```
 
 | API | Environment Variable | Description |
 |-----|---------------------|-------------|
-| `anthropic-agents` (default) | `ANTHROPIC_API_KEY` | Agent SDK with tool-based exploration |
-| `anthropic` | `ANTHROPIC_API_KEY` | Messages API (deterministic context) |
-| `openai` | `OPENAI_API_KEY` | OpenAI or compatible endpoint |
+| `claude-agent-sdk` (default) | `ANTHROPIC_API_KEY` | Claude Agent SDK with tool-based exploration |
+| `anthropic` | `ANTHROPIC_API_KEY` | Anthropic Messages API (deterministic context) |
+| `openai` | `OPENAI_API_KEY` | OpenAI Chat Completions API or compatible endpoint |
 
 **When to use `anthropic` (Messages API):**
 - Provider flexibility — works with OpenAI, local models, or other LLM providers
 - Deterministic context — you control exactly what the model sees
 - Restricted AI access — model cannot explore beyond curated files
 
-**Using OpenAI-compatible endpoints:** Set `api = "openai"` and add a `base_url` for services like LiteLLM, Azure OpenAI, vLLM, or LocalAI.
+**Using OpenAI-compatible endpoints:** Set `api = "openai"` and add `llm_proxy_url` for services like LiteLLM, Azure OpenAI, vLLM, or LocalAI.
 
 # Output Files
 
@@ -212,3 +217,29 @@ The pipeline is designed for graceful partial runs:
     - Upstream stages are re-run as needed (Figma scan, summary, orientation)
 
 This makes it safe to interrupt, inspect, tweak prompts/config, and then rerun the pipeline without losing context
+
+
+# Troubleshooting
+
+## Getting an old version with npx
+
+npx caches packages locally. If you're getting an older version of Superconnect:
+
+```bash
+# Always use @latest to ensure you get the current version
+npx @bitovi/superconnect@latest
+
+# Or clear the npx cache entirely
+npx clear-npx-cache
+# Then run again
+npx @bitovi/superconnect@latest
+```
+
+## Missing environment variables
+
+If you see errors about missing API keys:
+
+1. **FIGMA_ACCESS_TOKEN** - See [Figma access token](#1-figma-access-token) above
+2. **ANTHROPIC_API_KEY** or **OPENAI_API_KEY** - Get from your AI provider's dashboard
+
+Set these in your shell or in a `.env` file in your component repo.

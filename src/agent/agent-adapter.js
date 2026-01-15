@@ -86,7 +86,7 @@ class OpenAIAgentAdapter {
         '  2. Add to your .env file: OPENAI_API_KEY=sk-...\n' +
         '  3. Or export in your shell: export OPENAI_API_KEY=sk-...\n' +
         '  4. Ensure .env file is in your project root directory\n' +
-        '  5. Or set base_url in superconnect.toml for custom endpoints (LiteLLM, etc.)'
+        '  5. Or set llm_proxy_url in superconnect.toml for custom endpoints (LiteLLM, etc.)'
       );
     }
     
