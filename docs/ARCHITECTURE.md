@@ -180,7 +180,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 - **Config file**: `superconnect.toml`
   - `[inputs]` – `figma_file_url`, `component_repo_path`
   - `[agent]` – `api`, `model`, `max_tokens`, `llm_proxy_url`, `api_key`
-    - `api` – `"claude-agent-sdk"`, `"anthropic"`, or `"openai"` (default: claude-agent-sdk)
+    - `api` – `"anthropic-agent-sdk"`, `"anthropic-messages-api"`, or `"openai-chat-api"` (default: anthropic-agent-sdk)
     - `model` – model name (e.g., `"gpt-5.2-codex"`, `"claude-sonnet-4-5"`)
     - `max_tokens` – max output tokens (default: 2048 for codegen, 32768 for orientation)
     - `llm_proxy_url` – (optional) base URL for OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)

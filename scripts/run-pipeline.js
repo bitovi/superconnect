@@ -24,7 +24,7 @@ const { figmaColor, codeColor, generatedColor, highlight } = require('./colors')
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
 const DEFAULT_OPENAI_MODEL = 'gpt-5.2-codex';
-const DEFAULT_API = 'claude-agent-sdk';
+const DEFAULT_API = 'anthropic-agent-sdk';
 const DEFAULT_MAX_TOKENS = 16384;
 const DEFAULT_ORIENTATION_MAX_TOKENS = 32768;
 const DEFAULT_MAX_RETRIES = 2;
@@ -54,26 +54,26 @@ function loadSuperconnectConfig(filePath = 'superconnect.toml') {
 
 function normalizeAgentConfig(agentSection = {}) {
   const rawApi = (agentSection.api || DEFAULT_API).toLowerCase();
-  const api = ['openai', 'anthropic', 'claude-agent-sdk'].includes(rawApi) ? rawApi : DEFAULT_API;
+  const api = ['openai-chat-api', 'anthropic-messages-api', 'anthropic-agent-sdk'].includes(rawApi) ? rawApi : DEFAULT_API;
   const model =
     agentSection.model ||
-    (api === 'openai'
+    (api === 'openai-chat-api'
       ? DEFAULT_OPENAI_MODEL
-      : api === 'claude-agent-sdk'
+      : api === 'anthropic-agent-sdk'
       ? 'claude-sonnet-4-5'
       : DEFAULT_ANTHROPIC_MODEL);
   const maxTokens = parseMaybeInt(agentSection.max_tokens);
-  const resolvedMaxTokens = (api === 'anthropic' || api === 'claude-agent-sdk') ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
+  const resolvedMaxTokens = (api === 'anthropic-messages-api' || api === 'anthropic-agent-sdk') ? maxTokens || DEFAULT_MAX_TOKENS : maxTokens || null;
   
   // Custom OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
   const baseUrl = agentSection.llm_proxy_url || null;
   const apiKey = agentSection.api_key || null;
   
   // Warn if llm_proxy_url is set with non-OpenAI api
-  if (baseUrl && api !== 'openai') {
+  if (baseUrl && api !== 'openai-chat-api') {
     console.warn(
-      `${chalk.yellow('⚠️  llm_proxy_url is set but api is "')}${api}${chalk.yellow('". llm_proxy_url is only used with api = "openai".')}\n` +
-      `   ${chalk.yellow('Did you mean to set api = "openai"?')}`
+      `${chalk.yellow('⚠️  llm_proxy_url is set but api is "')}${api}${chalk.yellow('". llm_proxy_url is only used with api = "openai-chat-api".')}\n` +
+      `   ${chalk.yellow('Did you mean to set api = "openai-chat-api"?')}`
     );
   }
   
@@ -171,28 +171,28 @@ async function promptForConfig() {
 
   const agentSection = [];
   
-  if (active === 'anthropic' || active === 'claude-agent-sdk') {
-    const apiValue = active === 'claude-agent-sdk' ? 'claude-agent-sdk' : 'anthropic';
+  if (active === 'anthropic-messages-api' || active === 'anthropic-agent-sdk') {
+    const apiValue = active === 'anthropic-agent-sdk' ? 'anthropic-agent-sdk' : 'anthropic-messages-api';
     agentSection.push(
       '# Backend for code generation:',
-      '#   "claude-agent-sdk" (default) — Claude explores your codebase using tools',
-      '#   "anthropic"        — Anthropic Messages API (curated context)',
-      '#   "openai"           — OpenAI Chat Completions API or compatible provider',
+      '#   "anthropic-agent-sdk"     (default) — Claude explores your codebase using tools',
+      '#   "anthropic-messages-api"  — Anthropic Messages API (curated context)',
+      '#   "openai-chat-api"        — OpenAI Chat Completions API or compatible provider',
       `api = "${apiValue}"`,
       `model = "${model}"`,
       '',
       '# Alternative backends:',
-      '#   api = "anthropic"   # Messages API (deterministic context)',
-      '#   api = "openai"',
+      '#   api = "anthropic-messages-api"   # Messages API (deterministic context)',
+      '#   api = "openai-chat-api"',
       `#   model = "${DEFAULT_OPENAI_MODEL}"`,
       '#   llm_proxy_url = "http://localhost:4000/v1"  # LiteLLM, Azure, vLLM, LocalAI'
     );
-  } else if (active === 'openai') {
+  } else if (active === 'openai-chat-api') {
     const lines = [
-      '# AI provider: "anthropic" (default) or "openai"',
+      '# AI provider: "anthropic-agent-sdk" (default) or "openai-chat-api"',
       '# Anthropic requires ANTHROPIC_API_KEY env var',
       '# OpenAI requires OPENAI_API_KEY env var (or use llm_proxy_url for LiteLLM, Azure, etc.)',
-      'api = "openai"',
+      'api = "openai-chat-api"',
       `model = "${model}"`
     ];
     if (baseUrl) {
@@ -449,11 +449,11 @@ async function main() {
   const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken, outputDir: codegenConfig.outputDir });
 
   const agentLabel =
-    agentConfig.api === 'openai'
-      ? `openai${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : agentConfig.api === 'claude-agent-sdk'
-      ? `claude-agent-sdk${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : `anthropic${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
+    agentConfig.api === 'openai-chat-api'
+      ? `openai-chat-api${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
+      : agentConfig.api === 'anthropic-agent-sdk'
+      ? `anthropic-agent-sdk${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
+      : `anthropic-messages-api${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
   console.log(`${chalk.dim('•')} ${highlight('Agent API')}: ${highlight(agentLabel)}`);
 
   fs.ensureDirSync(paths.superconnectDir);

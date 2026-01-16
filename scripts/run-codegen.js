@@ -897,7 +897,7 @@ const buildAdapter = (config) => {
     });
   }
   
-  if (api === 'claude-agent-sdk') {
+  if (api === 'anthropic-agent-sdk') {
     const { AgentSDKAdapter } = require('../src/agent/agent-adapter');
     return new AgentSDKAdapter({
       model: config.agentModel || 'claude-sonnet-4-5',
@@ -923,7 +923,7 @@ const parseArgs = (argv) => {
     .requiredOption('--orienter <file>', 'Orienter JSONL output (one JSON object per line)')
     .option('--repo-summary <file>', 'Path to repo-summary.json', null)
     .option('--force', 'Overwrite existing *.figma.tsx files', false)
-    .option('--agent-api <value>', 'Agent API format (openai|anthropic|claude-agent-sdk)', 'anthropic')
+    .option('--agent-api <value>', 'Agent API format (openai-chat-api|anthropic-messages-api|anthropic-agent-sdk)', 'anthropic-messages-api')
     .option('--agent-model <value>', 'Model name (e.g., gpt-5.2-codex, claude-haiku-4-5)')
     .option('--agent-max-tokens <value>', 'Max output tokens for agent responses')
     .option('--agent-base-url <value>', 'Base URL for OpenAI-compatible API (e.g., LiteLLM, Azure, vLLM)')
@@ -1208,7 +1208,7 @@ async function main() {
         maxRetries: 2,
         maxTokens: config.agentMaxTokens || 4096,
         logDir: ctx.agentTranscriptDir,
-        includeAgenticTools: config.agentApi === 'claude-agent-sdk'
+        includeAgenticTools: config.agentApi === 'anthropic-agent-sdk'
       });
 
       if (result.success && result.code) {

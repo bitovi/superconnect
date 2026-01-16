@@ -15,7 +15,7 @@
  *   pnpm test:e2e --help                    # show help
  *
  * Metrics output (metrics.json in temp dir):
- *   - backend: which API was used (anthropic vs claude-agent-sdk)
+ *   - backend: which API was used (anthropic-messages-api vs anthropic-agent-sdk)
  *   - model: model name
  *   - totalDurationMs: pipeline run time
  *   - components: per-component results with tokens and attempts
@@ -452,7 +452,7 @@ function copyFixture(src, dest) {
  * Write superconnect.toml configuration.
  */
 function writeSuperconnectConfig(destDir, figmaUrl, agentSdk, model) {
-  const api = agentSdk ? 'claude-agent-sdk' : 'anthropic';
+  const api = agentSdk ? 'anthropic-agent-sdk' : 'anthropic-messages-api';
   const effectiveModel = model || 'claude-sonnet-4-5';
 
   const toml = [

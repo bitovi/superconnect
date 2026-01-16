@@ -8,15 +8,15 @@ component_repo_path = "."
 
 [agent]
 # Backend for code generation:
-#   "claude-agent-sdk" (default) — Claude explores your codebase using tools
-#   "anthropic"        — Anthropic Messages API (curated context)
-#   "openai"           — OpenAI Chat Completions API or compatible provider
-api = "claude-agent-sdk"
+#   "anthropic-agent-sdk"     (default) — Claude explores your codebase using tools
+#   "anthropic-messages-api"  — Anthropic Messages API (curated context)
+#   "openai-chat-api"        — OpenAI Chat Completions API or compatible provider
+api = "anthropic-agent-sdk"
 model = "claude-sonnet-4-5"
 
 # Alternative backends:
-#   api = "anthropic"   # Messages API (deterministic context)
-#   api = "openai"
+#   api = "anthropic-messages-api"   # Messages API (deterministic context)
+#   api = "openai-chat-api"
 #   model = "gpt-5.2-codex"
 #   llm_proxy_url = "http://localhost:4000/v1"  # LiteLLM, Azure, vLLM, LocalAI
 

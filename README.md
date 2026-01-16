@@ -161,25 +161,25 @@ Configure the `[agent]` section in `superconnect.toml`:
 ```toml
 [agent]
 # Backend for code generation:
-#   "claude-agent-sdk" (default) — Claude explores your codebase using tools
-#   "anthropic"       — Context curated upfront (Messages API)
-#   "openai"          — OpenAI Chat Completions API or compatible provider
-api = "claude-agent-sdk"
+#   "anthropic-agent-sdk"     (default) — Claude explores your codebase using tools
+#   "anthropic-messages-api"  — Anthropic Messages API (curated context)
+#   "openai-chat-api"        — OpenAI Chat Completions API or compatible provider
+api = "anthropic-agent-sdk"
 model = "claude-sonnet-4-5"
 ```
 
 | API | Environment Variable | Description |
 |-----|---------------------|-------------|
-| `claude-agent-sdk` (default) | `ANTHROPIC_API_KEY` | Claude Agent SDK with tool-based exploration |
-| `anthropic` | `ANTHROPIC_API_KEY` | Anthropic Messages API (deterministic context) |
-| `openai` | `OPENAI_API_KEY` | OpenAI Chat Completions API or compatible endpoint |
+| `anthropic-agent-sdk` (default) | `ANTHROPIC_API_KEY` | Claude Agent SDK with tool-based exploration |
+| `anthropic-messages-api` | `ANTHROPIC_API_KEY` | Anthropic Messages API (deterministic context) |
+| `openai-chat-api` | `OPENAI_API_KEY` | OpenAI Chat Completions API or compatible endpoint |
 
-**When to use `anthropic` (Messages API):**
+**When to use `anthropic-messages-api` (Messages API):**
 - Provider flexibility — works with OpenAI, local models, or other LLM providers
 - Deterministic context — you control exactly what the model sees
 - Restricted AI access — model cannot explore beyond curated files
 
-**Using OpenAI-compatible endpoints:** Set `api = "openai"` and add `llm_proxy_url` for services like LiteLLM, Azure OpenAI, vLLM, or LocalAI.
+**Using OpenAI-compatible endpoints:** Set `api = "openai-chat-api"` and add `llm_proxy_url` for services like LiteLLM, Azure OpenAI, vLLM, or LocalAI.
 
 # Output Files
 
