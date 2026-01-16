@@ -385,6 +385,10 @@ function parseRunArgv(argv) {
     .name('superconnect')
     .version(getVersionString())
     .usage('[options]')
+    .addHelpText(
+      'after',
+      `\nCommands:\n  init  Create ./${DEFAULT_CONFIG_FILE} via interactive setup\n`
+    )
     .option('--figma-url <value>', 'Figma file URL or key (needed for figma scan when not cached)')
     .option('--figma-token <token>', 'Figma API token (or FIGMA_ACCESS_TOKEN/.env)')
     .option('--target <path>', 'Target repo to write Code Connect into')
