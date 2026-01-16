@@ -379,64 +379,12 @@ function getVersionString() {
   }
 }
 
-function parseRunArgv(argv) {
-  const program = new Command();
-  program
-    .name('superconnect')
-    .version(getVersionString())
-    .usage('[options]')
-    .addHelpText(
-      'after',
-      `\nCommands:\n  init  Create ./${DEFAULT_CONFIG_FILE} via interactive setup\n`
-    )
-    .option('--figma-url <value>', 'Figma file URL or key (needed for figma scan when not cached)')
-    .option('--figma-token <token>', 'Figma API token (or FIGMA_ACCESS_TOKEN/.env)')
-    .option('--target <path>', 'Target repo to write Code Connect into')
-    .option('--framework <name>', 'Target framework override (react|angular)')
-    .option('--force', 'Re-run stages even if outputs exist')
-    .option('--dry-run', 'Skip agent-powered stages; still run summary', false)
-    .option('--yes', 'Skip confirmation prompts', false)
-    .option('--only <list...>', 'Component names/IDs (globs allowed) to include; accepts comma or space separated values')
-    .option('--exclude <list...>', 'Component names/IDs (globs allowed) to skip');
-  program.parse(argv);
-  const opts = program.opts();
-  const parseList = (values) => {
-    const raw = Array.isArray(values) ? values : values ? [values] : [];
-    return raw
-      .flatMap((item) => String(item).split(','))
-      .map((s) => s.trim())
-      .filter(Boolean);
-  };
-
-  return {
-    figmaUrl: opts.figmaUrl || undefined,
-    figmaToken: opts.figmaToken,
-    target: opts.target ? path.resolve(opts.target) : undefined,
-    force: Boolean(opts.force),
-    framework: opts.framework || undefined,
-    dryRun: Boolean(opts.dryRun),
-    yes: Boolean(opts.yes),
-    only: parseList(opts.only),
-    exclude: parseList(opts.exclude)
-  };
-}
-
-function parseInitArgv(argv) {
-  const program = new Command();
-  program
-    .name('superconnect init')
-    .version(getVersionString())
-    .usage('[options]')
-    .parse(argv);
-  return {};
-}
-
-function parseCli(argv) {
-  const [,, firstArg] = argv;
-  if (firstArg === 'init') {
-    return { mode: 'init', args: parseInitArgv([argv[0], argv[1], ...argv.slice(3)]) };
-  }
-  return { mode: 'run', args: parseRunArgv(argv) };
+function parseList(values) {
+  const raw = Array.isArray(values) ? values : values ? [values] : [];
+  return raw
+    .flatMap((item) => String(item).split(','))
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function loadEnvToken() {
@@ -582,23 +530,21 @@ function resolvePaths(config) {
   };
 }
 
-async function main() {
-  const cli = parseCli(process.argv);
-  if (cli.mode === 'init') {
-    const existing = fs.existsSync(path.resolve(DEFAULT_CONFIG_FILE));
-    if (existing) {
-      console.log(`${chalk.green('✓')} ${highlight(`./${DEFAULT_CONFIG_FILE}`)} already exists`);
-    }
-    await promptForConfig();
-    const runNow = await promptConfirmProceed({ message: 'Run generation now?', defaultYes: false });
-    if (runNow === true) {
-      const result = spawnSync(process.execPath, [__filename], { stdio: 'inherit', env: process.env });
-      process.exit(result.status ?? 1);
-    }
-    console.log(`${chalk.dim('Next:')} run ${highlight('superconnect')} to generate Code Connect files`);
-    return;
+async function runInitCommand() {
+  const existing = fs.existsSync(path.resolve(DEFAULT_CONFIG_FILE));
+  if (existing) {
+    console.log(`${chalk.green('✓')} ${highlight(`./${DEFAULT_CONFIG_FILE}`)} already exists`);
   }
+  await promptForConfig();
+  const runNow = await promptConfirmProceed({ message: 'Run generation now?', defaultYes: false });
+  if (runNow === true) {
+    const result = spawnSync(process.execPath, [__filename], { stdio: 'inherit', env: process.env });
+    process.exit(result.status ?? 1);
+  }
+  console.log(`${chalk.dim('Next:')} run ${highlight('superconnect')} to generate Code Connect files`);
+}
 
+async function runPipelineCommand(args) {
   let interrupted = false;
   process.on('SIGINT', () => {
     if (interrupted) return;
@@ -606,7 +552,6 @@ async function main() {
     console.log(`\n${chalk.yellow('Received SIGINT. Attempting graceful stop after current stage...')}`);
   });
 
-  const args = cli.args;
   const prospectiveTarget = args.target ? path.resolve(args.target) : path.resolve('.');
 
   const cfg = loadSuperconnectConfig(DEFAULT_CONFIG_FILE);
@@ -855,6 +800,48 @@ async function main() {
   }
 
   console.log(`${chalk.green('✓')} Pipeline complete.`);
+}
+
+async function main() {
+  const program = new Command();
+  program
+    .name('superconnect')
+    .version(getVersionString())
+    .usage('[options]')
+    .option('--figma-url <value>', 'Figma file URL or key (needed for figma scan when not cached)')
+    .option('--figma-token <token>', 'Figma API token (or FIGMA_ACCESS_TOKEN/.env)')
+    .option('--target <path>', 'Target repo to write Code Connect into')
+    .option('--framework <name>', 'Target framework override (react|angular)')
+    .option('--force', 'Re-run stages even if outputs exist')
+    .option('--dry-run', 'Skip agent-powered stages; still run summary', false)
+    .option('--yes', 'Skip confirmation prompts', false)
+    .option('--only <list...>', 'Component names/IDs (globs allowed) to include; accepts comma or space separated values')
+    .option('--exclude <list...>', 'Component names/IDs (globs allowed) to skip');
+
+  program
+    .command('init')
+    .description(`Create ./${DEFAULT_CONFIG_FILE} via interactive setup`)
+    .action(async () => {
+      await runInitCommand();
+    });
+
+  program.action(async () => {
+    const opts = program.opts();
+    const args = {
+      figmaUrl: opts.figmaUrl || undefined,
+      figmaToken: opts.figmaToken,
+      target: opts.target ? path.resolve(opts.target) : undefined,
+      force: Boolean(opts.force),
+      framework: opts.framework || undefined,
+      dryRun: Boolean(opts.dryRun),
+      yes: Boolean(opts.yes),
+      only: parseList(opts.only),
+      exclude: parseList(opts.exclude)
+    };
+    await runPipelineCommand(args);
+  });
+
+  await program.parseAsync(process.argv);
 }
 
 main().catch((err) => {
