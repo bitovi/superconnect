@@ -365,10 +365,10 @@ function getVersionString() {
   }
 }
 
-function parseArgv(argv) {
+function parseRunArgv(argv) {
   const program = new Command();
   program
-    .name('run-pipeline')
+    .name('superconnect')
     .version(getVersionString())
     .usage('[options]')
     .option('--figma-url <value>', 'Figma file URL or key (needed for figma scan when not cached)')
@@ -399,6 +399,30 @@ function parseArgv(argv) {
     only: parseList(opts.only),
     exclude: parseList(opts.exclude)
   };
+}
+
+function parseInitArgv(argv) {
+  const program = new Command();
+  program
+    .name('superconnect init')
+    .version(getVersionString())
+    .usage('[options]')
+    .option('--figma-url <value>', 'Figma file URL or key (prefill setup)')
+    .option('--target <path>', 'Target repo path (prefill setup)')
+    .parse(argv);
+  const opts = program.opts();
+  return {
+    figmaUrl: opts.figmaUrl || undefined,
+    target: opts.target ? path.resolve(opts.target) : undefined
+  };
+}
+
+function parseCli(argv) {
+  const [,, firstArg] = argv;
+  if (firstArg === 'init') {
+    return { mode: 'init', args: parseInitArgv([argv[0], argv[1], ...argv.slice(3)]) };
+  }
+  return { mode: 'run', args: parseRunArgv(argv) };
 }
 
 function loadEnvToken() {
@@ -545,6 +569,17 @@ function resolvePaths(config) {
 }
 
 async function main() {
+  const cli = parseCli(process.argv);
+  if (cli.mode === 'init') {
+    const existing = fs.existsSync(path.resolve(DEFAULT_CONFIG_FILE));
+    if (existing) {
+      console.log(`${chalk.green('✓')} ${highlight(`./${DEFAULT_CONFIG_FILE}`)} already exists`);
+    }
+    await promptForConfig();
+    console.log(`${chalk.dim('Next:')} run ${highlight('superconnect')} to generate Code Connect files`);
+    return;
+  }
+
   let interrupted = false;
   process.on('SIGINT', () => {
     if (interrupted) return;
@@ -552,7 +587,7 @@ async function main() {
     console.log(`\n${chalk.yellow('Received SIGINT. Attempting graceful stop after current stage...')}`);
   });
 
-  const args = parseArgv(process.argv);
+  const args = cli.args;
   const prospectiveTarget = args.target ? path.resolve(args.target) : path.resolve('.');
 
   let cfg = loadSuperconnectConfig(DEFAULT_CONFIG_FILE);
