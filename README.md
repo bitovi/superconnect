@@ -90,6 +90,7 @@ From the root of your React or Angular component repo:
 
 - Run `superconnect init` to create `superconnect.toml`
 - Run `superconnect` to generate Code Connect files
+  - For CI/non-interactive runs, use `superconnect --yes`
 
 `superconnect` will proceed to:
 

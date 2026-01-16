@@ -137,6 +137,20 @@ function normalizeFigmaConfig(figmaSection = {}) {
   return { layerDepth };
 }
 
+async function promptConfirmProceed({ message, defaultYes = true }) {
+  if (!process.stdin.isTTY) return null;
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const question = (q) => new Promise((resolve) => rl.question(q, (answer) => resolve(answer.trim())));
+  const suffix = defaultYes ? ' [Y/n]: ' : ' [y/N]: ';
+  const raw = await question(message + suffix);
+  rl.close();
+  if (!raw) return defaultYes;
+  const normalized = raw.toLowerCase();
+  if (['y', 'yes'].includes(normalized)) return true;
+  if (['n', 'no'].includes(normalized)) return false;
+  return defaultYes;
+}
+
 async function promptForConfig() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const question = (q) => new Promise((resolve) => rl.question(q, (answer) => resolve(answer.trim())));
@@ -377,6 +391,7 @@ function parseRunArgv(argv) {
     .option('--framework <name>', 'Target framework override (react|angular)')
     .option('--force', 'Re-run stages even if outputs exist')
     .option('--dry-run', 'Skip agent-powered stages; still run summary', false)
+    .option('--yes', 'Skip confirmation prompts', false)
     .option('--only <list...>', 'Component names/IDs (globs allowed) to include; accepts comma or space separated values')
     .option('--exclude <list...>', 'Component names/IDs (globs allowed) to skip');
   program.parse(argv);
@@ -396,6 +411,7 @@ function parseRunArgv(argv) {
     force: Boolean(opts.force),
     framework: opts.framework || undefined,
     dryRun: Boolean(opts.dryRun),
+    yes: Boolean(opts.yes),
     only: parseList(opts.only),
     exclude: parseList(opts.exclude)
   };
@@ -660,6 +676,28 @@ async function main() {
   const rel = (p) => path.relative(process.cwd(), p) || p;
 
   const needsAgent = !args.dryRun;
+  if (needsAgent) {
+    console.log(`${chalk.dim('Plan:')}`);
+    console.log(`  Target: ${highlight(target)}`);
+    console.log(`  Figma: ${paths.figmaUrl ? highlight(paths.figmaUrl) : chalk.dim('(from config)')}`);
+    console.log(`  Output: ${codegenConfig.colocation ? highlight('colocated next to components') : highlight(rel(paths.codeConnectDir))}`);
+    if (args.only?.length) console.log(`  Only: ${highlight(args.only.join(', '))}`);
+    if (args.exclude?.length) console.log(`  Exclude: ${highlight(args.exclude.join(', '))}`);
+    console.log(`  Stages: repo ${needRepoSummary ? highlight('scan') : chalk.dim('skip')}, figma ${needFigmaScan ? highlight('scan') : chalk.dim('skip')}, orienter ${needOrientation ? highlight('run') : chalk.dim('skip')}, codegen ${highlight('run')}`);
+
+    if (!args.yes) {
+      const confirmed = await promptConfirmProceed({ message: 'Proceed with generation?', defaultYes: true });
+      if (confirmed === null) {
+        console.error('❌ Non-interactive terminal detected.');
+        console.error(`   Re-run with ${highlight('--yes')} to proceed without confirmation.`);
+        process.exit(1);
+      }
+      if (!confirmed) {
+        console.log(chalk.dim('Canceled.'));
+        process.exit(0);
+      }
+    }
+  }
   if (needsAgent && !agentToken) {
     console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.api}).`);
     console.error(`   Set ${agentEnvVar} in your environment or target repo .env, or set [agent].api_key in superconnect.toml.`);
