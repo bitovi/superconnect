@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-// Load environment variables from .env file early
-require('dotenv').config();
+// Load environment variables from .env file early (cwd)
+const dotenv = require('dotenv');
+dotenv.config({ quiet: true });
 
 /**
  * Superconnect pipeline v4 (5 stages):
@@ -36,6 +37,22 @@ const parseMaybeInt = (value) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+function normalizeAgentApiName(value) {
+  if (!value) return null;
+  const raw = String(value).trim().toLowerCase();
+  if (!raw) return null;
+  const normalized = raw
+    .replace(/^openai-chat-completions$/, 'openai-chat-api')
+    .replace(/^openai$/, 'openai-chat-api')
+    .replace(/^anthropic-agents$/, 'anthropic-agent-sdk')
+    .replace(/^anthropic$/, 'anthropic-messages-api');
+  return normalized;
+}
+
+function getAgentEnvVarForApi(api) {
+  return api === 'openai-chat-api' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+}
+
 function loadSuperconnectConfig(filePath = 'superconnect.toml') {
   const direct = path.resolve(process.cwd(), filePath);
   if (!fs.existsSync(direct)) return null;
@@ -53,8 +70,16 @@ function loadSuperconnectConfig(filePath = 'superconnect.toml') {
 }
 
 function normalizeAgentConfig(agentSection = {}) {
-  const rawApi = (agentSection.api || DEFAULT_API).toLowerCase();
-  const api = ['openai-chat-api', 'anthropic-messages-api', 'anthropic-agent-sdk'].includes(rawApi) ? rawApi : DEFAULT_API;
+  const rawApi = normalizeAgentApiName(agentSection.api) || DEFAULT_API;
+  if (agentSection.api && rawApi !== String(agentSection.api).trim().toLowerCase()) {
+    console.warn(
+      `${chalk.yellow('⚠️  Deprecated agent api value:')} "${agentSection.api}"\n` +
+        `   ${chalk.dim('Use one of: anthropic-agent-sdk, anthropic-messages-api, openai-chat-api')}`
+    );
+  }
+  const api = ['openai-chat-api', 'anthropic-messages-api', 'anthropic-agent-sdk'].includes(rawApi)
+    ? rawApi
+    : DEFAULT_API;
   const model =
     agentSection.model ||
     (api === 'openai-chat-api'
@@ -116,7 +141,9 @@ async function promptForConfig() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const question = (q) => new Promise((resolve) => rl.question(q, (answer) => resolve(answer.trim())));
 
-  console.log(`${chalk.yellow('No superconnect.toml found in this directory.')}`);
+  console.log(
+    `${chalk.bold('Setup')}: we'll write these settings to ${highlight(`./${DEFAULT_CONFIG_FILE}`)}`
+  );
   const figmaUrl = await (async () => {
     while (true) {
       const value = await question(`${chalk.cyan('Enter Figma file URL or key')}: `);
@@ -132,17 +159,23 @@ async function promptForConfig() {
 
   console.log(`\n${chalk.bold('Agent API Configuration')}`);
   console.log(`${chalk.dim('Choose which AI service to use for code generation')}`);
+
+  if (process.env.ANTHROPIC_API_KEY && process.env.OPENAI_API_KEY) {
+    console.log(chalk.dim('Detected both ANTHROPIC_API_KEY and OPENAI_API_KEY'));
+  }
   
   const apiInput = await question(
-    `${chalk.cyan('Agent API')} (${chalk.dim('anthropic')} or openai) [${chalk.dim(DEFAULT_API)}]: `
+    `${chalk.cyan('Agent API')} (${chalk.dim('anthropic-agent-sdk')}, anthropic-messages-api, openai-chat-api) [${chalk.dim(DEFAULT_API)}]: `
   );
-  const api = (apiInput || DEFAULT_API).toLowerCase();
-  const normalizedApi = api === 'openai' || api === 'anthropic' ? api : DEFAULT_API;
+  const api = normalizeAgentApiName(apiInput) || DEFAULT_API;
+  const normalizedApi = ['openai-chat-api', 'anthropic-messages-api', 'anthropic-agent-sdk'].includes(api)
+    ? api
+    : DEFAULT_API;
 
   let baseUrl = null;
   let apiKey = null;
   
-  if (normalizedApi === 'openai') {
+  if (normalizedApi === 'openai-chat-api') {
     console.log(`\n${chalk.dim('OpenAI-compatible endpoints: LiteLLM, Azure OpenAI, vLLM, LocalAI, etc.')}`);
     const baseUrlInput = await question(
       `${chalk.cyan('Custom base URL')} (optional, press Enter to use api.openai.com): `
@@ -164,7 +197,7 @@ async function promptForConfig() {
 
   const active = normalizedApi;
   const chooseModel = (a) => {
-    if (a === 'openai') return DEFAULT_OPENAI_MODEL;
+    if (a === 'openai-chat-api') return DEFAULT_OPENAI_MODEL;
     return DEFAULT_ANTHROPIC_MODEL;
   };
   const model = chooseModel(active);
@@ -205,7 +238,7 @@ async function promptForConfig() {
     lines.push(
       '',
       '# To use Anthropic instead, comment out the above and uncomment:',
-      '# api = "anthropic"',
+      '# api = "anthropic-agent-sdk"',
       `# model = "${DEFAULT_ANTHROPIC_MODEL}"`
     );
     agentSection.push(...lines);
@@ -372,9 +405,112 @@ function loadEnvToken() {
   return process.env.FIGMA_ACCESS_TOKEN || null;
 }
 
-function loadAgentToken(backend) {
-  const envVar = backend === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
+function loadAgentToken(api) {
+  const envVar = getAgentEnvVarForApi(api);
   return process.env[envVar] || null;
+}
+
+function tryReadEnvFile(envPath) {
+  try {
+    if (!fs.existsSync(envPath)) return { exists: false, parsed: null };
+    const raw = fs.readFileSync(envPath, 'utf8');
+    return { exists: true, parsed: dotenv.parse(raw) };
+  } catch {
+    return { exists: false, parsed: null };
+  }
+}
+
+function loadDotenvFromTargetRepo(targetRepoPath) {
+  const envPath = path.join(targetRepoPath, '.env');
+  const { exists, parsed } = tryReadEnvFile(envPath);
+  try {
+    const result = dotenv.config({ path: envPath, override: false, quiet: true });
+    return { envPath, loaded: !result.error, exists, parsed };
+  } catch {
+    return { envPath, loaded: false, exists, parsed };
+  }
+}
+
+function resolveEnvVarSource({ key, cliFlagUsed, parsedTargetEnv }) {
+  if (cliFlagUsed) return { valuePresent: true, note: 'from command flag' };
+  const valuePresent = Boolean(process.env[key]);
+  if (!valuePresent) return { valuePresent: false, note: 'not set' };
+  if (parsedTargetEnv && Object.prototype.hasOwnProperty.call(parsedTargetEnv, key)) {
+    return { valuePresent, note: 'from target repo .env' };
+  }
+  return { valuePresent, note: 'from your environment' };
+}
+
+function formatEnvStatusLine({ key, valuePresent, note }) {
+  const mark = valuePresent ? chalk.green('✓') : chalk.dim('—');
+  const suffix = note ? chalk.dim(` (${note})`) : '';
+  return `  ${mark} ${key}${suffix}`;
+}
+
+function showKeyStatus({
+  version,
+  targetRepoPath,
+  envPath,
+  envPathLoaded,
+  parsedTargetEnv,
+  figmaTokenFromFlag,
+  hasAnthropicKey,
+  hasOpenAIKey,
+  selectedAgentApi,
+  selectionReason
+}) {
+  console.log(`\nSuperconnect v${version}`);
+  console.log(`Target repo: ${targetRepoPath}`);
+
+  console.log(chalk.dim('Environment variables found:'));
+  const figma = resolveEnvVarSource({
+    key: 'FIGMA_ACCESS_TOKEN',
+    cliFlagUsed: Boolean(figmaTokenFromFlag),
+    parsedTargetEnv
+  });
+  console.log(formatEnvStatusLine({ key: 'FIGMA_ACCESS_TOKEN', valuePresent: figma.valuePresent, note: figma.note }));
+
+  const anthropic = resolveEnvVarSource({
+    key: 'ANTHROPIC_API_KEY',
+    cliFlagUsed: false,
+    parsedTargetEnv
+  });
+  console.log(formatEnvStatusLine({ key: 'ANTHROPIC_API_KEY', valuePresent: hasAnthropicKey, note: anthropic.note }));
+
+  const openai = resolveEnvVarSource({
+    key: 'OPENAI_API_KEY',
+    cliFlagUsed: false,
+    parsedTargetEnv
+  });
+  console.log(formatEnvStatusLine({ key: 'OPENAI_API_KEY', valuePresent: hasOpenAIKey, note: openai.note }));
+
+  if (selectedAgentApi) {
+    console.log(
+      `${chalk.dim('•')} ${highlight('Agent provider')}: ${highlight(selectedAgentApi)}${
+        selectionReason ? chalk.dim(` (${selectionReason})`) : ''
+      }`
+    );
+  }
+}
+
+function autoSelectProvider({ configuredApi, hasAnthropicKey, hasOpenAIKey, defaultWhenBoth = true }) {
+  const normalizedConfigured = normalizeAgentApiName(configuredApi);
+  const isOnlyAnthropic = hasAnthropicKey && !hasOpenAIKey;
+  const isOnlyOpenAI = hasOpenAIKey && !hasAnthropicKey;
+  const isBoth = hasAnthropicKey && hasOpenAIKey;
+
+  if (isOnlyAnthropic) return { api: 'anthropic-agent-sdk', reason: 'auto-selected: only ANTHROPIC_API_KEY present' };
+  if (isOnlyOpenAI) return { api: 'openai-chat-api', reason: 'auto-selected: only OPENAI_API_KEY present' };
+  if (isBoth) {
+    if (normalizedConfigured && ['openai-chat-api', 'anthropic-messages-api', 'anthropic-agent-sdk'].includes(normalizedConfigured)) {
+      return { api: normalizedConfigured, reason: 'config: [agent].api' };
+    }
+    if (!defaultWhenBoth) {
+      return { api: null, reason: 'multiple keys present; you will be prompted' };
+    }
+    return { api: DEFAULT_API, reason: 'default: both keys present; set [agent].api to override' };
+  }
+  return { api: normalizedConfigured || DEFAULT_API, reason: null };
 }
 
 function resolvePaths(config) {
@@ -418,19 +554,32 @@ async function main() {
 
   const args = parseArgv(process.argv);
   const prospectiveTarget = args.target ? path.resolve(args.target) : path.resolve('.');
-  const prospectiveFigmaIndex = path.join(prospectiveTarget, 'superconnect-logs', 'figma-components-index.json');
-  const figmaIndexMissing = !fs.existsSync(prospectiveFigmaIndex);
-
-  if (figmaIndexMissing && !args.figmaToken && !loadEnvToken()) {
-    console.error('❌ FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
-    console.error('   Set FIGMA_ACCESS_TOKEN in your environment or .env, or pass --figma-token.');
-    process.exit(1);
-  }
 
   let cfg = loadSuperconnectConfig(DEFAULT_CONFIG_FILE);
   if (cfg) {
     console.log(`${chalk.green('✓')} Using ${highlight(DEFAULT_CONFIG_FILE)} in ${process.cwd()}`);
   } else {
+    // Before any interactive prompts, attempt to load .env from the prospective target
+    // so key status reflects what the user will actually run with
+    const prospectiveEnv = fs.existsSync(prospectiveTarget) && fs.statSync(prospectiveTarget).isDirectory()
+      ? loadDotenvFromTargetRepo(prospectiveTarget)
+      : { envPath: path.join(prospectiveTarget, '.env'), loaded: false };
+    const hasAnthropicKey = Boolean(process.env.ANTHROPIC_API_KEY);
+    const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY);
+    const selection = autoSelectProvider({ configuredApi: null, hasAnthropicKey, hasOpenAIKey, defaultWhenBoth: false });
+    showKeyStatus({
+      version: getVersionString(),
+      targetRepoPath: prospectiveTarget,
+      envPath: prospectiveEnv.envPath,
+      envPathLoaded: prospectiveEnv.loaded,
+      parsedTargetEnv: prospectiveEnv.parsed,
+      figmaTokenFromFlag: Boolean(args.figmaToken),
+      hasAnthropicKey,
+      hasOpenAIKey,
+      selectedAgentApi: selection.api,
+      selectionReason: selection.reason
+    });
+
     cfg = await promptForConfig();
     if (!cfg) {
       console.error('❌ Failed to initialize superconnect.toml');
@@ -441,28 +590,57 @@ async function main() {
   const target =
     args.target ||
     (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));
-  const figmaToken = args.figmaToken || loadEnvToken();
-  const agentConfig = normalizeAgentConfig(cfg.agent || {});
-  const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
-  const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
-  const agentEnvVar = agentConfig.api === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
-  const agentToken = agentConfig.apiKey || loadAgentToken(agentConfig.api);
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
   }
-  const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken, outputDir: codegenConfig.outputDir, colocation: codegenConfig.colocation });
 
-  const agentLabel =
-    agentConfig.api === 'openai-chat-api'
-      ? `openai-chat-api${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : agentConfig.api === 'anthropic-agent-sdk'
-      ? `anthropic-agent-sdk${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`
-      : `anthropic-messages-api${agentConfig.model ? ` (model ${agentConfig.model})` : ''}`;
-  console.log(`${chalk.dim('•')} ${highlight('Agent API')}: ${highlight(agentLabel)}`);
+  // Load .env from target repo (useful when running from outside the target)
+  const targetEnv = loadDotenvFromTargetRepo(target);
+
+  const figmaToken = args.figmaToken || loadEnvToken();
+
+  const detectedAnthropicKey = Boolean(process.env.ANTHROPIC_API_KEY);
+  const detectedOpenAIKey = Boolean(process.env.OPENAI_API_KEY);
+  const provider = autoSelectProvider({
+    configuredApi: cfg.agent?.api,
+    hasAnthropicKey: detectedAnthropicKey,
+    hasOpenAIKey: detectedOpenAIKey
+  });
+
+  const agentConfig = normalizeAgentConfig({ ...(cfg.agent || {}), api: provider.api });
+  const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
+  const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
+  const agentEnvVar = getAgentEnvVarForApi(agentConfig.api);
+  const agentToken = agentConfig.apiKey || loadAgentToken(agentConfig.api);
+
+  showKeyStatus({
+    version: getVersionString(),
+    targetRepoPath: target,
+    envPath: targetEnv.envPath,
+    envPathLoaded: targetEnv.loaded,
+    parsedTargetEnv: targetEnv.parsed,
+    figmaTokenFromFlag: Boolean(args.figmaToken),
+    hasAnthropicKey: detectedAnthropicKey,
+    hasOpenAIKey: detectedOpenAIKey,
+    selectedAgentApi: agentConfig.api,
+    selectionReason: provider.reason
+  });
+
+  const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken, outputDir: codegenConfig.outputDir, colocation: codegenConfig.colocation });
 
   fs.ensureDirSync(paths.superconnectDir);
   fs.ensureDirSync(paths.figmaDir);
+
+  const prospectiveFigmaIndex = path.join(target, 'superconnect-logs', 'figma-components-index.json');
+  const figmaIndexMissing = !fs.existsSync(prospectiveFigmaIndex);
+
+  if (figmaIndexMissing && !args.figmaToken && !loadEnvToken()) {
+    console.error('❌ FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
+    console.error('   Set FIGMA_ACCESS_TOKEN in your environment or target repo .env, or pass --figma-token.');
+    console.error('   Figma tokens: https://www.figma.com/developers/api#access-tokens');
+    process.exit(1);
+  }
 
   const needFigmaScan = args.force || !fs.existsSync(paths.figmaIndex);
   const needRepoSummary = args.force || !fs.existsSync(paths.repoSummary);
@@ -471,13 +649,11 @@ async function main() {
 
   const needsAgent = !args.dryRun;
   if (needsAgent && !agentToken) {
-    if (agentConfig.apiKey) {
-      console.error(`❌ API key from superconnect.toml appears to be empty or invalid.`);
-      console.error(`   Check the api_key field in [agent] section, or set ${agentEnvVar} in your environment.`);
-    } else {
-      console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.api}).`);
-      console.error(`   Set ${agentEnvVar} in your environment or .env, add api_key to superconnect.toml, or switch to --dry-run.`);
-    }
+    console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.api}).`);
+    console.error(`   Set ${agentEnvVar} in your environment or target repo .env, or set [agent].api_key in superconnect.toml.`);
+    console.error(`   Anthropic keys: https://console.anthropic.com/`);
+    console.error(`   OpenAI keys: https://platform.openai.com/api-keys`);
+    console.error(`   Or run with --dry-run to skip agent stages`);
     process.exit(1);
   }
 
