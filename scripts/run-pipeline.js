@@ -583,6 +583,7 @@ async function main() {
       ...(agentConfig.baseUrl ? ['--agent-base-url', agentConfig.baseUrl] : []),
       ...(agentConfig.apiKey ? ['--agent-api-key', agentConfig.apiKey] : []),
       '--concurrency', String(codegenConfig.concurrency),
+      ...(codegenConfig.colocation !== undefined ? ['--colocation', String(codegenConfig.colocation)] : []),
       ...(args.only && args.only.length ? ['--only', args.only.join(',')] : []),
       ...(args.exclude && args.exclude.length ? ['--exclude', args.exclude.join(',')] : []),
       ...(inferredFramework ? ['--target-framework', inferredFramework] : []),

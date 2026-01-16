@@ -66,7 +66,7 @@ const listCodeConnectFiles = (dir, repoRoot) => {
   // Scan centralized codeConnect directory
   if (dir && fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
     const pattern = path.join(dir, '**', '*.figma.{ts,tsx}');
-    files.push(...fg.sync(pattern.replace(/\\\/g, '/')).map((p) => path.resolve(p)));
+    files.push(...fg.sync(pattern.replace(/\\\\/g, '/')).map((p) => path.resolve(p)));
   }
   
   // Scan for colocated files in source roots
@@ -77,7 +77,7 @@ const listCodeConnectFiles = (dir, repoRoot) => {
       path.join(repoRoot, 'apps', '*', 'src', '**', '*.figma.{ts,tsx}')
     ];
     colocatedPatterns.forEach((pattern) => {
-      files.push(...fg.sync(pattern.replace(/\\\/g, '/')).map((p) => path.resolve(p)));
+      files.push(...fg.sync(pattern.replace(/\\\\/g, '/')).map((p) => path.resolve(p)));
     });
   }
   

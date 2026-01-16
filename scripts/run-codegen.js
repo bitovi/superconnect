@@ -932,6 +932,7 @@ const parseArgs = (argv) => {
     .option('--only <list...>', 'Component names/IDs (globs allowed); accepts comma or space separated values')
     .option('--exclude <list...>', 'Component names/IDs to skip (globs allowed)')
     .option('--target-framework <value>', 'Target framework hint (react|angular)')
+    .option('--colocation <value>', 'Place .figma files next to source components (true|false)', 'true')
     .allowExcessArguments(false);
   program.parse(argv);
   const opts = program.opts();
@@ -964,7 +965,7 @@ const parseArgs = (argv) => {
     only: parseList(opts.only),
     exclude: parseList(opts.exclude),
     targetFramework: opts.targetFramework || null,
-    colocation: opts.colocation !== undefined ? Boolean(opts.colocation) : true
+    colocation: opts.colocation === 'false' || opts.colocation === false ? false : true
   };
 };
 

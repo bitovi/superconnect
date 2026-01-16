@@ -463,6 +463,10 @@ function writeSuperconnectConfig(destDir, figmaUrl, agentSdk, model) {
     '[agent]',
     `api = "${api}"`,
     `model = "${effectiveModel}"`,
+    '',
+    '[codegen]',
+    '# Use centralized output for e2e tests',
+    'colocation = false',
     ''
   ].join('\n');
   fs.writeFileSync(path.join(destDir, 'superconnect.toml'), toml, 'utf8');
