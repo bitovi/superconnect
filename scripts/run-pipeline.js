@@ -98,7 +98,8 @@ function normalizeCodegenConfig(codegenSection = {}) {
   const maxRetries = parseMaybeInt(codegenSection.max_retries) ?? DEFAULT_MAX_RETRIES;
   const concurrency = parseMaybeInt(codegenSection.concurrency) ?? DEFAULT_CONCURRENCY;
   const outputDir = codegenSection.code_connect_output_dir || null;
-  return { maxRetries, concurrency, outputDir };
+  const colocation = codegenSection.colocation !== undefined ? Boolean(codegenSection.colocation) : true;
+  return { maxRetries, concurrency, outputDir, colocation };
 }
 
 /**
@@ -232,7 +233,12 @@ async function promptForConfig() {
     '# If you see 503/rate-limit errors, try lowering this to 1',
     'concurrency = 5',
     '',
-    '# Where to write generated Code Connect files (default: codeConnect/)',
+    '# Place Code Connect files next to source components (default: true)',
+    '# When true: Button.tsx → Button.figma.tsx in same directory',
+    '# When false: all files go to code_connect_output_dir',
+    '# colocation = true',
+    '',
+    '# Where to write Code Connect files when colocation = false (default: codeConnect/)',
     '# code_connect_output_dir = "codeConnect"',
     '',
     '[figma]',
@@ -446,7 +452,7 @@ async function main() {
     console.error(`❌ Target repo not found or not a directory: ${target}`);
     process.exit(1);
   }
-  const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken, outputDir: codegenConfig.outputDir });
+  const paths = resolvePaths({ ...args, figmaUrl, target, figmaToken, outputDir: codegenConfig.outputDir, colocation: codegenConfig.colocation });
 
   const agentLabel =
     agentConfig.api === 'openai-chat-api'

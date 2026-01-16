@@ -147,7 +147,11 @@ Uses direct codegen approach where agents generate complete Code Connect files w
   - Each component call is independent (stateless)
 
 - Output:
-  - `codeConnect/<Component>.figma.tsx` or `.figma.ts` (unless skipped or blocked by existing file and no `--force`)
+  - By default (when `colocation = true`), Code Connect files are placed next to source components:
+    - React: `src/components/Button/Button.figma.tsx` next to `Button.tsx`
+    - Angular: `src/app/button/button.component.figma.ts` next to `button.component.ts`
+  - When `colocation = false`, all files are written to centralized `code_connect_output_dir` (default: `codeConnect/`)
+  - Existing files are skipped unless `--force` is specified
   - `superconnect-logs/codegen-summaries/*-codegen-summary.json` (per‑component results)
   - `superconnect-logs/codegen-agent-transcripts/*-attempt*.log` (full agent I/O transcripts)
 - Codegen respects:
@@ -156,11 +160,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 
 ### 5. Finalizer (`scripts/finalize.js`)
 
-- Inputs:
-  - `superconnect-logs/figma-components-index.json`
-  - `superconnect-logs/orientation.jsonl`
-  - `superconnect-logs/codegen-summaries/*.json`
-  - `codeConnect/*.figma.tsx` / `*.figma.ts`
+  - Code Connect files from both centralized (`codeConnect/`) and colocated (`src/**/*.figma.{ts,tsx}`) locations
 - Behavior:
   - Correlates Figma components with codegen results
   - Builds a summary of:
@@ -169,7 +169,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
     - Codegen successes and skips (with reasons)
   - Prints a colorized run summary to stdout
   - Creates/overwrites `figma.config.json` at the target repo root with:
-  - `include`/`exclude` globs for Code Connect files plus common source roots (currently includes `packages/**/*.{ts,tsx}` and `apps/**/*.{ts,tsx}`)
+  - `include`/`exclude` globs for Code Connect files in both centralized and colocated locations (e.g., `codeConnect/**/*.figma.tsx`, `src/**/*.figma.tsx`, `packages/**/src/**/*.figma.tsx`, `apps/**/src/**/*.figma.tsx`)ncludes `packages/**/*.{ts,tsx}` and `apps/**/*.{ts,tsx}`)
   - Parser and label (`react` or `html`) chosen from detected/target framework
   - Optional `interactiveSetupFigmaFileUrl`
   - `documentUrlSubstitutions` mapping tokens (e.g., `<FIGMA_BUTTON>`) to live Figma node URLs plus `<FIGMA_ICONS_BASE>` for convenience
@@ -185,6 +185,11 @@ Uses direct codegen approach where agents generate complete Code Connect files w
     - `max_tokens` – max output tokens (default: 2048 for codegen, 32768 for orientation)
     - `llm_proxy_url` – (optional) base URL for OpenAI-compatible endpoints (LiteLLM, Azure, vLLM, etc.)
     - `api_key` – (optional) API key override (takes precedence over environment variables)
+  - `[codegen]` – code generation settings
+    - `colocation` – (optional, boolean, default: true) when true, places `.figma.tsx`/`.figma.ts` files next to source components; when false, uses centralized directory
+    - `code_connect_output_dir` – (optional, default: "codeConnect") centralized directory for Code Connect files when `colocation = false`
+    - `max_retries` – (optional, default: 2) number of validation retry attempts per component
+    - `concurrency` – (optional, default: 5) number of parallel component generation tasks
   - Parsed via a lightweight TOML parser that supports:
     - Top‑level keys
     - Single‑level sections

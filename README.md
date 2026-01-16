@@ -24,10 +24,6 @@ Figma Code Connect [also offers an interactive setup to help create Code Connect
   - `npm install -g @bitovi/superconnect`
   - `yarn global add @bitovi/superconnect`
 
-- Install from git
-  - clone this repo
-  - `pnpm install && pnpm link`
-
 # Required environment and config
 
 - Requires Node.js >= 22.0.0
@@ -192,8 +188,10 @@ Generated files in your repo:
 - `orientation.jsonl` - File-to-component mappings
 - `orienter-agent.log`, `codegen-summaries/*.json`, `codegen-agent-transcripts/*.log` - Agent logs
 
-**codeConnect/** - Generated Code Connect files
-- `*.figma.tsx` (React) or `*.figma.ts` (Angular)
+**Code Connect files** - By default, placed next to source components
+- `src/components/Button/Button.figma.tsx` next to `Button.tsx` (React)
+- `src/app/button/button.component.figma.ts` next to `button.component.ts` (Angular)
+- Set `colocation = false` in config to use centralized `codeConnect/` directory instead
 
 **Root** - Configuration
 - `figma.config.json` - Tells Figma CLI what to publish

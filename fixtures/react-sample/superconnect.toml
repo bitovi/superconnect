@@ -27,6 +27,14 @@ max_retries = 4
 # Parallel LLM requests during code generation (1-16, higher = faster but more API load)
 concurrency = 8
 
+# Place Code Connect files next to source components (default: true)
+# When true: Button.tsx → Button.figma.tsx in same directory
+# When false: all files go to code_connect_output_dir
+# colocation = true
+
+# Where to write Code Connect files when colocation = false (default: codeConnect/)
+# code_connect_output_dir = "codeConnect"
+
 [figma]
 # How deep to scan Figma's component tree. Increase if nested variants aren't detected.
 # layer_depth = 3

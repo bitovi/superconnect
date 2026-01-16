@@ -60,10 +60,29 @@ const extractFigmaTokensFromFile = (filePath) => {
   }
 };
 
-const listCodeConnectFiles = (dir) => {
-  if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return [];
-  const pattern = path.join(dir, '**', '*.figma.{ts,tsx}');
-  return fg.sync(pattern.replace(/\\/g, '/')).map((p) => path.resolve(p));
+const listCodeConnectFiles = (dir, repoRoot) => {
+  const files = [];
+  
+  // Scan centralized codeConnect directory
+  if (dir && fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+    const pattern = path.join(dir, '**', '*.figma.{ts,tsx}');
+    files.push(...fg.sync(pattern.replace(/\\\/g, '/')).map((p) => path.resolve(p)));
+  }
+  
+  // Scan for colocated files in source roots
+  if (repoRoot && fs.existsSync(repoRoot)) {
+    const colocatedPatterns = [
+      path.join(repoRoot, 'src', '**', '*.figma.{ts,tsx}'),
+      path.join(repoRoot, 'packages', '*', 'src', '**', '*.figma.{ts,tsx}'),
+      path.join(repoRoot, 'apps', '*', 'src', '**', '*.figma.{ts,tsx}')
+    ];
+    colocatedPatterns.forEach((pattern) => {
+      files.push(...fg.sync(pattern.replace(/\\\/g, '/')).map((p) => path.resolve(p)));
+    });
+  }
+  
+  // Deduplicate in case same file appears in both scans
+  return [...new Set(files)];
 };
 
 const VALUE_COL = 50;
@@ -279,7 +298,7 @@ async function main() {
     if (log.codeConnectFile) return true;
     return false;
   });
-  const codegenFiles = listCodeConnectFiles(config.codeConnectDir);
+  const codegenFiles = listCodeConnectFiles(config.codeConnectDir, config.baseCwd);
 
   const builtDetails = componentLogs.filter((log) => Boolean(log.codeConnectFile));
   const skippedDetails = componentLogs.filter((log) => !log.codeConnectFile);
@@ -343,12 +362,21 @@ async function main() {
   const frameworks = (repoSummary && Array.isArray(repoSummary.frameworks) && repoSummary.frameworks) || [];
   if (targetFramework === 'angular' || frameworks.includes('angular')) {
     includeGlobs.add('codeConnect/**/*.figma.ts');
+    includeGlobs.add('src/**/*.figma.ts');
+    includeGlobs.add('packages/**/src/**/*.figma.ts');
+    includeGlobs.add('apps/**/src/**/*.figma.ts');
   }
   if (!includeGlobs.size && (targetFramework === 'react' || frameworks.includes('react'))) {
     includeGlobs.add('codeConnect/**/*.figma.tsx');
+    includeGlobs.add('src/**/*.figma.tsx');
+    includeGlobs.add('packages/**/src/**/*.figma.tsx');
+    includeGlobs.add('apps/**/src/**/*.figma.tsx');
   }
   if (!includeGlobs.size) {
     includeGlobs.add('codeConnect/**/*.figma.tsx');
+    includeGlobs.add('src/**/*.figma.tsx');
+    includeGlobs.add('packages/**/src/**/*.figma.tsx');
+    includeGlobs.add('apps/**/src/**/*.figma.tsx');
   }
 
   const derivePackagePathAliases = (repoRoot) => {

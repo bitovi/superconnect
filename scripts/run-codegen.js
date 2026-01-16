@@ -963,7 +963,8 @@ const parseArgs = (argv) => {
     concurrency: opts.concurrency || 5,
     only: parseList(opts.only),
     exclude: parseList(opts.exclude),
-    targetFramework: opts.targetFramework || null
+    targetFramework: opts.targetFramework || null,
+    colocation: opts.colocation !== undefined ? Boolean(opts.colocation) : true
   };
 };
 
@@ -1216,8 +1217,18 @@ async function main() {
         const ext = config.targetFramework === 'angular' ? '.figma.ts' : '.figma.tsx';
         const fileName = `${sanitizeSlug(componentMeta.name || normalized.figmaComponentName || 'component')}${ext}`;
         
-        // Write the code connect file
-        const targetPath = path.join(ctx.repo, ctx.codeConnectDir, fileName);
+        // Determine output path based on colocation setting
+        let targetPath;
+        if (config.colocation && requiredPaths.length > 0) {
+          // Colocate: place .figma file next to first source file
+          const sourceFile = requiredPaths[0];
+          const sourceDir = path.dirname(path.join(ctx.repo, sourceFile));
+          targetPath = path.join(sourceDir, fileName);
+        } else {
+          // Centralized: use code_connect_output_dir
+          targetPath = path.join(ctx.repo, ctx.codeConnectDir, fileName);
+        }
+        
         const exists = fs.existsSync(targetPath);
         
         if (exists && !ctx.force) {
