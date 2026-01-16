@@ -216,7 +216,7 @@ async function promptForConfig() {
     '# Docs: https://github.com/bitovi/superconnect#readme',
     '',
     '[inputs]',
-    `figma_url = "${figmaUrl}"`,
+    `figma_file_url = "${figmaUrl}"`,
     `component_repo_path = "${repoPath}"`,
     '# Also requires FIGMA_ACCESS_TOKEN env var',
     '',
@@ -432,7 +432,7 @@ async function main() {
       process.exit(1);
     }
   }
-  const figmaUrl = args.figmaUrl || cfg.inputs?.figma_url || undefined;
+  const figmaUrl = args.figmaUrl || cfg.inputs?.figma_file_url || undefined;
   const target =
     args.target ||
     (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));

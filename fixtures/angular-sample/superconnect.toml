@@ -2,7 +2,7 @@
 # Docs: https://github.com/bitovi/superconnect#readme
 
 [inputs]
-figma_url = "https://example.com/figma/angular-sample"
+figma_file_url = "https://example.com/figma/angular-sample"
 component_repo_path = "."
 # Also requires FIGMA_ACCESS_TOKEN env var
 

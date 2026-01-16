@@ -457,7 +457,7 @@ function writeSuperconnectConfig(destDir, figmaUrl, agentSdk, model) {
 
   const toml = [
     '[inputs]',
-    `figma_url = "${figmaUrl}"`,
+    `figma_file_url = "${figmaUrl}"`,
     'component_repo_path = "."',
     '',
     '[agent]',

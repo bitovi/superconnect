@@ -178,7 +178,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 ## Configuration and assumptions
 
 - **Config file**: `superconnect.toml`
-  - `[inputs]` – `figma_url`, `component_repo_path`
+  - `[inputs]` – `figma_file_url`, `component_repo_path`
   - `[agent]` – `api`, `model`, `max_tokens`, `llm_proxy_url`, `api_key`
     - `api` – `"claude-agent-sdk"`, `"anthropic"`, or `"openai"` (default: claude-agent-sdk)
     - `model` – model name (e.g., `"gpt-5.2-codex"`, `"claude-sonnet-4-5"`)
