@@ -423,14 +423,8 @@ function parseInitArgv(argv) {
     .name('superconnect init')
     .version(getVersionString())
     .usage('[options]')
-    .option('--figma-url <value>', 'Figma file URL or key (prefill setup)')
-    .option('--target <path>', 'Target repo path (prefill setup)')
     .parse(argv);
-  const opts = program.opts();
-  return {
-    figmaUrl: opts.figmaUrl || undefined,
-    target: opts.target ? path.resolve(opts.target) : undefined
-  };
+  return {};
 }
 
 function parseCli(argv) {
@@ -592,6 +586,11 @@ async function main() {
       console.log(`${chalk.green('✓')} ${highlight(`./${DEFAULT_CONFIG_FILE}`)} already exists`);
     }
     await promptForConfig();
+    const runNow = await promptConfirmProceed({ message: 'Run generation now?', defaultYes: false });
+    if (runNow === true) {
+      const result = spawnSync(process.execPath, [__filename], { stdio: 'inherit', env: process.env });
+      process.exit(result.status ?? 1);
+    }
     console.log(`${chalk.dim('Next:')} run ${highlight('superconnect')} to generate Code Connect files`);
     return;
   }
