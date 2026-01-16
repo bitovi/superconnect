@@ -102,8 +102,8 @@ export const detectFrameworks = async ({ root, packageJson = null, ignore = [] }
   const reactSignals = await detectReact(root, packageJson, ignore);
   if (reactSignals.length > 0) frameworks.push('react');
 
-  const primaryFramework =
-    frameworks.length === 1 ? frameworks[0] : frameworks.includes('react') ? 'react' : null;
+  const primaryFramework: string | null =
+    frameworks.length === 1 ? (frameworks[0] || null) : frameworks.includes('react') ? 'react' : null;
 
   return {
     frameworks,

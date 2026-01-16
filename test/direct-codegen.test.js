@@ -87,7 +87,7 @@ for (const framework of ['react', 'angular']) {
     let buildSystemPrompt, buildComponentPrompt, buildRetryPrompt, processComponent;
 
     before(() => {
-      const mod = require(`../src/${framework}/direct-codegen`);
+      const mod = require(`../src/${framework}/direct-codegen.ts`);
       buildSystemPrompt = mod.buildSystemPrompt;
       buildComponentPrompt = mod.buildComponentPrompt;
       buildRetryPrompt = mod.buildRetryPrompt;

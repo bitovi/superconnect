@@ -29,8 +29,8 @@ const { OpenAIAgentAdapter, ClaudeAgentAdapter, AgentSDKAdapter } = require('../
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
 const { sanitizeSlug, toTokenName } = require('../src/util/naming.ts');
 const { readJsonSafe } = require('../src/util/fs-helpers.ts');
-const { processComponent: processReactComponent } = require('../src/react/direct-codegen');
-const { processComponent: processAngularComponent } = require('../src/angular/direct-codegen');
+const { processComponent: processReactComponent } = require('../src/react/direct-codegen.ts');
+const { processComponent: processAngularComponent } = require('../src/angular/direct-codegen.ts');
 const pLimit = require('p-limit');
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
