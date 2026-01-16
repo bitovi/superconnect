@@ -1,0 +1,55 @@
+{
+  "compilerOptions": {
+    // Target modern Node.js (ES2022 for Node 22+)
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+
+    // Strict type checking
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedSideEffectImports": true,
+
+    // Module interop
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    // Incremental migration support
+    "allowJs": true,
+    "checkJs": false,
+
+    // No emit - use Node's native TS execution
+    "noEmit": true,
+
+    // Source maps for debugging
+    "sourceMap": false,
+    "inlineSourceMap": false,
+
+    // Paths
+    "baseUrl": ".",
+    "rootDir": ".",
+    "outDir": "./dist",
+
+    // Include type definitions
+    "types": ["node"],
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "scripts/**/*",
+    "src/**/*",
+    "test/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "fixtures",
+    "tmp",
+    ".scratch"
+  ]
+}

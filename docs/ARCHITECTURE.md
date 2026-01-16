@@ -2,7 +2,7 @@
 
 ## Overview
 
-Superconnect is a Node.js CLI (distributed as the `superconnect` npm package, Node >= 20) that runs a five‑stage pipeline:
+Superconnect is a Node.js CLI (distributed as the `superconnect` npm package, Node >= 22) that runs a five‑stage pipeline:
 
 1. **Repo summarizer** – scan a React/TypeScript or Angular repo for components and exports
 2. **Figma scan** – download component metadata from a Figma file
