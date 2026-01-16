@@ -199,7 +199,6 @@ async function promptForConfig() {
     if (baseUrl) {
       lines.push(`llm_proxy_url = "${baseUrl}"`);
     }
-    }
     if (apiKey) {
       lines.push(`api_key = "${apiKey}"`);
     }

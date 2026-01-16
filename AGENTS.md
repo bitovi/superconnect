@@ -1,4 +1,4 @@
-Before work in this project, read these essential docs:
+Before work in this project, go read these essential docs:
 └── docs
     ├── PRODUCT-VISION.md   # [required] What we're building, what problem it solves
                             # [optional] What’s in & out of scope, primary user & JTBD
@@ -8,8 +8,9 @@ Before work in this project, read these essential docs:
     └── CODING-RULES-FOR-AGENTS.md  # [optional] Coding style & constraints
 
 # Rules
-- PRODUCT-VISION.md and ARCHITECTURE.md may describe an unimplemented goal state, which is OK. However, if your assigned coding task *conflicts outright* with PRODUCT-VISION.md or ARCHITECTURE.md, ask the user if you should update those files as well, for consistency. Consistency between docs and implementation, and amongst the docs themselves, is crucial for this project.
-- Also: check whether your work has triggered the need for other documentation updates (e.g. README.md)
+- Consistency between docs and implementation, and amongst the docs themselves, is crucial for this project. When changing code, audit the docs as well!
+- At the top of each code file, include comments which help other agents understand and navigate the file without having to read the whole thing
+- Use ergo for all planning activities -- run "ergo --help" and "ergo quickstart" to learn it
 
 # Other guidance
 - In markdown bulleted lists, don't end each item with a period
