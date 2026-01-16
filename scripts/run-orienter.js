@@ -19,7 +19,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const { Command } = require('commander');
 const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
-const { parseMaxTokens } = require('../src/util/naming');
+const { parseMaxTokens } = require('../src/util/naming.ts');
 
 const promptPath = path.join(__dirname, '..', 'prompts', 'orienter.md');
 const defaultOutput = path.join(process.cwd(), 'superconnect-logs', 'orientation.jsonl');

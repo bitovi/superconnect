@@ -10,7 +10,7 @@ const runSummary = (root, outputFile) => {
   const output = outputFile || path.join(root, 'superconnect-logs', 'repo-summary.json');
   fs.removeSync(output);
   fs.ensureDirSync(path.dirname(output));
-  execFileSync('node', [summarizeScript, '--root', root, '--output', output], {
+  execFileSync('node', ['--experimental-strip-types', summarizeScript, '--root', root, '--output', output], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'inherit'],
   });

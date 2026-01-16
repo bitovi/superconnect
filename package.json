@@ -6,7 +6,7 @@
     "superconnect": "scripts/run-pipeline.js"
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --experimental-strip-types --test test/*.test.js",
     "test:e2e": "node scripts/test-e2e.js",
     "prepublishOnly": "node scripts/capture-version-sha.js"
   },

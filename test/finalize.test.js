@@ -85,7 +85,7 @@ describe('finalize.js', () => {
         fs.ensureDirSync(path.dirname(repoSummaryDest));
         fs.writeFileSync(repoSummaryDest, fs.readFileSync(repoSummarySrc));
       }
-      execFileSync('node', [finalizeScript, '--cwd', tmpDir, '--target-framework', 'angular'], {
+      execFileSync('node', ['--experimental-strip-types', finalizeScript, '--cwd', tmpDir, '--target-framework', 'angular'], {
         cwd: tmpDir,
         stdio: 'ignore'
       });

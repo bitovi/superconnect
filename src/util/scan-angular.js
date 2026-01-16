@@ -1,6 +1,6 @@
 const path = require('path');
 const fg = require('fast-glob');
-const { readFileSafe } = require('./fs-helpers');
+const { readFileSafe } = require('./fs-helpers.ts');
 
 const toPosix = (value) => value.replace(/\\/g, '/');
 

@@ -3,14 +3,14 @@
  * Consolidated here to avoid duplication across scripts.
  */
 
-const fs = require('fs-extra');
+import fs from 'fs-extra';
 
 /**
  * Read and parse a JSON file, returning null on any error.
- * @param {string} filePath - Path to JSON file
- * @returns {Promise<object|null>}
+ * @param filePath - Path to JSON file
+ * @returns Parsed JSON object or null if error
  */
-const readJsonSafe = async (filePath) => {
+export const readJsonSafe = async (filePath: string): Promise<unknown | null> => {
   try {
     return await fs.readJson(filePath);
   } catch {
@@ -20,10 +20,10 @@ const readJsonSafe = async (filePath) => {
 
 /**
  * Read a text file, returning null if it doesn't exist or on error.
- * @param {string} filePath - Path to text file
- * @returns {Promise<string|null>}
+ * @param filePath - Path to text file
+ * @returns File contents or null if error
  */
-const readFileSafe = async (filePath) => {
+export const readFileSafe = async (filePath: string): Promise<string | null> => {
   try {
     return await fs.readFile(filePath, 'utf8');
   } catch {
@@ -33,20 +33,14 @@ const readFileSafe = async (filePath) => {
 
 /**
  * Check if a path exists.
- * @param {string} filePath - Path to check
- * @returns {Promise<boolean>}
+ * @param filePath - Path to check
+ * @returns True if path exists, false otherwise
  */
-const pathExists = async (filePath) => {
+export const pathExists = async (filePath: string): Promise<boolean> => {
   try {
     await fs.access(filePath);
     return true;
   } catch {
     return false;
   }
-};
-
-module.exports = {
-  readJsonSafe,
-  readFileSafe,
-  pathExists
 };

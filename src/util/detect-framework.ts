@@ -1,9 +1,30 @@
-const fs = require('fs/promises');
-const path = require('path');
-const fg = require('fast-glob');
-const { readFileSafe } = require('./fs-helpers');
+/**
+ * Framework detection utilities for identifying React and Angular projects.
+ */
 
-const hasDep = (pkg = null, names = []) => {
+import fs from 'fs/promises';
+import path from 'path';
+import fg from 'fast-glob';
+import { readFileSafe } from './fs-helpers.ts';
+
+interface PackageJson {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+}
+
+interface DetectOptions {
+  root: string;
+  packageJson?: PackageJson | null;
+  ignore?: string[];
+}
+
+interface DetectResult {
+  frameworks: string[];
+  primaryFramework: string | null;
+}
+
+const hasDep = (pkg: PackageJson | null = null, names: string[] = []): boolean => {
   if (!pkg) return false;
   const deps = {
     ...(pkg.dependencies || {}),
@@ -13,8 +34,8 @@ const hasDep = (pkg = null, names = []) => {
   return names.some((name) => Object.prototype.hasOwnProperty.call(deps, name));
 };
 
-const detectAngular = async (root, pkg, ignore) => {
-  const signals = [];
+const detectAngular = async (root: string, pkg: PackageJson | null, ignore: string[]): Promise<string[]> => {
+  const signals: string[] = [];
   const angularJson = path.join(root, 'angular.json');
   try {
     await fs.access(angularJson);
@@ -39,7 +60,7 @@ const detectAngular = async (root, pkg, ignore) => {
   return signals;
 };
 
-const fileHasReactImport = async (root, relPath) => {
+const fileHasReactImport = async (root: string, relPath: string): Promise<boolean> => {
   const full = path.join(root, relPath);
   const content = await readFileSafe(full);
   if (!content) return false;
@@ -48,8 +69,8 @@ const fileHasReactImport = async (root, relPath) => {
   return reactImport.test(trimmed);
 };
 
-const detectReact = async (root, pkg, ignore) => {
-  const signals = [];
+const detectReact = async (root: string, pkg: PackageJson | null, ignore: string[]): Promise<string[]> => {
+  const signals: string[] = [];
   if (hasDep(pkg, ['react', 'react-dom'])) {
     signals.push('package:react');
   }
@@ -72,8 +93,8 @@ const detectReact = async (root, pkg, ignore) => {
   return signals;
 };
 
-const detectFrameworks = async ({ root, packageJson = null, ignore = [] } = {}) => {
-  const frameworks = [];
+export const detectFrameworks = async ({ root, packageJson = null, ignore = [] }: DetectOptions): Promise<DetectResult> => {
+  const frameworks: string[] = [];
 
   const angularSignals = await detectAngular(root, packageJson, ignore);
   if (angularSignals.length > 0) frameworks.push('angular');
@@ -88,8 +109,4 @@ const detectFrameworks = async ({ root, packageJson = null, ignore = [] } = {}) 
     frameworks,
     primaryFramework,
   };
-};
-
-module.exports = {
-  detectFrameworks,
 };

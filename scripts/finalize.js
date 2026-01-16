@@ -19,8 +19,8 @@ const chalk = require('chalk');
 const fg = require('fast-glob');
 
 const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
-const { toTokenName } = require('../src/util/naming');
-const { readJsonSafe } = require('../src/util/fs-helpers');
+const { toTokenName } = require('../src/util/naming.ts');
+const { readJsonSafe } = require('../src/util/fs-helpers.ts');
 const stripAnsi = (value = '') => value.replace(/\u001b\[[0-9;]*m/g, '');
 const METADATA_FILE_NAME = 'figma.config.json';
 

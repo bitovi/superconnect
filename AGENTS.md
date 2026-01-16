@@ -1,3 +1,5 @@
+Use ergo for **all planning** -- learn ergo now by running "ergo --help" and "ergo quickstart"
+
 Before work in this project, go read these essential docs:
 └── docs
     ├── PRODUCT-VISION.md   # [required] What we're building, what problem it solves
@@ -8,9 +10,9 @@ Before work in this project, go read these essential docs:
     └── CODING-RULES-FOR-AGENTS.md  # [optional] Coding style & constraints
 
 # Rules
-- Consistency between docs and implementation, and amongst the docs themselves, is crucial for this project. When changing code, audit the docs as well!
+- don't use /tmp, it prompts me for permissions.  Prefer tmp/ or .scratch/ in the repo
+- When the code changes, the docs must also change to reflect. There must be total internal coherence in the project at all times.
 - At the top of each code file, include comments which help other agents understand and navigate the file without having to read the whole thing
-- Use ergo for all planning activities -- run "ergo --help" and "ergo quickstart" to learn it
 
 # Other guidance
 - In markdown bulleted lists, don't end each item with a period

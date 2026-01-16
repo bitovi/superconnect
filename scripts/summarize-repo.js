@@ -15,7 +15,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const fg = require('fast-glob');
 const { parse } = require('@typescript-eslint/typescript-estree');
-const { detectFrameworks } = require('../src/util/detect-framework');
+const { detectFrameworks } = require('../src/util/detect-framework.ts');
 const { detectAngularComponents } = require('../src/util/scan-angular');
 
 const DEFAULT_IGNORES = [
