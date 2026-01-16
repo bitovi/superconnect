@@ -590,37 +590,14 @@ async function main() {
   const args = cli.args;
   const prospectiveTarget = args.target ? path.resolve(args.target) : path.resolve('.');
 
-  let cfg = loadSuperconnectConfig(DEFAULT_CONFIG_FILE);
-  if (cfg) {
-    console.log(`${chalk.green('✓')} Using ${highlight(DEFAULT_CONFIG_FILE)} in ${process.cwd()}`);
-  } else {
-    // Before any interactive prompts, attempt to load .env from the prospective target
-    // so key status reflects what the user will actually run with
-    const prospectiveEnv = fs.existsSync(prospectiveTarget) && fs.statSync(prospectiveTarget).isDirectory()
-      ? loadDotenvFromTargetRepo(prospectiveTarget)
-      : { envPath: path.join(prospectiveTarget, '.env'), loaded: false };
-    const hasAnthropicKey = Boolean(process.env.ANTHROPIC_API_KEY);
-    const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY);
-    const selection = autoSelectProvider({ configuredApi: null, hasAnthropicKey, hasOpenAIKey, defaultWhenBoth: false });
-    showKeyStatus({
-      version: getVersionString(),
-      targetRepoPath: prospectiveTarget,
-      envPath: prospectiveEnv.envPath,
-      envPathLoaded: prospectiveEnv.loaded,
-      parsedTargetEnv: prospectiveEnv.parsed,
-      figmaTokenFromFlag: Boolean(args.figmaToken),
-      hasAnthropicKey,
-      hasOpenAIKey,
-      selectedAgentApi: selection.api,
-      selectionReason: selection.reason
-    });
-
-    cfg = await promptForConfig();
-    if (!cfg) {
-      console.error('❌ Failed to initialize superconnect.toml');
-      process.exit(1);
-    }
+  const cfg = loadSuperconnectConfig(DEFAULT_CONFIG_FILE);
+  if (!cfg) {
+    console.log(`Superconnect v${getVersionString()}`);
+    console.log(`Setup required: create ${highlight(`./${DEFAULT_CONFIG_FILE}`)} first`);
+    console.log(`Run: ${highlight('superconnect init')}`);
+    process.exit(1);
   }
+  console.log(`${chalk.green('✓')} Using ${highlight(DEFAULT_CONFIG_FILE)} in ${process.cwd()}`);
   const figmaUrl = args.figmaUrl || cfg.inputs?.figma_file_url || undefined;
   const target =
     args.target ||

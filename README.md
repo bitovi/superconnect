@@ -35,7 +35,8 @@ Figma Code Connect [also offers an interactive setup to help create Code Connect
 
 - superconnect.toml
   - Superconnect looks for this config file in the current working directory
-  - If missing, the tool will prompt you on first run and create it for you
+  - Create it with `superconnect init`
+  - If missing, `superconnect` will ask you to run `superconnect init`
 
 # Workflow
 
@@ -85,7 +86,10 @@ To publish (or verify publication status):
 
 ## 3. Code Generation
 
-From the root of your React or Angular component repo, run `superconnect`. It will prompt you for the Figma file URL and save your settings to a config file, `superconnect.toml`. 
+From the root of your React or Angular component repo:
+
+- Run `superconnect init` to create `superconnect.toml`
+- Run `superconnect` to generate Code Connect files
 
 `superconnect` will proceed to:
 
