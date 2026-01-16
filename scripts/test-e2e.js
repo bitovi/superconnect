@@ -595,7 +595,7 @@ function runE2E(config) {
     fs.removeSync(path.join(tmpDir, 'codeConnect'));
 
     // Run superconnect with timing
-    const args = [superconnectScript, '--framework', ds.framework, '--force'];
+    const args = [superconnectScript, '--framework', ds.framework, '--force', '--yes'];
     if (config.components.length > 0) {
       args.push('--only', config.components.join(','));
     }
