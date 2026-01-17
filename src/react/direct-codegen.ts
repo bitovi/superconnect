@@ -11,7 +11,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { validateCodeConnectWithCLI } from '../util/validate-code-connect.js';
+import { validateCodeConnectWithCLI } from '../util/validate-code-connect.ts';
 import type {
   FigmaEvidence,
   ComponentOrientation,

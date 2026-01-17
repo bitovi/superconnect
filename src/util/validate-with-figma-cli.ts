@@ -14,29 +14,33 @@
  * @module validate-with-figma-cli
  */
 
-const { spawnSync } = require('child_process');
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
+// @ts-nocheck - Mechanically converted from JS, needs type refinement
+
+import { spawnSync } from 'child_process';
+import fs from 'fs-extra';
+import path from 'path';
+import os from 'os';
+import { fileURLToPath } from 'url';
 
 /**
  * Resolve the path to the @figma/code-connect CLI binary.
  * Works with pnpm, npm, and yarn by walking up from the resolved module.
  *
- * @returns {string|null} Absolute path to the CLI binary, or null if not found
+ * @returns Absolute path to the CLI binary, or null if not found
  */
-function resolveFigmaCLI() {
+function resolveFigmaCLI(): string | null {
   try {
-    // Resolve the main module entry point
-    const moduleEntry = require.resolve('@figma/code-connect');
-    // Walk up to find the package root (where package.json lives)
-    let dir = path.dirname(moduleEntry);
+    // In ESM, use import.meta.resolve (Node 20.6+)
+    // Fallback: construct path relative to this module
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    
+    // Walk up from this module to find node_modules/@figma/code-connect
+    let dir = __dirname;
     while (dir !== path.dirname(dir)) {
-      if (fs.existsSync(path.join(dir, 'package.json'))) {
-        const cliPath = path.join(dir, 'bin', 'figma');
-        if (fs.existsSync(cliPath)) {
-          return cliPath;
-        }
+      const candidate = path.join(dir, 'node_modules', '@figma', 'code-connect', 'bin', 'figma');
+      if (fs.existsSync(candidate)) {
+        return candidate;
       }
       dir = path.dirname(dir);
     }
@@ -49,12 +53,12 @@ function resolveFigmaCLI() {
 /**
  * Validate Code Connect code using the Figma CLI's parse command.
  *
- * @param {object} options
- * @param {string} options.code - The Code Connect file content to validate
- * @param {'react'|'html'} options.parser - Parser to use (react for .tsx, html for .ts)
- * @returns {{ valid: boolean, errors: string[] }}
+ * @param options
+ * @param options.code - The Code Connect file content to validate
+ * @param options.parser - Parser to use (react for .tsx, html for .ts)
+ * @returns Validation result with errors array
  */
-function validateWithFigmaCLI({ code, parser = 'react' }) {
+export function validateWithFigmaCLI({ code, parser = 'react' }: { code: string, parser?: 'react' | 'html' }): { valid: boolean, errors: string[] } {
   // Resolve the CLI binary path from node_modules
   const cliPath = resolveFigmaCLI();
 
@@ -147,7 +151,7 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
 
     // If we couldn't extract specific errors, include raw output for debugging
     if (errors.length === 0) {
-      const debugInfo = [];
+      const debugInfo: string[] = [];
       debugInfo.push('Figma CLI validation failed with no parseable errors.');
       debugInfo.push('');
       debugInfo.push(`Exit code: ${result.status}`);
@@ -161,7 +165,7 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
       valid: false,
       errors
     };
-  } catch (err) {
+  } catch (err: any) {
     // Clean up on error
     try {
       fs.removeSync(tempDir);
@@ -178,12 +182,12 @@ function validateWithFigmaCLI({ code, parser = 'react' }) {
 
 /**
  * Extract human-readable error messages from Figma CLI output.
- * @param {string} stdout
- * @param {string} stderr
- * @returns {string[]}
+ * @param stdout
+ * @param stderr
+ * @returns Array of error messages
  */
-function extractErrors(stdout = '', stderr = '') {
-  const errors = [];
+export function extractErrors(stdout: string = '', stderr: string = ''): string[] {
+  const errors: string[] = [];
   const combined = `${stdout}\n${stderr}`;
 
   // Look for ParserError messages
@@ -224,9 +228,9 @@ function extractErrors(stdout = '', stderr = '') {
 
 /**
  * Check if the Figma CLI is available.
- * @returns {boolean}
+ * @returns true if CLI is available
  */
-function isFigmaCLIAvailable() {
+export function isFigmaCLIAvailable(): boolean {
   const cliPath = resolveFigmaCLI();
   if (!cliPath) {
     return false;
@@ -241,9 +245,3 @@ function isFigmaCLIAvailable() {
     return false;
   }
 }
-
-module.exports = {
-  validateWithFigmaCLI,
-  isFigmaCLIAvailable,
-  extractErrors
-};

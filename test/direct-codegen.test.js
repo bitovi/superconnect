@@ -4,8 +4,8 @@
  * Uses mock validator to avoid spawning Figma CLI in unit tests.
  * Real CLI validation is tested in validate-code-connect.test.js and E2E tests.
  */
-const { describe, it, before, mock } = require('node:test');
-const assert = require('node:assert');
+import { describe, it, before, mock } from 'node:test';
+import assert from 'node:assert';
 
 // ---------------------------------------------------------------------------
 // Shared Fixtures
@@ -86,8 +86,8 @@ for (const framework of ['react', 'angular']) {
   describe(`${framework} Direct Codegen`, () => {
     let buildSystemPrompt, buildComponentPrompt, buildRetryPrompt, processComponent;
 
-    before(() => {
-      const mod = require(`../src/${framework}/direct-codegen.ts`);
+    before(async () => {
+      const mod = await import(`../src/${framework}/direct-codegen.ts`);
       buildSystemPrompt = mod.buildSystemPrompt;
       buildComponentPrompt = mod.buildComponentPrompt;
       buildRetryPrompt = mod.buildRetryPrompt;

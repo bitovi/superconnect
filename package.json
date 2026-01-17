@@ -1,14 +1,15 @@
 {
   "name": "@bitovi/superconnect",
   "version": "0.3.2",
+  "type": "module",
   "description": "CLI that turns a Figma design system file and a React/Angular component repo into publishable Figma Code Connect mappings",
   "bin": {
-    "superconnect": "scripts/run-pipeline.js"
+    "superconnect": "scripts/run-pipeline.ts"
   },
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.js",
-    "test:e2e": "node scripts/test-e2e.js",
-    "prepublishOnly": "node scripts/capture-version-sha.js"
+    "test:e2e": "node --experimental-strip-types scripts/test-e2e.ts",
+    "prepublishOnly": "node scripts/capture-version-sha.cjs"
   },
   "keywords": [
     "figma",

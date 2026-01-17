@@ -1,22 +1,24 @@
-const path = require('path');
-const fg = require('fast-glob');
-const { readFileSafe } = require('./fs-helpers.ts');
+// @ts-nocheck - Mechanically converted from JS, needs type refinement
 
-const toPosix = (value) => value.replace(/\\/g, '/');
+import path from 'path';
+import fg from 'fast-glob';
+import { readFileSafe } from './fs-helpers.ts';
 
-const extractSelector = (source) => {
+const toPosix = (value: string): string => value.replace(/\\/g, '/');
+
+const extractSelector = (source: string | null): string | null => {
   if (!source) return null;
   const match = source.match(/@Component\s*\(\s*{[^}]*selector\s*:\s*['"`]([^'"`]+)['"`]/s);
   return match ? match[1].trim() : null;
 };
 
-const extractClassName = (source) => {
+const extractClassName = (source: string | null): string | null => {
   if (!source) return null;
   const match = source.match(/export\s+class\s+([A-Za-z0-9_]+)/);
   return match ? match[1] : null;
 };
 
-const resolveHtmlFile = async (root, tsRelPath, source) => {
+const resolveHtmlFile = async (root: string, tsRelPath: string, source: string | null): Promise<string | null> => {
   const baseDir = path.dirname(tsRelPath);
   if (source) {
     const match = source.match(/templateUrl\s*:\s*['"`]([^'"`]+)['"`]/);
@@ -31,8 +33,8 @@ const resolveHtmlFile = async (root, tsRelPath, source) => {
   return hasHtml !== null ? toPosix(inferred) : null;
 };
 
-const loadModuleFiles = async (root, modulePaths) => {
-  const contents = new Map();
+const loadModuleFiles = async (root: string, modulePaths: string[]): Promise<Map<string, string>> => {
+  const contents = new Map<string, string>();
   for (const rel of modulePaths) {
     // eslint-disable-next-line no-await-in-loop
     const text = await readFileSafe(path.join(root, rel));
@@ -41,7 +43,7 @@ const loadModuleFiles = async (root, modulePaths) => {
   return contents;
 };
 
-const findModuleForComponent = (className, moduleContents) => {
+const findModuleForComponent = (className: string | null, moduleContents: Map<string, string>): string | null => {
   if (!className) return null;
   for (const [relPath, content] of moduleContents.entries()) {
     const inDeclarations = new RegExp(`declarations\\s*:\\s*\\[[^\\]]*\\b${className}\\b`, 's');
@@ -52,7 +54,7 @@ const findModuleForComponent = (className, moduleContents) => {
   return null;
 };
 
-const detectAngularComponents = async ({ root, ignore = [] } = {}) => {
+export const detectAngularComponents = async ({ root, ignore = [] }: { root: string; ignore?: string[] } = { root: '' }): Promise<any[]> => {
   const componentFiles = await fg(['**/*.component.ts'], {
     cwd: root,
     ignore,
@@ -73,7 +75,7 @@ const detectAngularComponents = async ({ root, ignore = [] } = {}) => {
   });
   const moduleContents = await loadModuleFiles(root, moduleFiles);
 
-  const results = [];
+  const results: any[] = [];
   for (const relPath of componentFiles) {
     // eslint-disable-next-line no-await-in-loop
     const source = await readFileSafe(path.join(root, relPath));
@@ -91,8 +93,4 @@ const detectAngularComponents = async ({ root, ignore = [] } = {}) => {
     });
   }
   return results;
-};
-
-module.exports = {
-  detectAngularComponents,
 };

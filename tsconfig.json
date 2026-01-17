@@ -25,6 +25,7 @@
 
     // No emit - use Node's native TS execution
     "noEmit": true,
+    "allowImportingTsExtensions": true,
 
     // Source maps for debugging
     "sourceMap": false,
@@ -33,7 +34,6 @@
     // Paths
     "baseUrl": ".",
     "rootDir": ".",
-    "outDir": "./dist",
 
     // Include type definitions
     "types": ["node"],

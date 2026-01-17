@@ -30,18 +30,20 @@
  * a tolerant parser. See docs/FIGMA-CLI-VALIDATION.md for details.
  */
 
-const { validateWithFigmaCLI } = require('./validate-with-figma-cli');
-const { extractIR } = require('./code-connect-ir');
+// @ts-nocheck - Mechanically converted from JS, needs type refinement
+
+import { validateWithFigmaCLI } from './validate-with-figma-cli.ts';
+import { extractIR } from './code-connect-ir.ts';
 
 /**
  * Extract all figma.*() calls from generated code using the IR extractor.
- * @param {string} code - The generated Code Connect file content
- * @returns {Array<{helper: string, key: string, line: number}>}
+ * @param code - The generated Code Connect file content
+ * @returns Array of helper calls with key and line info
  */
-function extractFigmaCalls(code) {
+export function extractFigmaCalls(code: string): Array<{helper: string, key: string, line: number}> {
   try {
     const ir = extractIR(code);
-    const calls = [];
+    const calls: any[] = [];
 
     // Extract helper calls from all figma.connect() calls
     for (const connect of ir.connects) {
@@ -70,10 +72,10 @@ function extractFigmaCalls(code) {
 /**
  * Normalize a property key for comparison.
  * Strips leading dots and question marks (e.g., ".iconStart?" -> "iconstart")
- * @param {string} key
- * @returns {string}
+ * @param key
+ * @returns normalized key
  */
-function normalizeKey(key) {
+export function normalizeKey(key: string): string {
   return (key || '')
     .replace(/^\./, '')
     .replace(/\?$/, '')
@@ -88,10 +90,10 @@ function normalizeKey(key) {
  * - "Yes"/"No"
  * - "On"/"Off"
  * (case insensitive)
- * @param {Array<string>} values - Variant values
- * @returns {boolean}
+ * @param values - Variant values
+ * @returns true if boolean variant
  */
-function isBooleanVariant(values) {
+function isBooleanVariant(values: any[]): boolean {
   if (!Array.isArray(values) || values.length !== 2) return false;
   
   const normalized = values.map(v => String(v).toLowerCase()).sort();
@@ -108,23 +110,23 @@ function isBooleanVariant(values) {
 
 /**
  * Build a set of valid keys from Figma evidence.
- * @param {object} figmaEvidence
- * @returns {{
- *   stringKeys: Set<string>,
- *   booleanKeys: Set<string>,
- *   enumKeys: Set<string>,
- *   instanceKeys: Set<string>,
- *   textLayerNames: Set<string>,
- *   slotLayerNames: Set<string>
- * }}
+ * @param figmaEvidence
+ * @returns Sets of valid keys by type
  */
-function buildValidKeySets(figmaEvidence) {
-  const stringKeys = new Set();
-  const booleanKeys = new Set();
-  const enumKeys = new Set();
-  const instanceKeys = new Set();
-  const textLayerNames = new Set();
-  const slotLayerNames = new Set();
+export function buildValidKeySets(figmaEvidence: any): {
+  stringKeys: Set<string>,
+  booleanKeys: Set<string>,
+  enumKeys: Set<string>,
+  instanceKeys: Set<string>,
+  textLayerNames: Set<string>,
+  slotLayerNames: Set<string>
+} {
+  const stringKeys = new Set<string>();
+  const booleanKeys = new Set<string>();
+  const enumKeys = new Set<string>();
+  const instanceKeys = new Set<string>();
+  const textLayerNames = new Set<string>();
+  const slotLayerNames = new Set<string>();
 
   // Add variant properties (these are enum-like)
   const variantProps = figmaEvidence.variantProperties || {};
@@ -141,7 +143,7 @@ function buildValidKeySets(figmaEvidence) {
 
   // Add component properties based on type
   const componentProps = figmaEvidence.componentProperties || [];
-  componentProps.forEach((prop) => {
+  componentProps.forEach((prop: any) => {
     if (!prop || !prop.name) return;
     const normalized = normalizeKey(prop.name);
 
@@ -164,7 +166,7 @@ function buildValidKeySets(figmaEvidence) {
 
   // Add text layers
   const textLayers = figmaEvidence.textLayers || [];
-  textLayers.forEach((layer) => {
+  textLayers.forEach((layer: any) => {
     if (layer && layer.name) {
       textLayerNames.add(normalizeKey(layer.name));
     }
@@ -172,7 +174,7 @@ function buildValidKeySets(figmaEvidence) {
 
   // Add slot layers
   const slotLayers = figmaEvidence.slotLayers || [];
-  slotLayers.forEach((layer) => {
+  slotLayers.forEach((layer: any) => {
     if (layer && layer.name) {
       slotLayerNames.add(normalizeKey(layer.name));
     }
@@ -190,11 +192,11 @@ function buildValidKeySets(figmaEvidence) {
 
 /**
  * Validate a single figma.*() call against valid keys.
- * @param {object} call - {helper, key, line}
- * @param {object} keySets - Sets of valid keys by type
- * @returns {string|null} - Error message or null if valid
+ * @param call - {helper, key, line}
+ * @param keySets - Sets of valid keys by type
+ * @returns Error message or null if valid
  */
-function validateCall(call, keySets) {
+function validateCall(call: {helper: string, key: string, line: number}, keySets: any): string | null {
   const { helper, key, line } = call;
   const normalizedKey = normalizeKey(key);
 
@@ -251,11 +253,11 @@ function validateCall(call, keySets) {
 /**
  * Validate structural invariants from IR.
  * Checks connect call structure, config object, example function, and forbidden expressions.
- * @param {object} ir - IR from extractIR()
- * @returns {string[]} - Array of error messages
+ * @param ir - IR from extractIR()
+ * @returns Array of error messages
  */
-function validateStructuralInvariants(ir) {
-  const errors = [];
+function validateStructuralInvariants(ir: any): string[] {
+  const errors: string[] = [];
 
   for (const connect of ir.connects) {
     const loc = connect.loc ? `:${connect.loc.start.line}` : '';
@@ -320,12 +322,12 @@ function validateStructuralInvariants(ir) {
 /**
  * Validate enum mappings against Figma evidence.
  * Ensures that figma.enum() mappings only reference valid Figma variant values.
- * @param {object} ir - IR from extractIR()
- * @param {object} figmaEvidence - Figma evidence with variantProperties
- * @returns {string[]} - Array of error messages
+ * @param ir - IR from extractIR()
+ * @param figmaEvidence - Figma evidence with variantProperties
+ * @returns Array of error messages
  */
-function validateEnumMappings(ir, figmaEvidence) {
-  const errors = [];
+function validateEnumMappings(ir: any, figmaEvidence: any): string[] {
+  const errors: string[] = [];
   const variantProps = figmaEvidence.variantProperties || {};
 
   for (const connect of ir.connects) {
@@ -341,10 +343,10 @@ function validateEnumMappings(ir, figmaEvidence) {
       const axisNormalized = normalizeKey(axis);
       
       // Find the variant property (case-insensitive match)
-      let figmaValues = null;
+      let figmaValues: any[] | null = null;
       for (const [key, values] of Object.entries(variantProps)) {
         if (normalizeKey(key) === axisNormalized) {
-          figmaValues = values;
+          figmaValues = values as any[];
           break;
         }
       }
@@ -376,14 +378,14 @@ function validateEnumMappings(ir, figmaEvidence) {
 /**
  * Validate a generated Code Connect file against Figma evidence.
  *
- * @param {object} options
- * @param {string} options.generatedCode - The .figma.tsx/.figma.ts content
- * @param {object} options.figmaEvidence - Per-component JSON from figma-scan.js
- * @param {object} [options.orienterOutput] - Orienter output (for component import validation, optional)
- * @returns {{ valid: boolean, errors: string[] }}
+ * @param options
+ * @param options.generatedCode - The .figma.tsx/.figma.ts content
+ * @param options.figmaEvidence - Per-component JSON from figma-scan.js
+ * @param options.orienterOutput - Orienter output (for component import validation, optional)
+ * @returns Validation result with errors array
  */
-function validateCodeConnect({ generatedCode, figmaEvidence, orienterOutput = null }) {
-  const errors = [];
+export function validateCodeConnect({ generatedCode, figmaEvidence, orienterOutput = null }: { generatedCode: string, figmaEvidence: any, orienterOutput?: any }): { valid: boolean, errors: string[] } {
+  const errors: string[] = [];
 
   if (!generatedCode || typeof generatedCode !== 'string') {
     return { valid: false, errors: ['Generated code is empty or invalid'] };
@@ -394,10 +396,10 @@ function validateCodeConnect({ generatedCode, figmaEvidence, orienterOutput = nu
   }
 
   // Parse the code using IR extractor
-  let ir;
+  let ir: any;
   try {
     ir = extractIR(generatedCode);
-  } catch (err) {
+  } catch (err: any) {
     // Parse error - return immediately with error details
     return { valid: false, errors: [err.message] };
   }
@@ -408,7 +410,7 @@ function validateCodeConnect({ generatedCode, figmaEvidence, orienterOutput = nu
   }
 
   // Check for Code Connect import
-  const hasFigmaImport = ir.imports.some(imp => 
+  const hasFigmaImport = ir.imports.some((imp: any) => 
     imp.source === '@figma/code-connect/react' ||
     imp.source === '@figma/code-connect/html' ||
     imp.source === '@figma/code-connect'
@@ -455,11 +457,11 @@ function validateCodeConnect({ generatedCode, figmaEvidence, orienterOutput = nu
  * Check for invalid JavaScript expressions using AST (ternaries, logical ops, etc.)
  * Code Connect doesn't allow ternaries (?:), logical operators (&&, ||), or binary expressions.
  * Also checks for syntax errors (e.g. bare expressions in JSX not wrapped in braces).
- * @param {string} code - The generated code
- * @returns {string[]} - Array of error messages
+ * @param code - The generated code
+ * @returns Array of error messages
  */
-function checkTemplateInterpolations(code) {
-  const errors = [];
+export function checkTemplateInterpolations(code: string): string[] {
+  const errors: string[] = [];
   const lines = code.split('\n');
 
   lines.forEach((line, index) => {
@@ -551,19 +553,24 @@ function checkTemplateInterpolations(code) {
  * 1. Run fast pre-checks (structure, figma.*() calls) to catch obvious errors
  * 2. Run Figma CLI parse to catch all remaining errors
  *
- * @param {object} options
- * @param {string} options.generatedCode - The .figma.tsx/.figma.ts content
- * @param {object} options.figmaEvidence - Per-component JSON from figma-scan.js
- * @param {'react'|'angular'} [options.framework='react'] - Target framework
- * @param {boolean} [options.skipCLI=false] - Skip CLI validation (for testing)
- * @returns {{ valid: boolean, errors: string[] }}
+ * @param options
+ * @param options.generatedCode - The .figma.tsx/.figma.ts content
+ * @param options.figmaEvidence - Per-component JSON from figma-scan.js
+ * @param options.framework - Target framework
+ * @param options.skipCLI - Skip CLI validation (for testing)
+ * @returns Validation result with errors array
  */
-function validateCodeConnectWithCLI({ 
+export function validateCodeConnectWithCLI({ 
   generatedCode, 
   figmaEvidence, 
   framework = 'react',
   skipCLI = false 
-}) {
+}: {
+  generatedCode: string,
+  figmaEvidence: any,
+  framework?: 'react' | 'angular',
+  skipCLI?: boolean
+}): { valid: boolean, errors: string[] } {
   // Step 1: Run fast pre-checks
   const preCheckResult = validateCodeConnect({ generatedCode, figmaEvidence });
   if (!preCheckResult.valid) {
@@ -585,12 +592,3 @@ function validateCodeConnectWithCLI({
 
   return cliResult;
 }
-
-module.exports = {
-  validateCodeConnect,
-  validateCodeConnectWithCLI,
-  extractFigmaCalls,
-  buildValidKeySets,
-  normalizeKey,
-  checkTemplateInterpolations
-};

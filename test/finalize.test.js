@@ -1,11 +1,15 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert');
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
-const { spawnSync, execFileSync } = require('child_process');
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import fs from 'fs-extra';
+import path from 'path';
+import os from 'os';
+import { spawnSync, execFileSync } from 'child_process';
+import { fileURLToPath } from 'url';
 
-const finalizeScript = path.join(__dirname, '..', 'scripts', 'finalize.js');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const finalizeScript = path.join(__dirname, '..', 'scripts', 'finalize.ts');
 
 const writeJson = (file, data) => {
   fs.ensureDirSync(path.dirname(file));

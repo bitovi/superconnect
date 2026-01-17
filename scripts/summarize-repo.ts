@@ -1,22 +1,27 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Summarize a repo for the codegen agent.
  *
  * Usage:
- *   node scripts/summarize-repo.js --root /path/to/repo
- *   node scripts/summarize-repo.js /path/to/repo   (positional also allowed)
+ *   npx tsx scripts/summarize-repo.ts --root /path/to/repo
+ *   npx tsx scripts/summarize-repo.ts /path/to/repo   (positional also allowed)
  *
  * Output: JSON to stdout with key paths and file counts.
  * No external CLIs required; uses built-in Node + fast-glob.
  */
 
-const fs = require('fs-extra');
-const path = require('path');
-const fg = require('fast-glob');
-const { parse } = require('@typescript-eslint/typescript-estree');
-const { detectFrameworks } = require('../src/util/detect-framework.ts');
-const { detectAngularComponents } = require('../src/util/scan-angular');
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fg from 'fast-glob';
+import { parse } from '@typescript-eslint/typescript-estree';
+import { detectFrameworks } from '../src/util/detect-framework.ts';
+import { detectAngularComponents } from '../src/util/scan-angular.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const DEFAULT_IGNORES = [
   '**/node_modules/**',
@@ -37,7 +42,7 @@ const DEFAULT_IGNORES = [
   '**/generated/**'
 ];
 
-const parseArgs = (argv) => {
+const parseArgs = (argv: any) => {
   const args = argv.slice(2);
   let flagRoot = null;
   let positionalRoot = null;
@@ -61,17 +66,17 @@ const parseArgs = (argv) => {
   };
 };
 
-const readJsonIfExists = async (filePath) => {
+const readJsonIfExists = async (filePath: any) => {
   try {
     const raw = await fs.readFile(filePath, 'utf8');
     return JSON.parse(raw);
-  } catch (err) {
+  } catch (err: any) {
     if (err.code === 'ENOENT') return null;
     throw err;
   }
 };
 
-const pathExists = async (candidate) => {
+const pathExists = async (candidate: any) => {
   try {
     await fs.access(candidate);
     return true;
@@ -80,7 +85,7 @@ const pathExists = async (candidate) => {
   }
 };
 
-const listMatches = async (patterns, { cwd, onlyDirectories = false, limit = null }) => {
+const listMatches = async (patterns: any, { cwd, onlyDirectories = false, limit = null }: any) => {
   const matches = await fg(patterns, {
     cwd,
     ignore: DEFAULT_IGNORES,
@@ -91,12 +96,12 @@ const listMatches = async (patterns, { cwd, onlyDirectories = false, limit = nul
   return limit ? unique.slice(0, limit) : unique;
 };
 
-const countFiles = async (pattern, { cwd }) => {
+const countFiles = async (pattern: any, { cwd }: any) => {
   const matches = await fg(pattern, { cwd, ignore: DEFAULT_IGNORES });
   return matches.length;
 };
 
-const summarizePackageJson = async (root) => {
+const summarizePackageJson = async (root: any) => {
   const pkgPath = path.join(root, 'package.json');
   const pkg = await readJsonIfExists(pkgPath);
   if (!pkg) return null;
@@ -110,13 +115,13 @@ const summarizePackageJson = async (root) => {
   };
 };
 
-const summarizeTsconfigs = async (root) => {
+const summarizeTsconfigs = async (root: any) => {
   const all = await listMatches(['tsconfig.json', 'tsconfig.*.json', '**/tsconfig.json'], { cwd: root, limit: 50 });
-  const primary = all.find((p) => p === 'tsconfig.json') || null;
+  const primary = all.find((p: any) => p === 'tsconfig.json') || null;
   return { primary, all };
 };
 
-const summarizeCodeConnect = async (root) => {
+const summarizeCodeConnect = async (root: any) => {
   const configs = await listMatches(['figma.config.json', '**/figma.config.json'], { cwd: root, limit: 20 });
   const ccPatterns = ['**/*.figma.tsx', '**/*.figma.ts'];
   const files = await listMatches(ccPatterns, { cwd: root, limit: 20 });
@@ -129,7 +134,7 @@ const summarizeCodeConnect = async (root) => {
   };
 };
 
-const summarizeComponentRoots = async (root) => {
+const summarizeComponentRoots = async (root: any) => {
   const rootPatterns = [
     'src/*/components',
     'src/components',
@@ -146,7 +151,7 @@ const summarizeComponentRoots = async (root) => {
   return entries;
 };
 
-const summarizeThemes = async (root) => {
+const summarizeThemes = async (root: any) => {
   const recipeDirs = await listMatches(['src/theme/recipes', 'packages/*/src/theme/recipes'], {
     cwd: root,
     onlyDirectories: true,
@@ -155,7 +160,7 @@ const summarizeThemes = async (root) => {
   return { recipes: recipeDirs };
 };
 
-const extractExports = (source, filePath = '') => {
+const extractExports = (source: any, filePath = '') => {
   const names = new Set();
   
   try {
@@ -173,7 +178,7 @@ const extractExports = (source, filePath = '') => {
       loggerFn: false
     });
 
-    const traverse = (node) => {
+    const traverse = (node: any) => {
       if (!node || typeof node !== 'object') return;
 
       // Handle export declarations
@@ -181,7 +186,7 @@ const extractExports = (source, filePath = '') => {
         // export const X, export function X, export class X
         if (node.declaration) {
           if (node.declaration.type === 'VariableDeclaration') {
-            node.declaration.declarations.forEach(decl => {
+            node.declaration.declarations.forEach((decl: any) => {
               if (decl.id && decl.id.name) names.add(decl.id.name);
             });
           } else if (node.declaration.id && node.declaration.id.name) {
@@ -190,7 +195,7 @@ const extractExports = (source, filePath = '') => {
         }
         // export { X, Y as Z }
         if (node.specifiers) {
-          node.specifiers.forEach(spec => {
+          node.specifiers.forEach((spec: any) => {
             if (spec.exported && spec.exported.name) {
               names.add(spec.exported.name);
             }
@@ -228,14 +233,14 @@ const extractExports = (source, filePath = '') => {
   return Array.from(names);
 };
 
-const createSnippet = (content) => {
-  const lines = content.split(/\r?\n/).filter((line) => line.trim() !== '');
-  const snippetLines = lines.slice(0, 2).map((line) => line.trim());
+const createSnippet = (content: any) => {
+  const lines = content.split(/\r?\n/).filter((line: any) => line.trim() !== '');
+  const snippetLines = lines.slice(0, 2).map((line: any) => line.trim());
   return snippetLines.join('\n');
 };
 
-const runWithConcurrency = async (items, limit, worker) => {
-  const results = [];
+const runWithConcurrency = async (items: any, limit: any, worker: any) => {
+  const results: any[] = [];
   let index = 0;
   const runner = async () => {
     while (index < items.length) {
@@ -249,18 +254,18 @@ const runWithConcurrency = async (items, limit, worker) => {
   return results;
 };
 
-const summarizeTsFiles = async (root, componentRoots = [], themeRecipeDirs = []) => {
+const summarizeTsFiles = async (root: any, componentRoots: any = [], themeRecipeDirs: any = []) => {
   const fileRoots = [
-    ...componentRoots.map((entry) => entry.path),
+    ...componentRoots.map((entry: any) => entry.path),
     ...themeRecipeDirs,
   ]
-    .map((dir) => dir.replace(/\\/g, '/').replace(/\/$/, ''))
+    .map((dir: any) => dir.replace(/\\/g, '/').replace(/\/$/, ''))
     .filter(Boolean);
 
   if (fileRoots.length === 0) return [];
 
   const discovered = new Set();
-  const patternsForRoot = (base) => [`${base}/**/*.ts`, `${base}/**/*.tsx`];
+  const patternsForRoot = (base: any) => [`${base}/**/*.ts`, `${base}/**/*.tsx`];
 
   for (const base of fileRoots) {
     const matches = await fg(patternsForRoot(base), {
@@ -273,7 +278,7 @@ const summarizeTsFiles = async (root, componentRoots = [], themeRecipeDirs = [])
 
   const tsFiles = Array.from(discovered).sort();
 
-  const processFile = async (relPath) => {
+  const processFile = async (relPath: any) => {
     const absolutePath = path.join(root, relPath);
     const [stat, content] = await Promise.all([fs.stat(absolutePath), fs.readFile(absolutePath, 'utf8')]);
     const exports = extractExports(content, relPath);
@@ -286,7 +291,7 @@ const summarizeTsFiles = async (root, componentRoots = [], themeRecipeDirs = [])
   return runWithConcurrency(tsFiles, 20, processFile);
 };
 
-const summarizeLocks = async (root) => {
+const summarizeLocks = async (root: any) => {
   const locks = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'];
   const present = [];
   for (const lock of locks) {
@@ -295,7 +300,7 @@ const summarizeLocks = async (root) => {
   return present;
 };
 
-const summarizeEnv = async (root) => {
+const summarizeEnv = async (root: any) => {
   const files = await listMatches(['.env', '.env.*', '.env-rename', '.env-example', '.env.example'], {
     cwd: root,
     limit: 20,
@@ -303,7 +308,7 @@ const summarizeEnv = async (root) => {
   return files;
 };
 
-const summarizeConfigs = async (root) => {
+const summarizeConfigs = async (root: any) => {
   const patterns = [
     'eslint.config.*',
     '.eslintrc*',
@@ -319,7 +324,7 @@ const summarizeConfigs = async (root) => {
   return files;
 };
 
-const summarize = async (root) => {
+const summarize = async (root: any) => {
   const [
     pkg,
     tsconfig,
@@ -381,7 +386,10 @@ const main = async () => {
   }
 };
 
-if (require.main === module) {
+const isMain = import.meta.url === `file://${process.argv[1]}` || 
+               process.argv[1]?.endsWith('summarize-repo.ts');
+
+if (isMain) {
   main().catch((err) => {
     process.stderr.write(`❌ Repository summarization failed: ${err.message}\n`);
     

@@ -12,19 +12,22 @@
  * - prop references within example (props.foo)
  */
 
-const { parse } = require('@typescript-eslint/typescript-estree');
+// @ts-nocheck - Mechanically converted from JS, needs type refinement
+
+import { parse } from '@typescript-eslint/typescript-estree';
+import type { TSESTree } from '@typescript-eslint/typescript-estree';
 
 /**
  * Parse Code Connect file and extract IR.
  * Hard-fails on parse errors with line and column information.
  * 
- * @param {string} code - The .figma.tsx or .figma.ts file content
- * @param {string} [filename='code-connect.tsx'] - Filename for error messages
- * @returns {object} IR object with parsed structure
- * @throws {Error} Parse error with line/column information
+ * @param code - The .figma.tsx or .figma.ts file content
+ * @param filename - Filename for error messages
+ * @returns IR object with parsed structure
+ * @throws Error Parse error with line/column information
  */
-function extractIR(code, filename = 'code-connect.tsx') {
-  let ast;
+export function extractIR(code: string, filename: string = 'code-connect.tsx'): any {
+  let ast: TSESTree.Program;
   
   try {
     ast = parse(code, {
@@ -35,7 +38,7 @@ function extractIR(code, filename = 'code-connect.tsx') {
       errorOnUnknownASTType: true,
       filePath: filename
     });
-  } catch (err) {
+  } catch (err: any) {
     // Enhance error with precise location
     const message = err.message || String(err);
     const lineMatch = message.match(/line (\d+)/i);
@@ -58,7 +61,7 @@ function extractIR(code, filename = 'code-connect.tsx') {
   }
 
   // Extract figma.connect calls
-  walkAST(ast, (node) => {
+  walkAST(ast, (node: any) => {
     if (isFigmaConnectCall(node)) {
       ir.connects.push(extractConnect(node, code));
     }
@@ -70,7 +73,7 @@ function extractIR(code, filename = 'code-connect.tsx') {
 /**
  * Extract import declaration info
  */
-function extractImport(node) {
+function extractImport(node: TSESTree.ImportDeclaration): any {
   return {
     source: node.source.value,
     specifiers: node.specifiers.map(spec => {
@@ -93,7 +96,7 @@ function extractImport(node) {
 /**
  * Check if node is a figma.connect() call
  */
-function isFigmaConnectCall(node) {
+function isFigmaConnectCall(node: any): boolean {
   return node.type === 'CallExpression' &&
          node.callee.type === 'MemberExpression' &&
          node.callee.object.type === 'Identifier' &&
@@ -105,10 +108,10 @@ function isFigmaConnectCall(node) {
 /**
  * Extract figma.connect() call structure
  */
-function extractConnect(callNode, sourceCode) {
+function extractConnect(callNode: any, sourceCode: string): any {
   const args = callNode.arguments;
   
-  const connect = {
+  const connect: any = {
     loc: callNode.loc,
     kind: null,  // 'component' or 'url-only'
     component: null,
@@ -167,7 +170,7 @@ function extractConnect(callNode, sourceCode) {
 /**
  * Extract config object structure
  */
-function extractConfig(configNode, sourceCode) {
+function extractConfig(configNode: any, sourceCode: string): any {
   if (!configNode || configNode.type !== 'ObjectExpression') {
     return {
       isObjectLiteral: false,
@@ -178,7 +181,7 @@ function extractConfig(configNode, sourceCode) {
     };
   }
 
-  const config = {
+  const config: any = {
     isObjectLiteral: true,
     props: null,
     example: null,
@@ -206,7 +209,7 @@ function extractConfig(configNode, sourceCode) {
 /**
  * Extract props object with figma helper calls
  */
-function extractPropsObject(propsNode) {
+function extractPropsObject(propsNode: any): any {
   if (!propsNode || propsNode.type !== 'ObjectExpression') {
     return {
       isObjectLiteral: false,
@@ -215,7 +218,7 @@ function extractPropsObject(propsNode) {
     };
   }
 
-  const helpers = [];
+  const helpers: any[] = [];
 
   for (const prop of propsNode.properties) {
     if (prop.type !== 'Property') continue;
@@ -238,7 +241,7 @@ function extractPropsObject(propsNode) {
 /**
  * Extract figma helper call (figma.string, figma.enum, etc.)
  */
-function extractFigmaHelper(node, propName) {
+function extractFigmaHelper(node: any, propName: string): any | null {
   if (node.type !== 'CallExpression') return null;
   if (node.callee.type !== 'MemberExpression') return null;
   if (node.callee.object.type !== 'Identifier' || node.callee.object.name !== 'figma') return null;
@@ -247,7 +250,7 @@ function extractFigmaHelper(node, propName) {
   const helperName = node.callee.property.name;
   const args = node.arguments;
   
-  const helper = {
+  const helper: any = {
     propName,
     helper: helperName,
     key: null,
@@ -275,12 +278,12 @@ function extractFigmaHelper(node, propName) {
 /**
  * Extract enum mapping object {FigmaValue: 'codeValue', ...}
  */
-function extractEnumMapping(node) {
+function extractEnumMapping(node: any): any {
   if (node.type !== 'ObjectExpression') {
     return { isObjectLiteral: false, mappings: [] };
   }
 
-  const mappings = [];
+  const mappings: any[] = [];
   
   for (const prop of node.properties) {
     if (prop.type !== 'Property') continue;
@@ -301,7 +304,7 @@ function extractEnumMapping(node) {
 /**
  * Extract example function
  */
-function extractExampleFunction(node, sourceCode) {
+function extractExampleFunction(node: any, sourceCode: string): any {
   if (node.type !== 'ArrowFunctionExpression' && node.type !== 'FunctionExpression') {
     return {
       isFunction: false,
@@ -309,10 +312,10 @@ function extractExampleFunction(node, sourceCode) {
     };
   }
 
-  const example = {
+  const example: any = {
     isFunction: true,
     isArrowFunction: node.type === 'ArrowFunctionExpression',
-    params: node.params.map(p => p.name || p.type),
+    params: node.params.map((p: any) => p.name || p.type),
     hasBlock: node.body.type === 'BlockStatement',
     propsReferences: [],
     forbiddenExpressions: [],
@@ -327,7 +330,7 @@ function extractExampleFunction(node, sourceCode) {
   }
 
   // Extract props references and check for forbidden expressions
-  walkAST(node.body, (childNode) => {
+  walkAST(node.body, (childNode: any) => {
     // Check for props.xyz references
     if (childNode.type === 'MemberExpression' &&
         childNode.object.type === 'Identifier' &&
@@ -352,13 +355,13 @@ function extractExampleFunction(node, sourceCode) {
 /**
  * Extract variant property
  */
-function extractVariant(node) {
+function extractVariant(node: any): any {
   if (!node || node.type !== 'ObjectExpression') {
     return { isObjectLiteral: false, restrictions: {} };
   }
 
   // Extract variant restrictions: { Type: 'Primary', Size: 'Large' }
-  const restrictions = {};
+  const restrictions: any = {};
   
   for (const prop of node.properties) {
     if (prop.type !== 'Property') continue;
@@ -379,8 +382,8 @@ function extractVariant(node) {
 /**
  * Check for forbidden expressions in example
  */
-function checkForbiddenExpression(node) {
-  const forbidden = {
+function checkForbiddenExpression(node: any): any | null {
+  const forbidden: any = {
     type: null,
     operator: null,
     loc: node.loc
@@ -430,7 +433,7 @@ function checkForbiddenExpression(node) {
 /**
  * Walk AST and call visitor for each node
  */
-function walkAST(node, visitor) {
+function walkAST(node: any, visitor: (node: any) => void): void {
   if (!node || typeof node !== 'object') return;
   
   visitor(node);
@@ -449,7 +452,3 @@ function walkAST(node, visitor) {
     }
   }
 }
-
-module.exports = {
-  extractIR
-};

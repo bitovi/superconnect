@@ -1,26 +1,35 @@
-#!/usr/bin/env node
-
-// Load environment variables from .env file early (cwd)
-const dotenv = require('dotenv');
-dotenv.config({ quiet: true });
+#!/usr/bin/env -S node --experimental-strip-types
+// @ts-nocheck
 
 /**
+ * run-pipeline.ts
+ * 
  * Superconnect pipeline v4 (5 stages):
  * 1) Figma scan
  * 2) Repo summarizer
  * 3) Orienter
  * 4) Codegen
  * 5) Finalizer (summary)
+ * 
+ * Entry point for the superconnect CLI. Orchestrates all pipeline stages.
  */
 
-const fs = require('fs-extra');
-const path = require('path');
-const { spawnSync } = require('child_process');
-const { Command } = require('commander');
-const readline = require('readline');
-const chalk = require('chalk');
-const toml = require('@iarna/toml');
-const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
+import dotenv from 'dotenv';
+// Load environment variables from .env file early (cwd)
+dotenv.config({ quiet: true } as any);
+
+import fs from 'fs-extra';
+import path from 'path';
+import { spawnSync, execSync } from 'child_process';
+import { Command } from 'commander';
+import readline from 'readline';
+import chalk from 'chalk';
+import toml from '@iarna/toml';
+import { fileURLToPath } from 'url';
+import { figmaColor, codeColor, generatedColor, highlight } from './colors.cjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const DEFAULT_CONFIG_FILE = 'superconnect.toml';
 const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
@@ -32,12 +41,12 @@ const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_LAYER_DEPTH = 3;
 const DEFAULT_CONCURRENCY = 5;
 
-const parseMaybeInt = (value) => {
+const parseMaybeInt = (value: any): number | null => {
   const n = value ? parseInt(value, 10) : NaN;
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-function normalizeAgentApiName(value) {
+function normalizeAgentApiName(value: any): string | null {
   if (!value) return null;
   const raw = String(value).trim().toLowerCase();
   if (!raw) return null;
@@ -49,31 +58,31 @@ function normalizeAgentApiName(value) {
   return normalized;
 }
 
-function getAgentEnvVarForApi(api) {
+function getAgentEnvVarForApi(api: string): string {
   return api === 'openai-chat-api' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY';
 }
 
-function loadSuperconnectConfig(filePath = 'superconnect.toml') {
+function loadSuperconnectConfig(filePath: string = 'superconnect.toml'): any {
   const direct = path.resolve(process.cwd(), filePath);
   if (!fs.existsSync(direct)) return null;
   try {
     const raw = fs.readFileSync(direct, 'utf8');
     return toml.parse(raw);
-  } catch (err) {
-    console.warn(`⚠️  Failed to load ${direct}: ${err.message}`);
+  } catch (err: any) {
+    console.warn(`Warning: Failed to load ${direct}: ${err.message}`);
     if (err.message.includes('parse') || err.message.includes('Expected')) {
-      console.warn('💡 TOML syntax error - check your configuration file syntax');
+      console.warn('Hint: TOML syntax error - check your configuration file syntax');
       console.warn('   Valid TOML guide: https://toml.io/en/v1.0.0');
     }
     return null;
   }
 }
 
-function normalizeAgentConfig(agentSection = {}) {
+function normalizeAgentConfig(agentSection: any = {}): any {
   const rawApi = normalizeAgentApiName(agentSection.api) || DEFAULT_API;
   if (agentSection.api && rawApi !== String(agentSection.api).trim().toLowerCase()) {
     console.warn(
-      `${chalk.yellow('⚠️  Deprecated agent api value:')} "${agentSection.api}"\n` +
+      `${chalk.yellow('Warning: Deprecated agent api value:')} "${agentSection.api}"\n` +
         `   ${chalk.dim('Use one of: anthropic-agent-sdk, anthropic-messages-api, openai-chat-api')}`
     );
   }
@@ -97,7 +106,7 @@ function normalizeAgentConfig(agentSection = {}) {
   // Warn if llm_proxy_url is set with non-OpenAI api
   if (baseUrl && api !== 'openai-chat-api') {
     console.warn(
-      `${chalk.yellow('⚠️  llm_proxy_url is set but api is "')}${api}${chalk.yellow('". llm_proxy_url is only used with api = "openai-chat-api".')}\n` +
+      `${chalk.yellow('Warning: llm_proxy_url is set but api is "')}${api}${chalk.yellow('". llm_proxy_url is only used with api = "openai-chat-api".')}\n` +
       `   ${chalk.yellow('Did you mean to set api = "openai-chat-api"?')}`
     );
   }
@@ -105,7 +114,7 @@ function normalizeAgentConfig(agentSection = {}) {
   // Warn if using custom llm_proxy_url without explicitly setting model
   if (baseUrl && !agentSection.model) {
     console.warn(
-      `${chalk.yellow('⚠️  Using custom llm_proxy_url but no model specified.')}\n` +
+      `${chalk.yellow('Warning: Using custom llm_proxy_url but no model specified.')}\n` +
       `   ${chalk.yellow(`Default model "${DEFAULT_OPENAI_MODEL}" may not exist on your endpoint.`)}\n` +
       `   ${chalk.dim('Add to superconnect.toml: model = "your-model-name"')}`
     );
@@ -116,10 +125,8 @@ function normalizeAgentConfig(agentSection = {}) {
 
 /**
  * Normalize [codegen] section from TOML config.
- * @param {object} codegenSection - The [codegen] section from TOML
- * @returns {{ maxRetries: number, concurrency: number, outputDir: string|null }}
  */
-function normalizeCodegenConfig(codegenSection = {}) {
+function normalizeCodegenConfig(codegenSection: any = {}): any {
   const maxRetries = parseMaybeInt(codegenSection.max_retries) ?? DEFAULT_MAX_RETRIES;
   const concurrency = parseMaybeInt(codegenSection.concurrency) ?? DEFAULT_CONCURRENCY;
   const outputDir = codegenSection.code_connect_output_dir || null;
@@ -129,18 +136,16 @@ function normalizeCodegenConfig(codegenSection = {}) {
 
 /**
  * Normalize [figma] section from TOML config.
- * @param {object} figmaSection - The [figma] section from TOML
- * @returns {{ layerDepth: number }}
  */
-function normalizeFigmaConfig(figmaSection = {}) {
+function normalizeFigmaConfig(figmaSection: any = {}): any {
   const layerDepth = parseMaybeInt(figmaSection.layer_depth) ?? DEFAULT_LAYER_DEPTH;
   return { layerDepth };
 }
 
-async function promptConfirmProceed({ message, defaultYes = true }) {
+async function promptConfirmProceed({ message, defaultYes = true }: { message: string; defaultYes?: boolean }): Promise<boolean | null> {
   if (!process.stdin.isTTY) return null;
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const question = (q) => new Promise((resolve) => rl.question(q, (answer) => resolve(answer.trim())));
+  const question = (q: string): Promise<string> => new Promise((resolve) => rl.question(q, (answer) => resolve(answer.trim())));
   const suffix = defaultYes ? ' [Y/n]: ' : ' [y/N]: ';
   const raw = await question(message + suffix);
   rl.close();
@@ -151,9 +156,9 @@ async function promptConfirmProceed({ message, defaultYes = true }) {
   return defaultYes;
 }
 
-async function promptForConfig() {
+async function promptForConfig(): Promise<any> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const question = (q) => new Promise((resolve) => rl.question(q, (answer) => resolve(answer.trim())));
+  const question = (q: string): Promise<string> => new Promise((resolve) => rl.question(q, (answer) => resolve(answer.trim())));
 
   console.log(
     `${chalk.bold('Setup')}: we'll write these settings to ${highlight(`./${DEFAULT_CONFIG_FILE}`)}`
@@ -186,8 +191,8 @@ async function promptForConfig() {
     ? api
     : DEFAULT_API;
 
-  let baseUrl = null;
-  let apiKey = null;
+  let baseUrl: string | null = null;
+  let apiKey: string | null = null;
   
   if (normalizedApi === 'openai-chat-api') {
     console.log(`\n${chalk.dim('OpenAI-compatible endpoints: LiteLLM, Azure OpenAI, vLLM, LocalAI, etc.')}`);
@@ -210,14 +215,14 @@ async function promptForConfig() {
   rl.close();
 
   const active = normalizedApi;
-  const chooseModel = (a) => {
+  const chooseModel = (a: string): string => {
     if (a === 'openai-chat-api') return DEFAULT_OPENAI_MODEL;
     return DEFAULT_ANTHROPIC_MODEL;
   };
   const model = chooseModel(active);
   const maxTokens = DEFAULT_MAX_TOKENS;
 
-  const agentSection = [];
+  const agentSection: string[] = [];
   
   if (active === 'anthropic-messages-api' || active === 'anthropic-agent-sdk') {
     const apiValue = active === 'anthropic-agent-sdk' ? 'anthropic-agent-sdk' : 'anthropic-messages-api';
@@ -236,7 +241,7 @@ async function promptForConfig() {
       '#   llm_proxy_url = "http://localhost:4000/v1"  # LiteLLM, Azure, vLLM, LocalAI'
     );
   } else if (active === 'openai-chat-api') {
-    const lines = [
+    const lines: string[] = [
       '# AI provider: "anthropic-agent-sdk" (default) or "openai-chat-api"',
       '# Anthropic requires ANTHROPIC_API_KEY env var',
       '# OpenAI requires OPENAI_API_KEY env var (or use llm_proxy_url for LiteLLM, Azure, etc.)',
@@ -295,7 +300,7 @@ async function promptForConfig() {
 
   const outPath = path.resolve(DEFAULT_CONFIG_FILE);
   fs.writeFileSync(outPath, tomlContent, 'utf8');
-  console.log(`${chalk.green('✓')} Wrote your configs to ${DEFAULT_CONFIG_FILE}. When you next run in this directory, we'll read from that instead.`);
+  console.log(`${chalk.green('OK')} Wrote your configs to ${DEFAULT_CONFIG_FILE}. When you next run in this directory, we'll read from that instead.`);
   return toml.parse(tomlContent);
 }
 
@@ -303,27 +308,22 @@ async function promptForConfig() {
  * Run a Node.js script directly without spawning a shell.
  * This avoids Windows PowerShell issues where cmd.exe as an intermediary
  * can interfere with console output and ANSI color codes.
- * 
- * @param {string} label - Display label for the command
- * @param {string} scriptPath - Absolute path to the Node.js script
- * @param {string[]} args - Array of arguments to pass to the script
- * @param {object} options - Options (env, cwd, allowInterrupt)
  */
-function runNodeScript(label, scriptPath, args = [], options = {}) {
-  console.log(`${chalk.dim('•')} ${label}`);
+function runNodeScript(label: string, scriptPath: string, args: string[] = [], options: any = {}): void {
+  console.log(`${chalk.dim('*')} ${label}`);
   const { env: extraEnv, allowInterrupt = false, ...rest } = options || {};
   const mergedEnv = { ...process.env, ...(extraEnv || {}) };
   const shouldCapture = ['1', 'true', 'yes', 'on'].includes(String(process.env.SUPERCONNECT_E2E_VERBOSE || '').toLowerCase());
   
   // Call Node.js directly without shell - more reliable cross-platform
-  const result = spawnSync(process.execPath, [scriptPath, ...args], {
+  const result = spawnSync(process.execPath, ['--experimental-strip-types', scriptPath, ...args], {
     stdio: shouldCapture ? 'pipe' : 'inherit',
     env: mergedEnv,
     ...rest
   });
   
   if (result.signal === 'SIGINT' && allowInterrupt) {
-    console.warn(`⚠️  ${label} interrupted by SIGINT; continuing to finalize...`);
+    console.warn(`Warning: ${label} interrupted by SIGINT; continuing to finalize...`);
     return;
   }
   if (result.status !== 0) {
@@ -331,7 +331,7 @@ function runNodeScript(label, scriptPath, args = [], options = {}) {
     if (shouldCapture) {
       const stdout = result.stdout ? result.stdout.toString().trim() : '';
       const stderr = result.stderr ? result.stderr.toString().trim() : '';
-      console.error(`❌ ${label} failed with code ${status}`);
+      console.error(`Error: ${label} failed with code ${status}`);
       console.error(`Script: ${scriptPath}`);
       console.error(`Args: ${JSON.stringify(args)}`);
       if (stdout) {
@@ -345,10 +345,10 @@ function runNodeScript(label, scriptPath, args = [], options = {}) {
         console.error('stderr: (empty)');
       }
       if (result.error) {
-        console.error(`spawn error: ${result.error.stack || result.error.message || result.error}`);
+        console.error(`spawn error: ${(result.error as any).stack || (result.error as any).message || result.error}`);
       }
     } else {
-      console.error(`❌ ${label} failed with code ${status}`);
+      console.error(`Error: ${label} failed with code ${status}`);
     }
     process.exit(status);
   }
@@ -357,8 +357,9 @@ function runNodeScript(label, scriptPath, args = [], options = {}) {
 /**
  * Get version string with git SHA if available
  */
-function getVersionString() {
-  const semver = require('../package.json').version;
+function getVersionString(): string {
+  const pkg = fs.readJsonSync(path.join(__dirname, '..', 'package.json'));
+  const semver = pkg.version;
   
   // First try reading from baked-in SHA file (for npm installs)
   try {
@@ -371,7 +372,6 @@ function getVersionString() {
   
   // Fall back to git command (for dev environments)
   try {
-    const { execSync } = require('child_process');
     const sha = execSync('git rev-parse --short HEAD', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     return `${semver} (${sha})`;
   } catch {
@@ -379,24 +379,24 @@ function getVersionString() {
   }
 }
 
-function parseList(values) {
+function parseList(values: any): string[] {
   const raw = Array.isArray(values) ? values : values ? [values] : [];
   return raw
-    .flatMap((item) => String(item).split(','))
-    .map((s) => s.trim())
+    .flatMap((item: any) => String(item).split(','))
+    .map((s: string) => s.trim())
     .filter(Boolean);
 }
 
-function loadEnvToken() {
+function loadEnvToken(): string | null {
   return process.env.FIGMA_ACCESS_TOKEN || null;
 }
 
-function loadAgentToken(api) {
+function loadAgentToken(api: string): string | null {
   const envVar = getAgentEnvVarForApi(api);
   return process.env[envVar] || null;
 }
 
-function tryReadEnvFile(envPath) {
+function tryReadEnvFile(envPath: string): { exists: boolean; parsed: any } {
   try {
     if (!fs.existsSync(envPath)) return { exists: false, parsed: null };
     const raw = fs.readFileSync(envPath, 'utf8');
@@ -406,18 +406,18 @@ function tryReadEnvFile(envPath) {
   }
 }
 
-function loadDotenvFromTargetRepo(targetRepoPath) {
+function loadDotenvFromTargetRepo(targetRepoPath: string): { envPath: string; loaded: boolean; exists: boolean; parsed: any } {
   const envPath = path.join(targetRepoPath, '.env');
   const { exists, parsed } = tryReadEnvFile(envPath);
   try {
-    const result = dotenv.config({ path: envPath, override: false, quiet: true });
+    const result = dotenv.config({ path: envPath, override: false, quiet: true } as any);
     return { envPath, loaded: !result.error, exists, parsed };
   } catch {
     return { envPath, loaded: false, exists, parsed };
   }
 }
 
-function resolveEnvVarSource({ key, cliFlagUsed, parsedTargetEnv }) {
+function resolveEnvVarSource({ key, cliFlagUsed, parsedTargetEnv }: { key: string; cliFlagUsed: boolean; parsedTargetEnv: any }): { valuePresent: boolean; note: string } {
   if (cliFlagUsed) return { valuePresent: true, note: 'from command flag' };
   const valuePresent = Boolean(process.env[key]);
   if (!valuePresent) return { valuePresent: false, note: 'not set' };
@@ -427,8 +427,8 @@ function resolveEnvVarSource({ key, cliFlagUsed, parsedTargetEnv }) {
   return { valuePresent, note: 'from your environment' };
 }
 
-function formatEnvStatusLine({ key, valuePresent, note }) {
-  const mark = valuePresent ? chalk.green('✓') : chalk.dim('—');
+function formatEnvStatusLine({ key, valuePresent, note }: { key: string; valuePresent: boolean; note: string }): string {
+  const mark = valuePresent ? chalk.green('OK') : chalk.dim('-');
   const suffix = note ? chalk.dim(` (${note})`) : '';
   return `  ${mark} ${key}${suffix}`;
 }
@@ -444,7 +444,7 @@ function showKeyStatus({
   hasOpenAIKey,
   selectedAgentApi,
   selectionReason
-}) {
+}: any): void {
   console.log(`\nSuperconnect v${version}`);
   console.log(`Target repo: ${targetRepoPath}`);
 
@@ -472,14 +472,14 @@ function showKeyStatus({
 
   if (selectedAgentApi) {
     console.log(
-      `${chalk.dim('•')} ${highlight('Agent provider')}: ${highlight(selectedAgentApi)}${
+      `${chalk.dim('*')} ${highlight('Agent provider')}: ${highlight(selectedAgentApi)}${
         selectionReason ? chalk.dim(` (${selectionReason})`) : ''
       }`
     );
   }
 }
 
-function autoSelectProvider({ configuredApi, hasAnthropicKey, hasOpenAIKey, defaultWhenBoth = true }) {
+function autoSelectProvider({ configuredApi, hasAnthropicKey, hasOpenAIKey, defaultWhenBoth = true }: any): { api: string | null; reason: string | null } {
   const normalizedConfigured = normalizeAgentApiName(configuredApi);
   const isOnlyAnthropic = hasAnthropicKey && !hasOpenAIKey;
   const isOnlyOpenAI = hasOpenAIKey && !hasAnthropicKey;
@@ -499,7 +499,7 @@ function autoSelectProvider({ configuredApi, hasAnthropicKey, hasOpenAIKey, defa
   return { api: normalizedConfigured || DEFAULT_API, reason: null };
 }
 
-function resolvePaths(config) {
+function resolvePaths(config: any): any {
   const target = config.target;
   const scriptDir = __dirname;
   const superconnectDir = path.join(target, 'superconnect-logs');
@@ -530,10 +530,10 @@ function resolvePaths(config) {
   };
 }
 
-async function runInitCommand() {
+async function runInitCommand(): Promise<void> {
   const existing = fs.existsSync(path.resolve(DEFAULT_CONFIG_FILE));
   if (existing) {
-    console.log(`${chalk.green('✓')} ${highlight(`./${DEFAULT_CONFIG_FILE}`)} already exists`);
+    console.log(`${chalk.green('OK')} ${highlight(`./${DEFAULT_CONFIG_FILE}`)} already exists`);
   }
   await promptForConfig();
   const runNow = await promptConfirmProceed({ message: 'Run generation now?', defaultYes: false });
@@ -544,7 +544,7 @@ async function runInitCommand() {
   console.log(`${chalk.dim('Next:')} run ${highlight('superconnect')} to generate Code Connect files`);
 }
 
-async function runPipelineCommand(args) {
+async function runPipelineCommand(args: any): Promise<void> {
   let interrupted = false;
   process.on('SIGINT', () => {
     if (interrupted) return;
@@ -561,13 +561,13 @@ async function runPipelineCommand(args) {
     console.log(`Run: ${highlight('superconnect init')}`);
     process.exit(1);
   }
-  console.log(`${chalk.green('✓')} Using ${highlight(DEFAULT_CONFIG_FILE)} in ${process.cwd()}`);
+  console.log(`${chalk.green('OK')} Using ${highlight(DEFAULT_CONFIG_FILE)} in ${process.cwd()}`);
   const figmaUrl = args.figmaUrl || cfg.inputs?.figma_file_url || undefined;
   const target =
     args.target ||
     (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
-    console.error(`❌ Target repo not found or not a directory: ${target}`);
+    console.error(`Error: Target repo not found or not a directory: ${target}`);
     process.exit(1);
   }
 
@@ -612,7 +612,7 @@ async function runPipelineCommand(args) {
   const figmaIndexMissing = !fs.existsSync(prospectiveFigmaIndex);
 
   if (figmaIndexMissing && !args.figmaToken && !loadEnvToken()) {
-    console.error('❌ FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
+    console.error('Error: FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
     console.error('   Set FIGMA_ACCESS_TOKEN in your environment or target repo .env, or pass --figma-token.');
     console.error('   Figma tokens: https://www.figma.com/developers/api#access-tokens');
     process.exit(1);
@@ -621,7 +621,7 @@ async function runPipelineCommand(args) {
   const needFigmaScan = args.force || !fs.existsSync(paths.figmaIndex);
   const needRepoSummary = args.force || !fs.existsSync(paths.repoSummary);
   const needOrientation = args.force || !fs.existsSync(paths.orientation);
-  const rel = (p) => path.relative(process.cwd(), p) || p;
+  const rel = (p: string): string => path.relative(process.cwd(), p) || p;
 
   const needsAgent = !args.dryRun;
   if (needsAgent) {
@@ -636,7 +636,7 @@ async function runPipelineCommand(args) {
     if (!args.yes) {
       const confirmed = await promptConfirmProceed({ message: 'Proceed with generation?', defaultYes: true });
       if (confirmed === null) {
-        console.error('❌ Non-interactive terminal detected.');
+        console.error('Error: Non-interactive terminal detected.');
         console.error(`   Re-run with ${highlight('--yes')} to proceed without confirmation.`);
         process.exit(1);
       }
@@ -647,7 +647,7 @@ async function runPipelineCommand(args) {
     }
   }
   if (needsAgent && !agentToken) {
-    console.error(`❌ ${agentEnvVar} is required to run agent-backed stages (${agentConfig.api}).`);
+    console.error(`Error: ${agentEnvVar} is required to run agent-backed stages (${agentConfig.api}).`);
     console.error(`   Set ${agentEnvVar} in your environment or target repo .env, or set [agent].api_key in superconnect.toml.`);
     console.error(`   Anthropic keys: https://console.anthropic.com/`);
     console.error(`   OpenAI keys: https://platform.openai.com/api-keys`);
@@ -657,13 +657,13 @@ async function runPipelineCommand(args) {
 
   if (needRepoSummary) {
     runNodeScript(
-      `${highlight('Repo overview')} → ${codeColor(rel(paths.repoSummary))}`,
-      path.join(paths.scriptDir, 'summarize-repo.js'),
+      `${highlight('Repo overview')} -> ${codeColor(rel(paths.repoSummary))}`,
+      path.join(paths.scriptDir, 'summarize-repo.ts'),
       ['--root', paths.target]
     );
   } else {
     console.log(
-      `${chalk.dim('•')} ${highlight('Repo overview')} (skipped, ${codeColor(
+      `${chalk.dim('*')} ${highlight('Repo overview')} (skipped, ${codeColor(
         rel(paths.repoSummary)
       )} present)`
     );
@@ -679,14 +679,14 @@ async function runPipelineCommand(args) {
   }
 
   if (needFigmaScan && !figmaToken) {
-    console.error('❌ FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
+    console.error('Error: FIGMA_ACCESS_TOKEN is required to run the Figma scan.');
     console.error('   Set FIGMA_ACCESS_TOKEN in your environment or .env, or pass --figma-token.');
     process.exit(1);
   }
 
   if (needFigmaScan) {
     if (!paths.figmaUrl) {
-      console.error('❌ --figma-url is required for figma scan when no index exists.');
+      console.error('Error: --figma-url is required for figma scan when no index exists.');
       process.exit(1);
     }
     const figmaScanArgs = [
@@ -697,13 +697,13 @@ async function runPipelineCommand(args) {
       '--layer-depth', String(figmaConfig.layerDepth)
     ];
     runNodeScript(
-      `${highlight('Figma scan')} → ${figmaColor(rel(paths.figmaIndex))}`,
-      path.join(paths.scriptDir, 'figma-scan.js'),
+      `${highlight('Figma scan')} -> ${figmaColor(rel(paths.figmaIndex))}`,
+      path.join(paths.scriptDir, 'figma-scan.ts'),
       figmaScanArgs
     );
   } else {
     console.log(
-      `${chalk.dim('•')} ${highlight('Figma scan')} (skipped, ${figmaColor(
+      `${chalk.dim('*')} ${highlight('Figma scan')} (skipped, ${figmaColor(
         rel(paths.figmaIndex)
       )} already present)`
     );
@@ -727,8 +727,8 @@ async function runPipelineCommand(args) {
       ...(args.dryRun ? ['--dry-run'] : [])
     ];
     runNodeScript(
-      `${highlight('Repo orientation')} → ${generatedColor(rel(paths.orientation))}`,
-      path.join(paths.scriptDir, 'run-orienter.js'),
+      `${highlight('Repo orientation')} -> ${generatedColor(rel(paths.orientation))}`,
+      path.join(paths.scriptDir, 'run-orienter.ts'),
       orienterArgs,
       {
         env: {
@@ -739,7 +739,7 @@ async function runPipelineCommand(args) {
     );
   } else {
     console.log(
-      `${chalk.dim('•')} ${highlight('Repo orientation')} (skipped, ${generatedColor(
+      `${chalk.dim('*')} ${highlight('Repo orientation')} (skipped, ${generatedColor(
         rel(paths.orientation)
       )} already present)`
     );
@@ -763,8 +763,8 @@ async function runPipelineCommand(args) {
       ...(args.force ? ['--force'] : [])
     ];
     runNodeScript(
-      `${highlight('Code generation')} (${codeColor(rel(paths.orientation))} → ${generatedColor(rel(paths.codeConnectDir))})`,
-      path.join(paths.scriptDir, 'run-codegen.js'),
+      `${highlight('Code generation')} (${codeColor(rel(paths.orientation))} -> ${generatedColor(rel(paths.codeConnectDir))})`,
+      path.join(paths.scriptDir, 'run-codegen.ts'),
       codegenArgs,
       {
         cwd: paths.target,
@@ -776,7 +776,7 @@ async function runPipelineCommand(args) {
       }
     );
   } else {
-    console.log(`${chalk.dim('•')} ${highlight('Code generation')} skipped (dry run)`);
+    console.log(`${chalk.dim('*')} ${highlight('Code generation')} skipped (dry run)`);
   }
 
   {
@@ -788,7 +788,7 @@ async function runPipelineCommand(args) {
     ];
     runNodeScript(
       `${highlight('Finalize')}`,
-      path.join(paths.scriptDir, 'finalize.js'),
+      path.join(paths.scriptDir, 'finalize.ts'),
       finalizeArgs,
       {
         env: {
@@ -799,10 +799,10 @@ async function runPipelineCommand(args) {
     );
   }
 
-  console.log(`${chalk.green('✓')} Pipeline complete.`);
+  console.log(`${chalk.green('OK')} Pipeline complete.`);
 }
 
-async function main() {
+async function main(): Promise<void> {
   const program = new Command();
   program
     .name('superconnect')
@@ -844,29 +844,35 @@ async function main() {
   await program.parseAsync(process.argv);
 }
 
-main().catch((err) => {
-  console.error(`\n❌ Pipeline failed: ${err.message}`);
-  
-  // Provide helpful context based on error type
-  if (err.code === 'ENOENT') {
-    console.error('\n💡 File not found - check that all required files exist');
-    console.error('   Common causes:');
-    console.error('   - Missing superconnect.toml configuration file');
-    console.error('   - Missing Figma scan output files');
-    console.error('   - Incorrect file paths in configuration');
-  } else if (err.code === 'EACCES') {
-    console.error('\n💡 Permission denied - check file/directory permissions');
-  } else if (err.message.includes('FIGMA') || err.message.includes('Figma')) {
-    console.error('\n💡 Figma-related error - check your FIGMA_ACCESS_TOKEN and network connection');
-  } else if (err.message.includes('API') || err.message.includes('fetch')) {
-    console.error('\n💡 API error - check your API keys and network connection');
-  }
-  
-  if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
-    console.error(`\nStack trace:\n${err.stack}`);
-  } else {
-    console.error('\nRun with SUPERCONNECT_E2E_VERBOSE=1 for full stack trace');
-  }
-  
-  process.exit(1);
-});
+// ESM equivalent of require.main === module
+const isMain = import.meta.url === `file://${process.argv[1]}` || 
+               import.meta.url === `file://${path.resolve(process.argv[1])}`;
+
+if (isMain) {
+  main().catch((err: any) => {
+    console.error(`\nError: Pipeline failed: ${err.message}`);
+    
+    // Provide helpful context based on error type
+    if (err.code === 'ENOENT') {
+      console.error('\nHint: File not found - check that all required files exist');
+      console.error('   Common causes:');
+      console.error('   - Missing superconnect.toml configuration file');
+      console.error('   - Missing Figma scan output files');
+      console.error('   - Incorrect file paths in configuration');
+    } else if (err.code === 'EACCES') {
+      console.error('\nHint: Permission denied - check file/directory permissions');
+    } else if (err.message.includes('FIGMA') || err.message.includes('Figma')) {
+      console.error('\nHint: Figma-related error - check your FIGMA_ACCESS_TOKEN and network connection');
+    } else if (err.message.includes('API') || err.message.includes('fetch')) {
+      console.error('\nHint: API error - check your API keys and network connection');
+    }
+    
+    if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
+      console.error(`\nStack trace:\n${err.stack}`);
+    } else {
+      console.error('\nRun with SUPERCONNECT_E2E_VERBOSE=1 for full stack trace');
+    }
+    
+    process.exit(1);
+  });
+}

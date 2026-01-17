@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+// @ts-nocheck
 /**
  * Stage 4: Per-component Code Connect generation.
  *
@@ -7,7 +7,7 @@
  * with built-in validation and retry logic.
  *
  * Inputs:
- *  - Figma components index + per-component JSON (from figma-scan.js)
+ *  - Figma components index + per-component JSON (from figma-scan.ts)
  *  - Orienter JSONL (one JSON object per component describing needed files)
  *  - Repo root containing the source files to read
  *
@@ -22,16 +22,20 @@
  *  - Write the generated *.figma.tsx/.figma.ts and a compact JSON log
  */
 
-const fs = require('fs-extra');
-const path = require('path');
-const { Command } = require('commander');
-const { OpenAIAgentAdapter, ClaudeAgentAdapter, AgentSDKAdapter } = require('../src/agent/agent-adapter');
-const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
-const { sanitizeSlug, toTokenName } = require('../src/util/naming.ts');
-const { readJsonSafe } = require('../src/util/fs-helpers.ts');
-const { processComponent: processReactComponent } = require('../src/react/direct-codegen.ts');
-const { processComponent: processAngularComponent } = require('../src/angular/direct-codegen.ts');
-const pLimit = require('p-limit');
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Command } from 'commander';
+import { OpenAIAgentAdapter, ClaudeAgentAdapter, AgentSDKAdapter } from '../src/agent/agent-adapter.ts';
+import { figmaColor, codeColor, generatedColor, highlight } from './colors.cjs';
+import { sanitizeSlug, toTokenName } from '../src/util/naming.ts';
+import { readJsonSafe } from '../src/util/fs-helpers.ts';
+import { processComponent as processReactComponent } from '../src/react/direct-codegen.ts';
+import { processComponent as processAngularComponent } from '../src/angular/direct-codegen.ts';
+import pLimit from 'p-limit';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const DEFAULT_CODECONNECT_DIR = 'codeConnect';
 
@@ -898,7 +902,6 @@ const buildAdapter = (config) => {
   }
   
   if (api === 'anthropic-agent-sdk') {
-    const { AgentSDKAdapter } = require('../src/agent/agent-adapter');
     return new AgentSDKAdapter({
       model: config.agentModel || 'claude-sonnet-4-5',
       logDir: config.agentLogDir,

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Finalizer: summarize a Superconnect run.
@@ -12,26 +13,31 @@
  *  - figma.config.json at repo root pointing Code Connect to generated files
  */
 
-const fs = require('fs-extra');
-const path = require('path');
-const { Command } = require('commander');
-const chalk = require('chalk');
-const fg = require('fast-glob');
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Command } from 'commander';
+import chalk from 'chalk';
+import fg from 'fast-glob';
 
-const { figmaColor, codeColor, generatedColor, highlight } = require('./colors');
-const { toTokenName } = require('../src/util/naming.ts');
-const { readJsonSafe } = require('../src/util/fs-helpers.ts');
-const stripAnsi = (value = '') => value.replace(/\u001b\[[0-9;]*m/g, '');
+import { figmaColor, codeColor, generatedColor, highlight } from './colors.cjs';
+import { toTokenName } from '../src/util/naming.ts';
+import { readJsonSafe } from '../src/util/fs-helpers.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const stripAnsi = (value: any = '') => value.replace(/\u001b\[[0-9;]*m/g, '');
 const METADATA_FILE_NAME = 'figma.config.json';
 
-const readJsonLines = async (filePath) => {
+const readJsonLines = async (filePath: any) => {
   try {
     const data = await fs.readFile(filePath, 'utf8');
     return data
       .split(/\r?\n/)
-      .map((line) => line.trim())
+      .map((line: any) => line.trim())
       .filter(Boolean)
-      .map((line) => {
+      .map((line: any) => {
         try {
           return JSON.parse(line);
         } catch {
@@ -44,7 +50,7 @@ const readJsonLines = async (filePath) => {
   }
 };
 
-const extractFigmaTokensFromFile = (filePath) => {
+const extractFigmaTokensFromFile = (filePath: any) => {
   try {
     const text = fs.readFileSync(filePath, 'utf8');
     const re = /<FIGMA_[A-Z0-9_]+>/g;
@@ -60,13 +66,13 @@ const extractFigmaTokensFromFile = (filePath) => {
   }
 };
 
-const listCodeConnectFiles = (dir, repoRoot) => {
-  const files = [];
+const listCodeConnectFiles = (dir: any, repoRoot: any) => {
+  const files: any[] = [];
   
   // Scan centralized codeConnect directory
   if (dir && fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
     const pattern = path.join(dir, '**', '*.figma.{ts,tsx}');
-    files.push(...fg.sync(pattern.replace(/\\\\/g, '/')).map((p) => path.resolve(p)));
+    files.push(...fg.sync(pattern.replace(/\\\\/g, '/')).map((p: any) => path.resolve(p)));
   }
   
   // Scan for colocated files in source roots
@@ -77,7 +83,7 @@ const listCodeConnectFiles = (dir, repoRoot) => {
       path.join(repoRoot, 'apps', '*', 'src', '**', '*.figma.{ts,tsx}')
     ];
     colocatedPatterns.forEach((pattern) => {
-      files.push(...fg.sync(pattern.replace(/\\\\/g, '/')).map((p) => path.resolve(p)));
+      files.push(...fg.sync(pattern.replace(/\\\\/g, '/')).map((p: any) => path.resolve(p)));
     });
   }
   
@@ -87,7 +93,7 @@ const listCodeConnectFiles = (dir, repoRoot) => {
 
 const VALUE_COL = 50;
 
-const formatRow = (statusEmoji, label, value, indent = '') => {
+const formatRow = (statusEmoji: any, label: any, value: any, indent: any = '') => {
   const target = Math.max(0, VALUE_COL - indent.length - 3); // emoji + space + space before value
   const visible = stripAnsi(label);
   const pad = Math.max(0, target - visible.length);
@@ -95,19 +101,19 @@ const formatRow = (statusEmoji, label, value, indent = '') => {
   return `${indent}${statusEmoji} ${chalk.bold(padded)} ${value}`;
 };
 
-const continuationRow = (indent = '', value = '') => {
+const continuationRow = (indent: any = '', value: any = '') => {
   const pad = Math.max(0, VALUE_COL - indent.length - 3);
   return `${indent}${' '.repeat(pad + 3)}${value}`;
 };
 
-const readComponentLogs = async (dir) => {
+const readComponentLogs = async (dir: any) => {
   if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return [];
   const entries = fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .map((file) => ({ file, full: path.join(dir, file) }));
+    .filter((f: any) => f.endsWith('.json'))
+    .map((file: any) => ({ file, full: path.join(dir, file) }));
 
-  const results = [];
+  const results: any[] = [];
   for (const entry of entries) {
     const data = await readJsonSafe(entry.full);
     if (!data) continue;
@@ -125,8 +131,8 @@ const readComponentLogs = async (dir) => {
   return results;
 };
 
-const buildSummary = (context) => {
-  const lines = [];
+const buildSummary = (context: any) => {
+  const lines: any[] = [];
   const scanStatus =
     context.orientationMapped >= context.figmaCount && context.figmaCount > 0
       ? '🟢 (complete)'
@@ -209,8 +215,8 @@ const buildSummary = (context) => {
   );
   lines.push(`🟢 ${highlight(context.builtDetails.length)} Code Connect files generated:`);
   if (context.builtDetails.length) {
-    const longestName = Math.max(...context.builtDetails.map((item) => (item.figmaName || '').length), 0);
-    const formatted = context.builtDetails.map((item) => {
+    const longestName = Math.max(...context.builtDetails.map((item: any) => (item.figmaName || '').length), 0);
+    const formatted = context.builtDetails.map((item: any) => {
       const name = item.figmaName || '';
       const target = item.codeConnectFile || '(not written)';
       const react = item.reactName ? codeColor(` (maps to React: ${item.reactName})`) : '';
@@ -219,8 +225,8 @@ const buildSummary = (context) => {
       const left = `${generatedColor(paddedNameRaw)}→ ${generatedColor(target)}`;
       return { leftRaw, left, react };
     });
-    const longestLeft = Math.max(...formatted.map((item) => item.leftRaw.length), 0);
-    formatted.forEach(({ leftRaw, left, react }) => {
+    const longestLeft = Math.max(...formatted.map((item: any) => item.leftRaw.length), 0);
+    formatted.forEach(({ leftRaw, left, react }: any) => {
       const gap = longestLeft - leftRaw.length;
       const spacer = gap > 0 ? ' '.repeat(gap) : '';
       lines.push(`    - ${left}${spacer}${react}`);
@@ -230,7 +236,7 @@ const buildSummary = (context) => {
   }
   lines.push(`🟡 Declined to codegen for ${highlight(context.skippedDetails.length)} component candidates:`);
   if (context.skippedDetails.length) {
-    context.skippedDetails.forEach((item) => {
+    context.skippedDetails.forEach((item: any) => {
       const name = item.figmaName || item.file || '(unknown)';
       const reason = item.reason ? chalk.dim(` — ${item.reason}`) : '';
       lines.push(`    - ${highlight(name)}${reason}`);
@@ -242,7 +248,7 @@ const buildSummary = (context) => {
   return lines.join('\n');
 };
 
-const parseArgs = (argv) => {
+const parseArgs = (argv: any) => {
   const program = new Command();
   program
     .name('finalize')
@@ -283,16 +289,16 @@ async function main() {
   const figmaComponentsDir = path.join(config.superconnectDir, 'figma-components');
   const orientationIdSet = new Set(
     orientationEntries
-      .map((e) => e.figmaComponentId || e.figma_component_id || null)
+      .map((e: any) => e.figmaComponentId || e.figma_component_id || null)
       .filter(Boolean)
   );
   const orientationNameSet = new Set(
     orientationEntries
-      .map((e) => e.figmaComponentName || e.figma_component_name || e.canonicalName || null)
+      .map((e: any) => e.figmaComponentName || e.figma_component_name || e.canonicalName || null)
       .filter(Boolean)
-      .map((name) => name.toLowerCase())
+      .map((name: any) => name.toLowerCase())
   );
-  const componentLogs = componentLogsRaw.filter((log) => {
+  const componentLogs = componentLogsRaw.filter((log: any) => {
     if (log.figmaId && orientationIdSet.has(log.figmaId)) return true;
     if (log.figmaName && orientationNameSet.has(log.figmaName.toLowerCase())) return true;
     if (log.codeConnectFile) return true;
@@ -300,8 +306,8 @@ async function main() {
   });
   const codegenFiles = listCodeConnectFiles(config.codeConnectDir, config.baseCwd);
 
-  const builtDetails = componentLogs.filter((log) => Boolean(log.codeConnectFile));
-  const skippedDetails = componentLogs.filter((log) => !log.codeConnectFile);
+  const builtDetails = componentLogs.filter((log: any) => Boolean(log.codeConnectFile));
+  const skippedDetails = componentLogs.filter((log: any) => !log.codeConnectFile);
   
   // Warn if no components were built
   if (builtDetails.length === 0 && componentLogs.length > 0) {
@@ -320,12 +326,12 @@ async function main() {
     orientationRel: path.relative(config.baseCwd, config.orientation) || config.orientation,
     figmaCount: Array.isArray(figmaIndex.components) ? figmaIndex.components.length : 0,
     orientationTotal: orientationEntries.length,
-    orientationMapped: orientationEntries.filter((e) => e.status === 'mapped').length,
+    orientationMapped: orientationEntries.filter((e: any) => e.status === 'mapped').length,
     builtCount: builtDetails.length,
     skippedCount: skippedDetails.length,
     builtDetails,
     skippedDetails,
-    codegenFiles: codegenFiles.map((f) => path.relative(config.baseCwd, f) || f),
+    codegenFiles: codegenFiles.map((f: any) => path.relative(config.baseCwd, f) || f),
     figmaFileKey: figmaIndex.fileKey || null,
     figmaFileName: figmaIndex.fileName || null,
     figmaUrl: figmaIndex.fileKey ? `https://www.figma.com/design/${figmaIndex.fileKey}` : null,
@@ -340,17 +346,17 @@ async function main() {
   };
 
   const summary = buildSummary(context);
-  const includeGlobs = new Set();
+  const includeGlobs = new Set<string>();
   const sourceGlobs = ['packages/**/*.{ts,tsx}', 'apps/**/*.{ts,tsx}'];
   const figmaFileUrl = figmaIndex.fileKey ? `https://www.figma.com/design/${figmaIndex.fileKey}` : null;
 
-  const normalizeNameKey = (value) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const normalizeNameKey = (value: any) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-  const buildDocumentSubstitutions = (details, baseUrl) => {
+  const buildDocumentSubstitutions = (details: any, baseUrl: any) => {
     if (!baseUrl) return undefined;
-    const substitutions = { '<FIGMA_ICONS_BASE>': baseUrl };
-    const sorted = [...details].sort((a, b) => (a.figmaName || '').localeCompare(b.figmaName || ''));
-    sorted.forEach((log) => {
+    const substitutions: any = { '<FIGMA_ICONS_BASE>': baseUrl };
+    const sorted = [...details].sort((a: any, b: any) => (a.figmaName || '').localeCompare(b.figmaName || ''));
+    sorted.forEach((log: any) => {
       if (!log.figmaId || !log.figmaName) return;
       const nodeUrl = `${baseUrl}?node-id=${(log.figmaId || '').replace(/:/g, '-')}`;
       const nameToken = log.figmaToken || toTokenName(log.figmaName);
@@ -379,12 +385,12 @@ async function main() {
     includeGlobs.add('apps/**/src/**/*.figma.tsx');
   }
 
-  const derivePackagePathAliases = (repoRoot) => {
+  const derivePackagePathAliases = (repoRoot: any) => {
     const packagesDir = path.join(repoRoot, 'packages');
     if (!fs.existsSync(packagesDir) || !fs.statSync(packagesDir).isDirectory()) return undefined;
-    const aliases = {};
+    const aliases: any = {};
     const entries = fs.readdirSync(packagesDir);
-    entries.forEach((entry) => {
+    entries.forEach((entry: any) => {
       const pkgDir = path.join(packagesDir, entry);
       if (!fs.statSync(pkgDir).isDirectory()) return;
       const pkgJsonPath = path.join(pkgDir, 'package.json');
@@ -406,7 +412,7 @@ async function main() {
     return Object.keys(aliases).length ? aliases : undefined;
   };
 
-  const codeConnectConfig = {
+  const codeConnectConfig: any = {
     include: [...includeGlobs, ...sourceGlobs],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**'],
     parser: targetFramework === 'angular' ? 'html' : 'react',
@@ -420,7 +426,7 @@ async function main() {
     codeConnectConfig.documentUrlSubstitutions = substitutions;
   }
 
-  const metadata = {
+  const metadata: any = {
     schemaVersion: 1,
     codeConnect: codeConnectConfig
   };
@@ -437,10 +443,10 @@ async function main() {
 
   const substitutionTokens = new Set(Object.keys(substitutions || {}));
   const tokenUsage = new Map();
-  context.codegenFiles.forEach((filePathRel) => {
+  context.codegenFiles.forEach((filePathRel: any) => {
     const filePath = path.resolve(config.baseCwd, filePathRel);
     const tokens = extractFigmaTokensFromFile(filePath);
-    tokens.forEach((token) => {
+    tokens.forEach((token: any) => {
       const current = tokenUsage.get(token) || 0;
       tokenUsage.set(token, current + 1);
     });
@@ -450,10 +456,10 @@ async function main() {
   if (unmatchedTokens.length && figmaIndex?.components?.length && codeConnectConfig.documentUrlSubstitutions) {
     const byName = new Map(
       figmaIndex.components
-        .map((c) => [normalizeNameKey(c.name), c])
-        .filter(([key, c]) => key && c && c.id)
+        .map((c: any) => [normalizeNameKey(c.name), c])
+        .filter(([key, c]: any) => key && c && c.id)
     );
-    unmatchedTokens.forEach((token) => {
+    unmatchedTokens.forEach((token: any) => {
       const key = token.replace(/[<>]/g, '').replace(/^FIGMA_/, '');
       const normalized = normalizeNameKey(key);
       const match = byName.get(normalized);
@@ -483,20 +489,24 @@ async function main() {
   console.log(`${chalk.green('✓')} Wrote ${metadataPath}`);
 }
 
-main().catch((err) => {
-  console.error(`\n❌ Finalization failed: ${err.message}`);
-  
-  if (err.code === 'ENOENT') {
-    console.error('\n💡 File not found - ensure all previous pipeline steps completed successfully');
-  } else if (err.message.includes('JSON')) {
-    console.error('\n💡 JSON parse error - check that generated files contain valid JSON');
-  } else if (err.message.includes('write') || err.code === 'EACCES') {
-    console.error('\n💡 File write error - check permissions in output directories');
-  }
-  
-  if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
-    console.error(`\nStack trace:\n${err.stack}`);
-  }
-  
-  process.exit(1);
-});
+// ESM equivalent of require.main === module
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  main().catch((err: any) => {
+    console.error(`\n❌ Finalization failed: ${err.message}`);
+    
+    if (err.code === 'ENOENT') {
+      console.error('\n💡 File not found - ensure all previous pipeline steps completed successfully');
+    } else if (err.message.includes('JSON')) {
+      console.error('\n💡 JSON parse error - check that generated files contain valid JSON');
+    } else if (err.message.includes('write') || err.code === 'EACCES') {
+      console.error('\n💡 File write error - check permissions in output directories');
+    }
+    
+    if (process.env.SUPERCONNECT_E2E_VERBOSE === '1') {
+      console.error(`\nStack trace:\n${err.stack}`);
+    }
+    
+    process.exit(1);
+  });
+}

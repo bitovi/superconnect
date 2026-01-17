@@ -10,11 +10,11 @@ Superconnect is a Node.js CLI (distributed as the `superconnect` npm package, No
 4. **Codegen** – agent produces a mapping schema rendered into `.figma.tsx` (React) or `.figma.ts` (Angular)
 5. **Finalizer** – summarizes the run and writes `figma.config.json` for Code Connect
 
-The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `superconnect` binary.
+The pipeline is orchestrated by `scripts/run-pipeline.ts` and exposed as the `superconnect` binary.
 
 ## Runtime components
 
-- **CLI orchestrator** (`scripts/run-pipeline.js`)
+- **CLI orchestrator** (`scripts/run-pipeline.ts`)
   - Parses CLI flags (`--figma-url`, `--figma-token`, `--target`, `--framework`, `--only`, `--exclude`, `--force`, `--dry-run`)
   - Loads configuration from `superconnect.toml`, prompting the user to create it if missing
   - Resolves a target repo, validates access, and computes paths under `superconnect-logs/` and `codeConnect/`
@@ -22,7 +22,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Decides which stages to run based on existing artifacts and `--force`, and blocks agent stages when API keys are missing unless `--dry-run` is set
   - When `SUPERCONNECT_E2E_VERBOSE` is truthy, captures stage stdout/stderr for easier test debugging
 
-- **Agent adapters** (`src/agent/agent-adapter.js`)
+- **Agent adapters** (`src/agent/agent-adapter.ts`)
   - `OpenAIAgentAdapter` (OpenAI Responses API)
   - `ClaudeAgentAdapter` (Anthropic Messages API)
   - `AgentSDKAdapter` (Anthropic Claude Agent SDK with built-in tools)
@@ -37,7 +37,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
 
 ## Pipeline stages and data flow
 
-### 1. Repo summarizer (`scripts/summarize-repo.js`)
+### 1. Repo summarizer (`scripts/summarize-repo.ts`)
 
 - Inputs:
   - Target repo root (`--root` or positional)
@@ -59,7 +59,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
     - `component_source_files` (paths + exports)
     - Detected lockfiles, `.env` file presence, and common build/tooling config files
 
-### 2. Figma scan (`scripts/figma-scan.js`)
+### 2. Figma scan (`scripts/figma-scan.ts`)
 
 - Inputs:
   - Figma file key or URL
@@ -77,7 +77,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - Writes `superconnect-logs/figma-components/<slug>.json`
   - Writes `superconnect-logs/figma-components-index.json` summarizing the file and components
 
-### 3. Orienter (`scripts/run-orienter.js`)
+### 3. Orienter (`scripts/run-orienter.ts`)
 
 - Inputs:
   - `superconnect-logs/figma-components-index.json`
@@ -104,7 +104,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.js` and exposed as the `su
   - `status`: `"mapped" | "missing" | "ambiguous"`
   - `files`: array of repo‑relative file paths
 
-### 4. Codegen (`scripts/run-codegen.js`)
+### 4. Codegen (`scripts/run-codegen.ts`)
 
 Uses direct codegen approach where agents generate complete Code Connect files with built-in validation and retry logic.
 
@@ -123,9 +123,9 @@ Uses direct codegen approach where agents generate complete Code Connect files w
   - This approach enables stateless processing with validation isolation
 
 - Modules:
-  - `src/react/direct-codegen.js` – React direct codegen implementation
-  - `src/angular/direct-codegen.js` – Angular direct codegen implementation
-  - `src/util/validate-code-connect.js` – Validation layer
+  - `src/react/direct-codegen.ts` – React direct codegen implementation
+  - `src/angular/direct-codegen.ts` – Angular direct codegen implementation
+  - `src/util/validate-code-connect.ts` – Validation layer
 
 - Validation layer checks:
   - All `figma.enum('KEY', ...)` calls: KEY must exist in `variantProperties`
@@ -158,7 +158,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
   - `--only` / `--exclude` filters (names/IDs/globs)
   - `--force` for overwriting existing mapping files
 
-### 5. Finalizer (`scripts/finalize.js`)
+### 5. Finalizer (`scripts/finalize.ts`)
 
   - Code Connect files from both centralized (`codeConnect/`) and colocated (`src/**/*.figma.{ts,tsx}`) locations
 - Behavior:
@@ -212,7 +212,7 @@ Assumptions:
 ## Integrations
 
 - **Figma API**
-  - Used only by `scripts/figma-scan.js`
+  - Used only by `scripts/figma-scan.ts`
   - Accessed via `undici.fetch` with `X-Figma-Token` header
 - **Figma Code Connect**
   - Consumes:

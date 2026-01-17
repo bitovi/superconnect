@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Stage 3: Orienter runner.
@@ -15,18 +16,22 @@
  *  - Always overwrites the output file
  */
 
-const fs = require('fs-extra');
-const path = require('path');
-const { Command } = require('commander');
-const { OpenAIAgentAdapter, ClaudeAgentAdapter } = require('../src/agent/agent-adapter');
-const { parseMaxTokens } = require('../src/util/naming.ts');
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Command } from 'commander';
+import { OpenAIAgentAdapter, ClaudeAgentAdapter } from '../src/agent/agent-adapter.ts';
+import { parseMaxTokens } from '../src/util/naming.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const promptPath = path.join(__dirname, '..', 'prompts', 'orienter.md');
 const defaultOutput = path.join(process.cwd(), 'superconnect-logs', 'orientation.jsonl');
 
-const readJson = (filePath) => fs.readJson(filePath);
+const readJson = (filePath: any): any => fs.readJson(filePath);
 
-const parseArgs = (argv) => {
+const parseArgs = (argv: any): any => {
   const program = new Command();
   program
     .name('run-orienter')
@@ -63,7 +68,7 @@ const parseArgs = (argv) => {
   };
 };
 
-const buildPayload = (promptText, figmaIndex, repoSummary, targetFramework = null) =>
+const buildPayload = (promptText: any, figmaIndex: any, repoSummary: any, targetFramework: any = null): any =>
   [
     promptText.trim(),
     '',
@@ -78,7 +83,7 @@ const buildPayload = (promptText, figmaIndex, repoSummary, targetFramework = nul
     ''
   ].join('\n');
 
-const buildAdapter = (config) => {
+const buildAdapter = (config: any): any => {
   const api = config.agentApi;
   const maxTokens = config.agentMaxTokens || undefined;
   if (api === 'openai') {
@@ -97,7 +102,7 @@ const buildAdapter = (config) => {
   });
 };
 
-async function main() {
+async function main(): Promise<void> {
   const config = parseArgs(process.argv);
 
   const [promptText, figmaIndex, repoSummary] = await Promise.all([
@@ -158,7 +163,7 @@ async function main() {
   console.log(`   Orientation written to ${config.output}`);
 }
 
-main().catch((err) => {
+main().catch((err: any) => {
   console.error(`\n❌ Orienter failed: ${err.message}`);
   
   if (err.code === 'ENOENT') {

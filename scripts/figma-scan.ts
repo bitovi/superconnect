@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 
 /**
  * Figma Component Variants Extractor (JSON-only)
@@ -6,7 +7,7 @@
  * Downloads all variants from a Figma file and saves them as JSON plus an index.
  *
  * Usage:
- *   node scripts/figma-scan.js <fileKeyOrUrl> [options]
+ *   npx tsx scripts/figma-scan.ts <fileKeyOrUrl> [options]
  *
  * Options:
  *   --token       Figma API token (or set FIGMA_ACCESS_TOKEN env variable)
@@ -14,25 +15,31 @@
  *   --index       Index output path (figma-components-index.json)
  */
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 // Use Node's native fetch (Node 22+) instead of undici for better Windows compatibility
-const { Command } = require('commander');
-const chalk = require('chalk');
-const stringifyCompact = (value) => {
-  // Lazy-load ESM helper from CommonJS to keep formatting compact while avoiding top-level require issues on Node 18.
+import { Command } from 'commander';
+import chalk from 'chalk';
+import { figmaColor } from './colors.cjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const stringifyCompact = (value: any) => {
+  // Lazy-load ESM helper to keep formatting compact.
   // This keeps behavior identical to json-stringify-pretty-compact without forcing ESM import at module load.
-  const pkg = require('json-stringify-pretty-compact');
-  const fn = pkg.default || pkg;
-  return fn(value);
+  return import('json-stringify-pretty-compact').then((pkg) => {
+    const fn = (pkg as any).default || pkg;
+    return fn(value);
+  });
 };
-const { figmaColor } = require('./colors');
 
 const SCHEMA_VERSION = 'figma-component@1';
 const INDEX_SCHEMA_VERSION = 'figma-component-index@1';
 
-function parseFileKey(input) {
+function parseFileKey(input: any): string {
   if (!input) return '';
   const urlMatch = input.match(/figma\.com\/(?:file|design)\/([a-zA-Z0-9]{10,})/);
   return urlMatch ? urlMatch[1] : input;
@@ -40,7 +47,7 @@ function parseFileKey(input) {
 
 const DEFAULT_LAYER_DEPTH = 3;
 
-function parseArgs() {
+function parseArgs(): any {
   const program = new Command();
   program
     .argument('<fileKeyOrUrl>', 'Figma file key or URL')
@@ -60,14 +67,14 @@ function parseArgs() {
   };
 }
 
-async function figmaRequest(pathname, token) {
-  let res;
+async function figmaRequest(pathname: string, token: string): Promise<any> {
+  let res: any;
   try {
     res = await fetch(`https://api.figma.com${pathname}`, {
       method: 'GET',
       headers: { 'X-Figma-Token': token }
     });
-  } catch (err) {
+  } catch (err: any) {
     // Enhanced network error handling for corporate environments
     const isNetworkError = err?.code === 'ENOTFOUND' || err?.code === 'ECONNREFUSED' || 
                            err?.code === 'ETIMEDOUT' || err?.code === 'ECONNRESET' ||
@@ -128,39 +135,39 @@ async function figmaRequest(pathname, token) {
   }
   try {
     return JSON.parse(text);
-  } catch (err) {
+  } catch (err: any) {
     throw new Error(`Figma API returned malformed JSON: ${err.message}`);
   }
 }
 
-function findComponentSets(node, acc = [], breadcrumbs = []) {
+function findComponentSets(node: any, acc: any[] = [], breadcrumbs: string[] = []): any[] {
   if (!node) return acc;
   const nextTrail = node.name ? [...breadcrumbs, node.name] : breadcrumbs;
   if (node.type === 'COMPONENT_SET') {
     acc.push({ node, breadcrumbs: nextTrail });
   }
   if (node.children) {
-    node.children.forEach((child) => findComponentSets(child, acc, nextTrail));
+    node.children.forEach((child: any) => findComponentSets(child, acc, nextTrail));
   }
   return acc;
 }
 
-const toCamelCase = (value) => {
+const toCamelCase = (value: any): string => {
   const safe = (value || '').trim().toLowerCase();
   if (!safe) return '';
   const parts = safe.split(/[\s_-]+/).filter(Boolean);
   return parts
-    .map((part, idx) => (idx === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .map((part: string, idx: number) => (idx === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
     .join('');
 };
 
-const normalizeVariantKey = (raw) => toCamelCase(raw);
+const normalizeVariantKey = (raw: any): string => toCamelCase(raw);
 
-const normalizeVariantValue = (raw) => (raw || '').trim().replace(/\s+/g, ' ');
+const normalizeVariantValue = (raw: any): string => (raw || '').trim().replace(/\s+/g, ' ');
 
-const toEnumValue = (raw) => normalizeVariantValue(raw).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+const toEnumValue = (raw: any): string => normalizeVariantValue(raw).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
-const addOption = (options, normalizedKey, rawKey, normalizedValue, enumValue) => {
+const addOption = (options: any, normalizedKey: string, rawKey: string, normalizedValue: string, enumValue: string): any => {
   const next =
     options[normalizedKey] || { rawKeys: new Set(), values: new Set(), enums: new Set(), firstRawKey: null };
   next.rawKeys.add(rawKey);
@@ -173,13 +180,13 @@ const addOption = (options, normalizedKey, rawKey, normalizedValue, enumValue) =
   return options;
 };
 
-const parseVariantProperties = (variantName, options) => {
-  const properties = {};
-  const rawProperties = {};
+const parseVariantProperties = (variantName: any, options: any): any => {
+  const properties: any = {};
+  const rawProperties: any = {};
   if (!variantName) return { properties, rawProperties };
-  const propertyPairs = variantName.split(',').map((p) => p.trim());
+  const propertyPairs = variantName.split(',').map((p: string) => p.trim());
   for (const pair of propertyPairs) {
-    const [rawKey, rawValue] = pair.split('=').map((s) => s.trim());
+    const [rawKey, rawValue] = pair.split('=').map((s: string) => s.trim());
     if (!rawKey || !rawValue) continue;
     const normalizedKey = normalizeVariantKey(rawKey);
     const normalizedValue = normalizeVariantValue(rawValue);
@@ -191,7 +198,7 @@ const parseVariantProperties = (variantName, options) => {
   return { properties, rawProperties };
 };
 
-const isHiddenComponent = (name) => {
+const isHiddenComponent = (name: any): boolean => {
   const trimmed = (name || '').trim();
   if (!trimmed) return true;
   const first = trimmed.charAt(0);
@@ -201,22 +208,22 @@ const isHiddenComponent = (name) => {
   return sanitized === '_';
 };
 
-const toSortedArray = (input) => Array.from(input || []).sort((a, b) => a.localeCompare(b));
+const toSortedArray = (input: any): string[] => Array.from(input || []).sort((a: any, b: any) => a.localeCompare(b));
 
-const stableStringify = (value) => {
+const stableStringify = (value: any): string => {
   if (value && typeof value === 'object') {
     if (Array.isArray(value)) {
-      return `[${value.map((v) => stableStringify(v)).join(',')}]`;
+      return `[${value.map((v: any) => stableStringify(v)).join(',')}]`;
     }
     const keys = Object.keys(value).sort();
-    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+    return `{${keys.map((k: string) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
   }
   return JSON.stringify(value);
 };
 
-const buildAliases = (name) => {
+const buildAliases = (name: any): any => {
   const canonical = (name || '').trim();
-  const slashParts = canonical.split('/').map((p) => p.trim()).filter(Boolean);
+  const slashParts = canonical.split('/').map((p: string) => p.trim()).filter(Boolean);
   const base = slashParts[slashParts.length - 1] || canonical;
   const withoutParens = base.replace(/\s*\(.*?\)\s*$/, '').trim();
   const trimmedSuffix = withoutParens.replace(/\b(component|components|default|base|new)\b/gi, '').replace(/\s{2,}/g, ' ').trim();
@@ -225,19 +232,19 @@ const buildAliases = (name) => {
   return { canonical, alias, candidates };
 };
 
-const buildBreadcrumbs = (breadcrumbs = []) => {
+const buildBreadcrumbs = (breadcrumbs: string[] = []): any => {
   return {
     fullPath: breadcrumbs,
     path: breadcrumbs.join(' / ')
   };
 };
 
-const computeChecksum = (payload) => {
+const computeChecksum = (payload: any): string => {
   const stable = stableStringify(payload);
   return crypto.createHash('sha256').update(stable).digest('hex');
 };
 
-const inferReferenceType = (name, existingType = null) => {
+const inferReferenceType = (name: any, existingType: any = null): string | null => {
   if (existingType) return existingType;
   if (!name) return null;
   const lower = name.toLowerCase();
@@ -246,11 +253,11 @@ const inferReferenceType = (name, existingType = null) => {
   return 'INSTANCE_SWAP';
 };
 
-const normalizeComponentPropertyDefinitions = (defs) => {
+const normalizeComponentPropertyDefinitions = (defs: any): any[] => {
   if (!defs || typeof defs !== 'object') return [];
 
   return Object.entries(defs)
-    .map(([key, def]) => {
+    .map(([key, def]: [string, any]) => {
       if (!def || typeof def !== 'object') return null;
       // The key format is "propertyName#nodeId" or just "propertyName"
       // Extract the property name by removing the #nodeId suffix
@@ -258,7 +265,7 @@ const normalizeComponentPropertyDefinitions = (defs) => {
       if (!rawName) return null;
       // Skip VARIANT properties - they're handled separately as variantProperties
       if (def.type === 'VARIANT') return null;
-      const base = {
+      const base: any = {
         name: rawName,
         type: inferReferenceType(rawName, def.type || null)
       };
@@ -270,7 +277,7 @@ const normalizeComponentPropertyDefinitions = (defs) => {
     .filter(Boolean);
 };
 
-const extractComponentProperties = (componentSet) => {
+const extractComponentProperties = (componentSet: any): any[] | null => {
   if (!componentSet || typeof componentSet !== 'object') return null;
 
   // Only extract properties defined at the component SET level.
@@ -283,22 +290,22 @@ const extractComponentProperties = (componentSet) => {
 /**
  * Extract text layers from the component tree for figma.textContent() usage.
  * Traverses up to maxDepth levels and collects TEXT nodes.
- * @param {object} node - Figma node to traverse
- * @param {number} maxDepth - Maximum depth to traverse (default 3)
- * @returns {Array<{name: string, type: string, characters?: string}>}
+ * @param node - Figma node to traverse
+ * @param maxDepth - Maximum depth to traverse (default 3)
+ * @returns Array of text layer objects
  */
-const extractTextLayers = (node, maxDepth = 3) => {
-  const textLayers = [];
-  const seenNames = new Set();
+const extractTextLayers = (node: any, maxDepth: number = 3): any[] => {
+  const textLayers: any[] = [];
+  const seenNames = new Set<string>();
 
-  const traverse = (current, depth) => {
+  const traverse = (current: any, depth: number): void => {
     if (!current || depth > maxDepth) return;
 
     if (current.type === 'TEXT') {
       const name = (current.name || '').trim();
       if (name && !seenNames.has(name)) {
         seenNames.add(name);
-        const layer = { name, type: 'TEXT' };
+        const layer: any = { name, type: 'TEXT' };
         if (current.characters) {
           layer.characters = current.characters;
         }
@@ -333,15 +340,15 @@ const SLOT_NAME_PATTERNS = /^(icon|leading|trailing|prefix|suffix|content|childr
 /**
  * Extract potential slot layers from the component tree for figma.children() usage.
  * Looks for FRAME/GROUP nodes with semantic names or containing INSTANCE children.
- * @param {object} node - Figma node to traverse
- * @param {number} maxDepth - Maximum depth to traverse (default 3)
- * @returns {Array<{name: string, type: string}>}
+ * @param node - Figma node to traverse
+ * @param maxDepth - Maximum depth to traverse (default 3)
+ * @returns Array of slot layer objects
  */
-const extractSlotLayers = (node, maxDepth = 3) => {
-  const slotLayers = [];
-  const seenNames = new Set();
+const extractSlotLayers = (node: any, maxDepth: number = 3): any[] => {
+  const slotLayers: any[] = [];
+  const seenNames = new Set<string>();
 
-  const isSlotCandidate = (current) => {
+  const isSlotCandidate = (current: any): boolean => {
     if (current.type !== 'FRAME' && current.type !== 'GROUP') return false;
     const name = (current.name || '').trim();
     if (!name) return false;
@@ -351,14 +358,14 @@ const extractSlotLayers = (node, maxDepth = 3) => {
 
     // Check if contains INSTANCE children (indicates instance swap slot)
     if (Array.isArray(current.children)) {
-      const hasInstance = current.children.some((c) => c.type === 'INSTANCE');
+      const hasInstance = current.children.some((c: any) => c.type === 'INSTANCE');
       if (hasInstance) return true;
     }
 
     return false;
   };
 
-  const traverse = (current, depth) => {
+  const traverse = (current: any, depth: number): void => {
     if (!current || depth > maxDepth) return;
 
     if (isSlotCandidate(current)) {
@@ -388,10 +395,10 @@ const extractSlotLayers = (node, maxDepth = 3) => {
   return slotLayers;
 };
 
-function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_DEPTH) {
-  const variants = [];
-  const propertyOptions = {};
-  const seenVariantIds = new Set();
+function extractVariants(componentSet: any, breadcrumbs: string[], layerDepth: number = DEFAULT_LAYER_DEPTH): any {
+  const variants: any[] = [];
+  const propertyOptions: any = {};
+  const seenVariantIds = new Set<string>();
 
   if (componentSet.children) {
     for (const variant of componentSet.children) {
@@ -400,7 +407,7 @@ function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_D
       seenVariantIds.add(variant.id);
 
       const { properties, rawProperties } = parseVariantProperties(variant.name, propertyOptions);
-      const entry = {
+      const entry: any = {
         variantId: variant.id,
         name: variant.name,
         properties,
@@ -413,11 +420,11 @@ function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_D
     }
   }
 
-  const variantValueEnums = {};
-  const variantProperties = {};
+  const variantValueEnums: any = {};
+  const variantProperties: any = {};
   Object.keys(propertyOptions)
     .sort()
-    .forEach((normalizedKey) => {
+    .forEach((normalizedKey: string) => {
       const meta = propertyOptions[normalizedKey];
       const values = toSortedArray(meta.values);
       const rawKey = meta.firstRawKey || normalizedKey;
@@ -439,7 +446,7 @@ function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_D
   const textLayers = extractTextLayers(componentSet, layerDepth);
   const slotLayers = extractSlotLayers(componentSet, layerDepth);
 
-  const basePayload = {
+  const basePayload: any = {
     componentSetId: componentSet.id,
     componentName: componentSet.name,
     variantProperties,
@@ -467,10 +474,11 @@ function extractVariants(componentSet, breadcrumbs, layerDepth = DEFAULT_LAYER_D
   };
 }
 
-function saveJson(filePath, data, options = {}) {
+async function saveJson(filePath: string, data: any, options: any = {}): Promise<void> {
   const dir = path.dirname(filePath);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(filePath, stringifyCompact(data, { maxLength: 80 }), 'utf8');
+  const content = await stringifyCompact(data);
+  fs.writeFileSync(filePath, content, 'utf8');
   const relativePath = path.relative(process.cwd(), filePath) || filePath;
   const { logMessage } = options;
   if (logMessage !== false) {
@@ -479,11 +487,11 @@ function saveJson(filePath, data, options = {}) {
   }
 }
 
-function sanitizeFilename(name) {
+function sanitizeFilename(name: any): string {
   return name.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').toLowerCase();
 }
 
-async function main() {
+async function main(): Promise<void> {
   const config = parseArgs();
   if (!config.fileKey) {
     console.error(chalk.red('Error: Figma file key is required'));
@@ -505,17 +513,17 @@ async function main() {
 
     const pages = fileData.document.children;
     console.log('\nProcessing pages in Figma document:');
-    pages.forEach((page) => console.log(`  - ${figmaColor(page.name)}`));
+    pages.forEach((page: any) => console.log(`  - ${figmaColor(page.name)}`));
 
-  const allComponentSets = pages.flatMap((page) => findComponentSets(page));
-  const visibleSets = allComponentSets.filter(({ node }) => !isHiddenComponent(node.name));
-  const componentEntries = visibleSets.map(({ node, breadcrumbs }) => ({ componentSet: node, breadcrumbs }));
+  const allComponentSets = pages.flatMap((page: any) => findComponentSets(page));
+  const visibleSets = allComponentSets.filter(({ node }: any) => !isHiddenComponent(node.name));
+  const componentEntries = visibleSets.map(({ node, breadcrumbs }: any) => ({ componentSet: node, breadcrumbs }));
 
     console.log(`\n${chalk.green('✓')} Found ${componentEntries.length} Figma component sets`);
 
     let processedCount = 0;
-    const componentsMeta = [];
-    const usedFilenames = new Set();
+    const componentsMeta: any[] = [];
+    const usedFilenames = new Set<string>();
 
     for (const entry of componentEntries) {
       let { componentSet, breadcrumbs } = entry;
@@ -539,13 +547,13 @@ async function main() {
       usedFilenames.add(filename);
 
       const jsonPath = path.join(config.output, `${filename}.json`);
-      saveJson(jsonPath, variantData, { logMessage: false });
+      await saveJson(jsonPath, variantData, { logMessage: false });
       const relativePath = path.relative(process.cwd(), jsonPath) || jsonPath;
       const label = `${componentSet.name} (${variantData.totalVariants} variants)`;
       console.log(`${figmaColor(label)} → ${figmaColor(relativePath)}`);
 
       const componentName = variantData.componentName;
-      const meta = {
+      const meta: any = {
         name: variantData.componentName,
         id: variantData.componentSetId,
         variantCount: variantData.totalVariants,
@@ -555,7 +563,7 @@ async function main() {
       if (variantData.description) meta.description = variantData.description;
       const alias = variantData.nameAliases?.alias || '';
       const aliasCandidates = Array.isArray(variantData.nameAliases?.candidates)
-        ? variantData.nameAliases.candidates.filter((a) => a && a !== componentName)
+        ? variantData.nameAliases.candidates.filter((a: any) => a && a !== componentName)
         : [];
       if (alias && alias !== componentName) meta.alias = alias;
       if (aliasCandidates.length) meta.aliases = aliasCandidates;
@@ -566,7 +574,7 @@ async function main() {
     }
 
     // Write the canonical pipeline index: figma-components-index.json at repo root or provided path.
-    const indexData = {
+    const indexData: any = {
       schemaVersion: INDEX_SCHEMA_VERSION,
       fileName: fileData.name,
       fileKey: config.fileKey,
@@ -580,9 +588,9 @@ async function main() {
         componentsMeta.length > 0
           ? componentsMeta
           : allComponentSets
-              .filter(({ node }) => !isHiddenComponent(node.name))
-              .map(({ node }) => {
-                const entry = {
+              .filter(({ node }: any) => !isHiddenComponent(node.name))
+              .map(({ node }: any) => {
+                const entry: any = {
                   name: node.name,
                   id: node.id,
                   variantCount: node.children ? node.children.length : 0
@@ -595,10 +603,10 @@ async function main() {
     const indexPath = config.indexPath
       ? path.resolve(config.indexPath)
       : path.join(path.dirname(path.resolve(config.output)), 'figma-components-index.json');
-    saveJson(indexPath, indexData);
+    await saveJson(indexPath, indexData);
 
     console.log(`\n${chalk.green('✓')} Complete! Processed ${processedCount} component(s)`);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`\n${chalk.red('❌ Figma scan failed:')} ${error.message}`);
     
     // Provide context-specific guidance
@@ -618,4 +626,22 @@ async function main() {
   }
 }
 
-main();
+// Check if this is the main module (ESM equivalent of require.main === module)
+const isMainModule = import.meta.url === `file://${process.argv[1]}` || 
+                     process.argv[1]?.endsWith('figma-scan.ts') ||
+                     process.argv[1]?.endsWith('figma-scan.js');
+
+if (isMainModule) {
+  main();
+}
+
+// Note: fetchComponentNode is referenced but not defined in original file
+// Adding placeholder that matches the usage pattern
+async function fetchComponentNode(fileKey: string, nodeId: string, token: string): Promise<any> {
+  try {
+    const data = await figmaRequest(`/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`, token);
+    return data?.nodes?.[nodeId]?.document || null;
+  } catch {
+    return null;
+  }
+}

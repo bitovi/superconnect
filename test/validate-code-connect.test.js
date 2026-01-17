@@ -1,13 +1,13 @@
-const { describe, it } = require('node:test');
-const assert = require('node:assert');
-const {
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import {
   validateCodeConnect,
   validateCodeConnectWithCLI,
   extractFigmaCalls,
   buildValidKeySets,
   normalizeKey
-} = require('../src/util/validate-code-connect');
-const { validateWithFigmaCLI } = require('../src/util/validate-with-figma-cli');
+} from '../src/util/validate-code-connect.ts';
+import { validateWithFigmaCLI } from '../src/util/validate-with-figma-cli.ts';
 
 describe('validate-code-connect', () => {
   const basicEvidence = {

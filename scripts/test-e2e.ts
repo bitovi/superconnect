@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 /**
  * E2E Test Runner
  *
@@ -22,12 +23,16 @@
  *   - aggregate: totals for pass rate, tokens, retries
  */
 
-const fs = require('fs-extra');
-const path = require('path');
-const os = require('os');
-const { spawnSync } = require('child_process');
-const { validateCodeConnect } = require('../src/util/validate-code-connect');
-const { extractIR } = require('../src/util/code-connect-ir');
+import fs from 'fs-extra';
+import path from 'path';
+import os from 'os';
+import { fileURLToPath } from 'url';
+import { spawnSync } from 'child_process';
+import { validateCodeConnect } from '../src/util/validate-code-connect.ts';
+import { extractIR } from '../src/util/code-connect-ir.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // -----------------------------------------------------------------------------
 // Design System Configurations
@@ -560,7 +565,7 @@ function runE2E(config) {
   const ds = DESIGN_SYSTEMS[config.system];
   const repoRoot = path.join(__dirname, '..');
   const fixtureRoot = path.join(repoRoot, ds.fixtureDir);
-  const superconnectScript = path.join(repoRoot, 'scripts', 'run-pipeline.js');
+  const superconnectScript = path.join(repoRoot, 'scripts', 'run-pipeline.ts');
   const figmaCli = path.join(repoRoot, 'node_modules', '.bin', 'figma');
 
   // Check prerequisites
@@ -595,7 +600,7 @@ function runE2E(config) {
     fs.removeSync(path.join(tmpDir, 'codeConnect'));
 
     // Run superconnect with timing
-    const args = [superconnectScript, '--framework', ds.framework, '--force', '--yes'];
+    const args = ['--experimental-strip-types', superconnectScript, '--framework', ds.framework, '--force', '--yes'];
     if (config.components.length > 0) {
       args.push('--only', config.components.join(','));
     }

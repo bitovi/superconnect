@@ -1,13 +1,24 @@
-const fs = require('fs-extra');
-const path = require('path');
-const { spawn } = require('child_process');
-const OpenAI = require('openai');
-const Anthropic = require('@anthropic-ai/sdk');
+// @ts-nocheck - Mechanically converted from JS, needs type refinement
 
-const sanitizeSlug = (value, fallback = 'component') =>
+/**
+ * Agent Adapters for LLM backends (OpenAI, Anthropic)
+ * 
+ * Provides unified interface for:
+ * - OpenAI Responses API
+ * - Anthropic Messages API (Claude)
+ * - Anthropic Agent SDK (with built-in tools)
+ */
+
+import fs from 'fs-extra';
+import path from 'path';
+import { spawn } from 'child_process';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+
+export const sanitizeSlug = (value: string, fallback: string = 'component'): string =>
   (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || fallback;
 
-const openLogStream = (dir, name) => {
+const openLogStream = (dir: string | null, name: string): { stream: any, file: string } | null => {
   if (!dir) return null;
   const isFile = path.extname(dir) !== '';
   const file = isFile ? dir : path.join(dir, `${sanitizeSlug(name)}.log`);
@@ -18,7 +29,7 @@ const openLogStream = (dir, name) => {
   return { stream, file };
 };
 
-const parseMaxTokens = (value, fallback) => {
+export const parseMaxTokens = (value: any, fallback: any): any => {
   const parsed = value ? parseInt(value, 10) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
@@ -27,7 +38,7 @@ const parseMaxTokens = (value, fallback) => {
  * Extract clean code from LLM responses, handling markdown fences and thinking text.
  * Used by agent-SDK to strip explanatory text that sometimes leaks through.
  */
-const extractCleanCode = (text) => {
+const extractCleanCode = (text: string): string => {
   if (!text) return '';
   text = text.trim();
   
@@ -49,7 +60,7 @@ const extractCleanCode = (text) => {
  *
  * Implementations abstract how we talk to an agent (CLI, SDK, etc.).
  */
-const extractResponseText = (response) => {
+const extractResponseText = (response: any): string => {
   if (!response || !Array.isArray(response.output)) return '';
   for (const item of response.output) {
     if (Array.isArray(item.content)) {
@@ -66,8 +77,15 @@ const extractResponseText = (response) => {
 /**
  * OpenAIAgentAdapter implements the AgentAdapter contract using the OpenAI JS SDK Responses API.
  */
-class OpenAIAgentAdapter {
-  constructor(options = {}) {
+export class OpenAIAgentAdapter {
+  model: string;
+  maxTokens: any;
+  defaultLogDir: string | null;
+  defaultCwd: string | undefined;
+  client: OpenAI;
+  baseURL: string | undefined;
+
+  constructor(options: any = {}) {
     this.model = options.model || 'gpt-5.2-codex';
     this.maxTokens = parseMaxTokens(options.maxTokens, null);
     this.defaultLogDir = options.logDir || null;
@@ -97,7 +115,7 @@ class OpenAIAgentAdapter {
     this.baseURL = baseURL;  // Store for error messages
   }
 
-  orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
+  orient({ payload, logLabel = 'orienter', outputStream = null, logDir }: any = {}): Promise<any> {
     return this.run({
       payload,
       logLabel,
@@ -106,7 +124,7 @@ class OpenAIAgentAdapter {
     });
   }
 
-  codegen({ payload, logLabel = 'component', cwd, logDir } = {}) {
+  codegen({ payload, logLabel = 'component', cwd, logDir }: any = {}): Promise<any> {
     return this.run({
       payload,
       logLabel,
@@ -115,12 +133,12 @@ class OpenAIAgentAdapter {
     });
   }
 
-  async run({ payload, logLabel, logDir, outputStream } = {}) {
+  async run({ payload, logLabel, logDir, outputStream }: any = {}): Promise<any> {
     const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
-    const writeLog = (text) => {
+    const writeLog = (text: string) => {
       if (logStream?.stream) logStream.stream.write(text);
     };
-    const writeOutput = (text) => {
+    const writeOutput = (text: string) => {
       if (outputStream) outputStream.write(text);
     };
 
@@ -142,7 +160,7 @@ class OpenAIAgentAdapter {
       if (logStream?.stream) logStream.stream.end();
       if (outputStream) outputStream.end();
       return { code: 0, stdout, stderr: '', logFile: logStream?.file || null };
-    } catch (err) {
+    } catch (err: any) {
       let message = err?.message || 'Unknown OpenAI error';
       
       // Log detailed error info for debugging
@@ -232,18 +250,14 @@ class OpenAIAgentAdapter {
 
   /**
    * Multi-turn chat for direct codegen.
-   * @param {object} params
-   * @param {Array<{role: string, content: string}>} params.messages - Chat messages
-   * @param {string} params.logLabel - Label for logging
-   * @returns {Promise<string>} - Assistant response text
    */
-  async chat({ messages, logLabel = 'chat' } = {}) {
+  async chat({ messages, logLabel = 'chat' }: any = {}): Promise<string> {
     if (!this.client) {
       throw new Error('OPENAI_API_KEY is required for OpenAIAgentAdapter');
     }
 
     // Convert to OpenAI chat format
-    const chatMessages = messages.map((m) => ({
+    const chatMessages = messages.map((m: any) => ({
       role: m.role === 'system' ? 'developer' : m.role,
       content: m.content
     }));
@@ -259,14 +273,8 @@ class OpenAIAgentAdapter {
 
   /**
    * Stateless single-turn call for direct codegen with prompt caching.
-   * @param {object} params
-   * @param {string} params.system - System message (guidance + API docs)
-   * @param {string} params.user - User message (component payload)
-   * @param {number} params.maxTokens - Max tokens for this call (overrides default)
-   * @param {string} params.logLabel - Label for logging
-   * @returns {Promise<{text: string, usage: object}>} - Response text and usage info
    */
-  async chatStateless({ system, user, maxTokens, logLabel = 'stateless' } = {}) {
+  async chatStateless({ system, user, maxTokens, logLabel = 'stateless' }: any = {}): Promise<any> {
     if (!this.client) {
       throw new Error('OPENAI_API_KEY is required for OpenAIAgentAdapter');
     }
@@ -292,7 +300,7 @@ class OpenAIAgentAdapter {
   }
 }
 
-const extractClaudeText = (message) => {
+const extractClaudeText = (message: any): string => {
   if (!message || !Array.isArray(message.content)) return '';
   for (const block of message.content) {
     if (block.type === 'text' && typeof block.text === 'string') return block.text;
@@ -303,8 +311,14 @@ const extractClaudeText = (message) => {
 /**
  * ClaudeAgentAdapter implements the AgentAdapter contract using the Claude (Anthropic) JS SDK.
  */
-class ClaudeAgentAdapter {
-  constructor(options = {}) {
+export class ClaudeAgentAdapter {
+  model: string;
+  maxTokens: any;
+  defaultLogDir: string | null;
+  defaultCwd: string | undefined;
+  client: Anthropic;
+
+  constructor(options: any = {}) {
     this.model = options.model || 'claude-sonnet-4-5';
     this.maxTokens = parseMaxTokens(options.maxTokens, null);
     this.defaultLogDir = options.logDir || null;
@@ -329,7 +343,7 @@ class ClaudeAgentAdapter {
     });
   }
 
-  orient({ payload, logLabel = 'orienter', outputStream = null, logDir } = {}) {
+  orient({ payload, logLabel = 'orienter', outputStream = null, logDir }: any = {}): Promise<any> {
     return this.run({
       payload,
       logLabel,
@@ -338,7 +352,7 @@ class ClaudeAgentAdapter {
     });
   }
 
-  codegen({ payload, logLabel = 'component', cwd, logDir } = {}) {
+  codegen({ payload, logLabel = 'component', cwd, logDir }: any = {}): Promise<any> {
     return this.run({
       payload,
       logLabel,
@@ -347,12 +361,12 @@ class ClaudeAgentAdapter {
     });
   }
 
-  async run({ payload, logLabel, logDir, outputStream } = {}) {
+  async run({ payload, logLabel, logDir, outputStream }: any = {}): Promise<any> {
     const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
-    const writeLog = (text) => {
+    const writeLog = (text: string) => {
       if (logStream?.stream) logStream.stream.write(text);
     };
-    const writeOutput = (text) => {
+    const writeOutput = (text: string) => {
       if (outputStream) outputStream.write(text);
     };
     try {
@@ -383,7 +397,7 @@ class ClaudeAgentAdapter {
       if (logStream?.stream) logStream.stream.end();
       if (outputStream) outputStream.end();
       return { code: 0, stdout, stderr: '', logFile: logStream?.file || null };
-    } catch (err) {
+    } catch (err: any) {
       // Extract detailed error message from Anthropic API errors
       let message = err?.message || 'Unknown Claude error';
       
@@ -480,28 +494,24 @@ class ClaudeAgentAdapter {
 
   /**
    * Multi-turn chat for direct codegen.
-   * @param {object} params
-   * @param {Array<{role: string, content: string}>} params.messages - Chat messages
-   * @param {string} params.logLabel - Label for logging
-   * @returns {Promise<string>} - Assistant response text
    */
-  async chat({ messages, logLabel = 'chat' } = {}) {
+  async chat({ messages, logLabel = 'chat' }: any = {}): Promise<string> {
     if (!this.client) {
       throw new Error('ANTHROPIC_API_KEY is required for ClaudeAgentAdapter');
     }
 
     // Separate system message from user/assistant messages
-    const systemMessage = messages.find((m) => m.role === 'system');
-    const chatMessages = messages.filter((m) => m.role !== 'system');
+    const systemMessage = messages.find((m: any) => m.role === 'system');
+    const chatMessages = messages.filter((m: any) => m.role !== 'system');
 
     // Use prompt caching for the system message (guidance + Figma docs)
     // Haiku 4.5 requires 4096 tokens minimum for caching to activate
     // Combined prompts should be ~5600 tokens (22k chars / 4)
     const systemContent = systemMessage ? [
       {
-        type: 'text',
+        type: 'text' as const,
         text: systemMessage.content,
-        cache_control: { type: 'ephemeral' }
+        cache_control: { type: 'ephemeral' as const }
       }
     ] : undefined;
 
@@ -509,7 +519,7 @@ class ClaudeAgentAdapter {
       model: this.model,
       max_tokens: this.maxTokens,
       system: systemContent,
-      messages: chatMessages.map((m) => ({ role: m.role, content: m.content }))
+      messages: chatMessages.map((m: any) => ({ role: m.role, content: m.content }))
     });
 
     return extractClaudeText(response) || '';
@@ -518,21 +528,14 @@ class ClaudeAgentAdapter {
   /**
    * Stateless single-turn call for direct codegen with prompt caching.
    * Each call is independent with cached system prefix.
-   * @param {object} params
-   * @param {string} params.system - System message (guidance + API docs)
-   * @param {string} params.user - User message (component payload)
-   * @param {number} params.maxTokens - Max tokens for this call (overrides default)
-   * @param {string} params.logLabel - Label for logging
-   * @param {string} params.logDir - Directory for I/O logs
-   * @returns {Promise<{text: string, usage: object}>} - Response text and usage info
    */
-  async chatStateless({ system, user, maxTokens, logLabel = 'stateless', logDir } = {}) {
+  async chatStateless({ system, user, maxTokens, logLabel = 'stateless', logDir }: any = {}): Promise<any> {
     if (!this.client) {
       throw new Error('ANTHROPIC_API_KEY is required for ClaudeAgentAdapter');
     }
 
     const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
-    const writeLog = (text) => {
+    const writeLog = (text: string) => {
       if (logStream?.stream) logStream.stream.write(text);
     };
 
@@ -548,9 +551,9 @@ class ClaudeAgentAdapter {
       // Haiku 4.5 requires 4096 tokens minimum for caching to activate
       const systemContent = [
         {
-          type: 'text',
+          type: 'text' as const,
           text: system,
-          cache_control: { type: 'ephemeral' }
+          cache_control: { type: 'ephemeral' as const }
         }
       ];
 
@@ -580,7 +583,7 @@ class ClaudeAgentAdapter {
 
       if (logStream?.stream) logStream.stream.end();
       return { text, usage };
-    } catch (err) {
+    } catch (err: any) {
       writeLog(`\nError: ${err.message}\n`);
       if (logStream?.stream) logStream.stream.end();
       throw err;
@@ -592,8 +595,13 @@ class ClaudeAgentAdapter {
  * AgentSDKAdapter uses Anthropic's Claude Agent SDK with built-in tools.
  * Allows agent to explore codebase with Read, Glob, Grep before generating.
  */
-class AgentSDKAdapter {
-  constructor(options = {}) {
+export class AgentSDKAdapter {
+  model: string;
+  maxTokens: any;
+  cwd: string;
+  defaultLogDir: string | null;
+
+  constructor(options: any = {}) {
     this.model = options.model || 'claude-sonnet-4-5';
     this.maxTokens = parseMaxTokens(options.maxTokens, 4096);
     this.cwd = options.cwd || process.cwd();
@@ -614,19 +622,13 @@ class AgentSDKAdapter {
   /**
    * Stateless single-turn call for direct codegen with Agent SDK.
    * Agent can explore codebase with built-in tools before generating.
-   * @param {object} params
-   * @param {string} params.system - System message (guidance + API docs + tool guidance)
-   * @param {string} params.user - User message (component payload)
-   * @param {number} params.maxTokens - Max tokens for this call
-   * @param {string} params.logLabel - Label for logging
-   * @param {string} params.logDir - Directory for I/O logs
-   * @returns {Promise<{text: string, usage: object}>} - Response text and usage info
    */
-  async chatStateless({ system, user, maxTokens, logLabel = 'agent-sdk', logDir } = {}) {
-    const { query } = require('@anthropic-ai/claude-agent-sdk');
+  async chatStateless({ system, user, maxTokens, logLabel = 'agent-sdk', logDir }: any = {}): Promise<any> {
+    // Dynamic import for Agent SDK (CommonJS module)
+    const { query } = await import('@anthropic-ai/claude-agent-sdk');
     
     const logStream = openLogStream(logDir || this.defaultLogDir, logLabel);
-    const writeLog = (text) => {
+    const writeLog = (text: string) => {
       if (logStream?.stream) logStream.stream.write(text);
     };
 
@@ -649,7 +651,7 @@ class AgentSDKAdapter {
       };
       
       // Track tool usage for summary
-      const toolCounts = { Read: 0, Glob: 0, Grep: 0 };
+      const toolCounts: any = { Read: 0, Glob: 0, Grep: 0 };
 
       // Stream messages from agent
       for await (const message of query({
@@ -729,7 +731,7 @@ class AgentSDKAdapter {
       if (logStream?.stream) logStream.stream.end();
       
       return { text: resultText, usage: totalUsage };
-    } catch (err) {
+    } catch (err: any) {
       const errorMsg = err.message || String(err);
       writeLog(`\nError: ${errorMsg}\n`);
       if (logStream?.stream) logStream.stream.end();
@@ -822,11 +824,3 @@ class AgentSDKAdapter {
     }
   }
 }
-
-module.exports = {
-  OpenAIAgentAdapter,
-  ClaudeAgentAdapter,
-  AgentSDKAdapter,
-  sanitizeSlug,
-  parseMaxTokens
-};
