@@ -163,6 +163,7 @@ async function promptForConfig(): Promise<any> {
   console.log(
     `${chalk.bold('Setup')}: we'll write these settings to ${highlight(`./${DEFAULT_CONFIG_FILE}`)}`
   );
+  console.log(chalk.dim('Press Enter to accept [default values]\n'));
   const figmaUrl = await (async () => {
     while (true) {
       const value = await question(`${chalk.cyan('Enter Figma file URL or key')}: `);
