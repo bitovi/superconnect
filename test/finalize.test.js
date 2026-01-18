@@ -33,7 +33,7 @@ describe('finalize.js', () => {
       fs.writeFileSync(path.join(superDir, 'orientation.jsonl'), '');
       fs.ensureDirSync(path.join(tmp, 'codeConnect'));
 
-      const result = spawnSync('node', [finalizeScript, '--cwd', tmp], {
+      const result = spawnSync(process.execPath, ['--experimental-strip-types', finalizeScript, '--cwd', tmp], {
         encoding: 'utf8'
       });
       if (result.status !== 0) {
@@ -59,7 +59,7 @@ describe('finalize.js', () => {
       fs.writeFileSync(path.join(superDir, 'orientation.jsonl'), '');
       fs.ensureDirSync(path.join(tmp, 'codeConnect'));
 
-      const result = spawnSync('node', [finalizeScript, '--cwd', tmp], {
+      const result = spawnSync(process.execPath, ['--experimental-strip-types', finalizeScript, '--cwd', tmp], {
         encoding: 'utf8'
       });
       if (result.status !== 0) {
