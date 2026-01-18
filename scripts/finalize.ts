@@ -15,7 +15,7 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import fg from 'fast-glob';
@@ -490,7 +490,9 @@ async function main() {
 }
 
 // ESM equivalent of require.main === module
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+// Use pathToFileURL to handle Windows paths correctly
+const scriptPath = process.argv[1];
+const isMainModule = scriptPath && import.meta.url === pathToFileURL(scriptPath).href;
 if (isMainModule) {
   main().catch((err: any) => {
     console.error(`\n❌ Finalization failed: ${err.message}`);
