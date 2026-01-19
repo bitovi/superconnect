@@ -9,7 +9,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'fs-extra';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +19,8 @@ const __dirname = path.dirname(__filename);
 // In production, the function is called internally by processComponent
 async function getReactSystemPrompt(importFrom?: string | null): Promise<string> {
   const modulePath = path.join(__dirname, '../src/react/direct-codegen.ts');
-  const module = await import(modulePath);
+  // Use pathToFileURL for Windows compatibility - dynamic imports require file:// URLs on Windows
+  const module = await import(pathToFileURL(modulePath).href);
   // Access the private function via module namespace
   const buildSystemPrompt = (module as any).buildSystemPrompt;
   if (!buildSystemPrompt) {
@@ -30,7 +31,8 @@ async function getReactSystemPrompt(importFrom?: string | null): Promise<string>
 
 async function getAngularSystemPrompt(importFrom?: string | null): Promise<string> {
   const modulePath = path.join(__dirname, '../src/angular/direct-codegen.ts');
-  const module = await import(modulePath);
+  // Use pathToFileURL for Windows compatibility - dynamic imports require file:// URLs on Windows
+  const module = await import(pathToFileURL(modulePath).href);
   const buildSystemPrompt = (module as any).buildSystemPrompt;
   if (!buildSystemPrompt) {
     throw new Error('buildSystemPrompt not found in angular/direct-codegen module');
