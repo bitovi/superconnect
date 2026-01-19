@@ -924,7 +924,7 @@ const parseArgs = (argv) => {
     .name('run-codegen')
     .requiredOption('--figma-index <file>', 'Path to figma-components-index.json')
     .requiredOption('--orienter <file>', 'Orienter JSONL output (one JSON object per line)')
-    .option('--repo-summary <file>', 'Path to repo-summary.json', null)
+    .option('--package-scan <file>', 'Path to package-scan.json', null)
     .option('--force', 'Overwrite existing *.figma.tsx files', false)
     .option('--agent-api <value>', 'Agent API format (openai-chat-api|anthropic-messages-api|anthropic-agent-sdk)', 'anthropic-messages-api')
     .option('--agent-model <value>', 'Model name (e.g., gpt-5.2-codex, claude-haiku-4-5)')
@@ -935,6 +935,7 @@ const parseArgs = (argv) => {
     .option('--only <list...>', 'Component names/IDs (globs allowed); accepts comma or space separated values')
     .option('--exclude <list...>', 'Component names/IDs to skip (globs allowed)')
     .option('--target-framework <value>', 'Target framework hint (react|angular)')
+    .option('--import-from <value>', 'Package name for imports (e.g., @corp/design-system)')
     .option('--colocation <value>', 'Place .figma files next to source components (true|false)', 'true')
     .allowExcessArguments(false);
   program.parse(argv);
@@ -954,7 +955,7 @@ const parseArgs = (argv) => {
     figmaDir: path.join(superconnectDir, 'figma-components'),
     figmaIndex: figmaIndexPath,
     orienter: path.resolve(opts.orienter),
-    repoSummary: opts.repoSummary ? path.resolve(opts.repoSummary) : path.join(superconnectDir, 'repo-summary.json'),
+    packageScan: opts.packageScan ? path.resolve(opts.packageScan) : path.join(superconnectDir, 'package-scan.json'),
     codeConnectDir: DEFAULT_CODECONNECT_DIR,
     logDir: path.join(superconnectDir, 'codegen-summaries'),
     agentTranscriptDir: path.join(superconnectDir, 'codegen-agent-transcripts'),
@@ -968,6 +969,7 @@ const parseArgs = (argv) => {
     only: parseList(opts.only),
     exclude: parseList(opts.exclude),
     targetFramework: opts.targetFramework || null,
+    importFrom: opts.importFrom || null,
     colocation: opts.colocation === 'false' || opts.colocation === false ? false : true
   };
 };
@@ -1082,10 +1084,10 @@ async function main() {
     });
   }
 
-  const [figmaIndex, figmaComponents, repoSummary] = await Promise.all([
+  const [figmaIndex, figmaComponents, packageScan] = await Promise.all([
     readJsonSafe(config.figmaIndex),
     loadFigmaComponents(config.figmaDir),
-    readJsonSafe(config.repoSummary)
+    readJsonSafe(config.packageScan)
   ]);
 
   if (!figmaIndex?.components) {
@@ -1118,7 +1120,7 @@ async function main() {
     logDir: config.logDir,
     agentTranscriptDir: config.agentTranscriptDir,
     force: config.force,
-    angularComponents: Array.isArray(repoSummary?.angular_components) ? repoSummary.angular_components : [],
+    angularComponents: Array.isArray(packageScan?.angular_components) ? packageScan.angular_components : [],
     targetFramework: config.targetFramework || null,
     summaries: [],
     agent,
@@ -1213,7 +1215,8 @@ async function main() {
         maxRetries: 2,
         maxTokens: config.agentMaxTokens || 4096,
         logDir: ctx.agentTranscriptDir,
-        includeAgenticTools: config.agentApi === 'anthropic-agent-sdk'
+        includeAgenticTools: config.agentApi === 'anthropic-agent-sdk',
+        importFrom: config.importFrom
       });
 
       if (result.success && result.code) {
@@ -1353,7 +1356,7 @@ main().catch((err) => {
     console.error('\n💡 File not found - ensure orienter step completed successfully');
     console.error('   Check that these files exist:');
     console.error('   - superconnect-logs/figma-components-index.json');
-    console.error('   - superconnect-logs/repo-summary.json');
+    console.error('   - superconnect-logs/package-scan.json');
     console.error('   - superconnect-logs/orientation.jsonl');
   } else if (err.message.includes('Network') || err.message.includes('certificate') || 
              err.message.includes('TLS') || err.message.includes('SSL')) {

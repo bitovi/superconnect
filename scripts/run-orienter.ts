@@ -6,12 +6,12 @@
  *
  * Inputs (named):
  *  - --figma-index <file>: path to figma-components-index.json
- *  - --repo-summary <file>: path to repo-summary.json
+ *  - --package-scan <file>: path to package-scan.json
  *  - --output <file>: path for orientation JSONL (default: superconnect-logs/orientation.jsonl)
  *
  * Behavior:
  *  - Reads the orienter prompt (prompts/orienter.md)
- *  - Invokes the agent ONCE with {figma index + repo summary}
+ *  - Invokes the agent ONCE with {figma index + package scan}
  *  - Streams agent stdout to both the orientation.jsonl output and the log
  *  - Always overwrites the output file
  */
@@ -36,7 +36,7 @@ const parseArgs = (argv: any): any => {
   program
     .name('run-orienter')
     .requiredOption('--figma-index <file>', 'Path to figma-components-index.json')
-    .requiredOption('--repo-summary <file>', 'Path to repo-summary.json')
+    .requiredOption('--package-scan <file>', 'Path to package-scan.json')
     .option('--output <file>', 'Orientation JSONL output path', defaultOutput)
     .option('--agent-api <value>', 'Agent API format (openai|anthropic)', 'anthropic')
     .option('--agent-model <value>', 'Model name (e.g., gpt-5.2-codex, claude-haiku-4-5)')
@@ -53,7 +53,7 @@ const parseArgs = (argv: any): any => {
   const superconnectDir = path.dirname(outputPath);
   return {
     figmaIndex: path.resolve(opts.figmaIndex),
-    repoSummary: path.resolve(opts.repoSummary),
+    packageScan: path.resolve(opts.packageScan),
     output: outputPath,
     agentLogFile: path.join(superconnectDir, 'orienter-agent.log'),
     payloadPreviewFile: path.join(superconnectDir, 'orienter-agent-payload.txt'),
@@ -68,15 +68,15 @@ const parseArgs = (argv: any): any => {
   };
 };
 
-const buildPayload = (promptText: any, figmaIndex: any, repoSummary: any, targetFramework: any = null): any =>
+const buildPayload = (promptText: any, figmaIndex: any, packageScan: any, targetFramework: any = null): any =>
   [
     promptText.trim(),
     '',
     'FIGMA_INDEX:',
     JSON.stringify(figmaIndex, null, 2),
     '',
-    'REPO_SUMMARY:',
-    JSON.stringify(repoSummary, null, 2),
+    'PACKAGE_SCAN:',
+    JSON.stringify(packageScan, null, 2),
     '',
     'TARGET_FRAMEWORK:',
     JSON.stringify(targetFramework || null, null, 2),
@@ -105,10 +105,10 @@ const buildAdapter = (config: any): any => {
 async function main(): Promise<void> {
   const config = parseArgs(process.argv);
 
-  const [promptText, figmaIndex, repoSummary] = await Promise.all([
+  const [promptText, figmaIndex, packageScan] = await Promise.all([
     fs.readFile(promptPath, 'utf8'),
     readJson(config.figmaIndex),
-    readJson(config.repoSummary)
+    readJson(config.packageScan)
   ]);
 
   const components = Array.isArray(figmaIndex?.components) ? figmaIndex.components : [];
@@ -120,7 +120,7 @@ async function main(): Promise<void> {
   fs.ensureDirSync(path.dirname(config.output));
   const outputStream = fs.createWriteStream(config.output, { flags: 'w' }); // stomp existing
 
-  const payload = buildPayload(promptText, figmaIndex, repoSummary, config.targetFramework);
+  const payload = buildPayload(promptText, figmaIndex, packageScan, config.targetFramework);
 
   if (config.fakeOrienterOutput) {
     await fs.ensureDir(path.dirname(config.payloadPreviewFile));
@@ -169,7 +169,7 @@ main().catch((err: any) => {
   if (err.code === 'ENOENT') {
     console.error('\n💡 File not found - check that these files exist:');
     console.error('   - superconnect-logs/figma-components-index.json (from Figma scan)');
-    console.error('   - superconnect-logs/repo-summary.json (from repo analysis)');
+    console.error('   - superconnect-logs/package-scan.json (from package analysis)');
     console.error('   Run the full pipeline: npx superconnect');
   } else if (err.message.includes('API') || err.message.includes('authentication')) {
     console.error('\n💡 API error - verify your ANTHROPIC_API_KEY or OPENAI_API_KEY');

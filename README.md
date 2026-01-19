@@ -144,7 +144,7 @@ If the **Code Connect** section is missing
 
 Superconnect runs a five-stage pipeline:
 
-1. **Repo summarizer** - Scans your React or Angular repo for components and structure
+1. **Package scanner** - Scans your component package for React or Angular components and structure
 2. **Figma scan** - Downloads component metadata from your Figma file via API
 3. **Orienter** - AI decides which source files correspond to each Figma component
 4. **Codegen** - AI generates `.figma.tsx` (React) or `.figma.ts` (Angular) mappings
@@ -187,7 +187,7 @@ model = "claude-sonnet-4-5"
 Generated files in your repo:
 
 **superconnect-logs/** - Pipeline artifacts
-- `repo-summary.json` - Detected components and framework info
+- `package-scan.json` - Detected components, framework info, and package metadata
 - `figma-components-index.json` - Figma component catalog
 - `figma-components/*.json` - Per-component Figma metadata
 - `orientation.jsonl` - File-to-component mappings
@@ -211,7 +211,7 @@ The pipeline is designed for graceful partial runs:
     - superconnect-logs/codegen-summaries/, codegen-agent-transcripts/, and codeConnect/ contain whatever was completed so far
     - The pipeline still runs the finalizer, so you get an accurate summary of what was built versus skipped
 - Rerunning without `--force`
-    - Repo summary, Figma scan, and orienter are skipped if their outputs already exist
+    - Package scan, Figma scan, and orienter are skipped if their outputs already exist
     - Codegen re-invokes the agent for each mapped component but:
         - Does not overwrite existing .figma.tsx files unless `--force` is used
         - Marks such components as “skipped” with an explanatory reason

@@ -10,7 +10,9 @@ Code Connect examples are **static templates**, not executable code. They will b
 - It's OK to omit required props if they can't be mapped from Figma
 - Some components need data props (collections, arrays, items) that can't come from Figma. **Hardcode example data inline** rather than trying to compute it
 
-**In import statements, do not use internal import paths.** In production, consumers typically install via npm. The internal paths only exist in the monorepo source tree — they'd break if someone tried to use these Code Connect files in a consuming project. Our goal is to create Code Connect files that can be used in production. You should package.json exports or the package name, understand the monorepo's publish structure, and map internal paths → published package names.
+**Import Instructions:**
+
+{{IMPORT_INSTRUCTIONS}}
 
 **Only use properties from the Figma Component Data section.**
 - `componentProperties[]` → `figma.boolean()`, `figma.string()`, `figma.instance()`
@@ -22,8 +24,6 @@ Don't invent properties that aren't in the data.
 
 **Match the actual export name from source files.**
 If source shows `export const DialogRoot`, use `DialogRoot` in `figma.connect()`, not `Dialog`.
-
-**Import from the package, not internal source paths.**
 
 **Drop pseudo-state variants** (`state`, `interaction` with values like `hover`, `pressed`, `focused`).
 

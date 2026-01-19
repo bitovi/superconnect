@@ -81,13 +81,13 @@ describe('finalize.js', () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'finalize-angular-'));
       fs.copySync(fixtureDir, tmpDir, {
         dereference: true,
-        filter: (src) => !src.endsWith(`${path.sep}repo-summary.json`)
+        filter: (src) => !src.endsWith(`${path.sep}package-scan.json`)
       });
-      const repoSummarySrc = path.join(fixtureDir, 'superconnect-logs', 'repo-summary.json');
-      const repoSummaryDest = path.join(tmpDir, 'superconnect-logs', 'repo-summary.json');
-      if (fs.existsSync(repoSummarySrc)) {
-        fs.ensureDirSync(path.dirname(repoSummaryDest));
-        fs.writeFileSync(repoSummaryDest, fs.readFileSync(repoSummarySrc));
+      const packageScanSrc = path.join(fixtureDir, 'superconnect-logs', 'package-scan.json');
+      const packageScanDest = path.join(tmpDir, 'superconnect-logs', 'package-scan.json');
+      if (fs.existsSync(packageScanSrc)) {
+        fs.ensureDirSync(path.dirname(packageScanDest));
+        fs.writeFileSync(packageScanDest, fs.readFileSync(packageScanSrc));
       }
       execFileSync('node', ['--experimental-strip-types', finalizeScript, '--cwd', tmpDir, '--target-framework', 'angular'], {
         cwd: tmpDir,

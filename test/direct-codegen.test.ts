@@ -84,7 +84,7 @@ for (const framework of ['react', 'angular'] as const) {
   const fx = FIXTURES[framework];
 
   describe(`${framework} Direct Codegen`, () => {
-    let buildSystemPrompt: () => string;
+    let buildSystemPrompt: (includeAgenticTools?: boolean, importFrom?: string | null) => string;
     let buildComponentPrompt: (args: any) => string;
     let buildRetryPrompt: (code: string, errors: string[]) => string;
     let processComponent: (args: any) => Promise<any>;
@@ -106,6 +106,18 @@ for (const framework of ['react', 'angular'] as const) {
           assert.ok(prompt.includes('html'));
           assert.ok(prompt.includes('Angular'));
         }
+      });
+
+      it('includes importFrom package name in prompt when provided', () => {
+        const promptWithImport = buildSystemPrompt(false, '@my-company/design-system');
+        assert.ok(promptWithImport.includes('@my-company/design-system'));
+        assert.ok(promptWithImport.includes('import source') || promptWithImport.includes('Import'));
+      });
+
+      it('includes fallback import instructions when importFrom is null', () => {
+        const promptWithoutImport = buildSystemPrompt(false, null);
+        assert.ok(promptWithoutImport.includes('import') || promptWithoutImport.includes('Import'));
+        assert.ok(!promptWithoutImport.includes('@my-company'));
       });
     });
 

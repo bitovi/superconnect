@@ -53,7 +53,7 @@ function extractCodeFromResponse(responseText: string): string {
 /**
  * Build the system prompt combining our guidance with Figma's official API docs.
  */
-function buildSystemPrompt(includeAgenticTools = false): string {
+function buildSystemPrompt(includeAgenticTools = false, importFrom?: string | null): string {
   const promptsDir = path.join(__dirname, '..', '..', 'prompts');
   const refDocsDir = path.join(promptsDir, 'reference-docs');
   const guidancePath = path.join(promptsDir, 'react-direct-codegen.md');
@@ -72,8 +72,22 @@ function buildSystemPrompt(includeAgenticTools = false): string {
       .map(f => fs.readFileSync(path.join(refDocsDir, f), 'utf8'))
       .join('\n\n---\n\n');
     
+    // Build import instructions based on importFrom parameter
+    const importInstructions = importFrom
+      ? `Use this package name for all component imports:
+
+\`\`\`typescript
+import { ComponentName } from "${importFrom}"
+\`\`\`
+
+Do NOT use relative paths or internal monorepo paths. All imports must use the package name "${importFrom}".`
+      : `Use the import paths from the source files provided. Prefer package-based imports when the component is exported from a package's public API.`;
+    
+    // Substitute {{IMPORT_INSTRUCTIONS}} in guidance
+    const processedGuidance = guidance.replace('{{IMPORT_INSTRUCTIONS}}', importInstructions);
+    
     // Reference docs first (background knowledge), then guidance (rules)
-    let systemPrompt = `${refDocs}\n\n---\n\n${guidance}`;
+    let systemPrompt = `${refDocs}\n\n---\n\n${processedGuidance}`;
     
     if (includeAgenticTools) {
       const agenticGuidance = fs.readFileSync(agenticPath, 'utf8');
@@ -96,6 +110,7 @@ interface BuildStatelessMessagesParams {
   figmaUrl: string;
   sourceContext?: Record<string, string>;
   includeAgenticTools?: boolean;
+  importFrom?: string | null;
 }
 
 /**
@@ -107,9 +122,10 @@ function buildStatelessMessages({
   orientation,
   figmaUrl,
   sourceContext,
-  includeAgenticTools = false
+  includeAgenticTools = false,
+  importFrom = null
 }: BuildStatelessMessagesParams): { system: string; user: string } {
-  const system = buildSystemPrompt(includeAgenticTools);
+  const system = buildSystemPrompt(includeAgenticTools, importFrom);
   // ARCHITECTURE NOTE: Agent SDK vs Messages API context strategy
   //
   // Messages API (includeAgenticTools=false):
@@ -269,6 +285,7 @@ async function processComponent({
   maxTokens,
   logDir,
   includeAgenticTools = false,
+  importFrom = null,
   validateFn = null
 }: ProcessComponentOptions): Promise<CodegenResult> {
   // Build initial messages
@@ -277,7 +294,8 @@ async function processComponent({
     orientation,
     figmaUrl,
     sourceContext,
-    includeAgenticTools
+    includeAgenticTools,
+    importFrom
   });
 
   let attempt = 0;

@@ -166,9 +166,9 @@ const buildSummary = (context: any) => {
   lines.push(codeColor(chalk.bold(repoHeading)));
   lines.push(
     formatRow(
-      context.repoSummaryExists ? '🟢' : '🟡',
-      'Generated repo overview:',
-      codeColor(context.repoSummaryRel || '(not found)')
+      context.packageScanExists ? '🟢' : '🟡',
+      'Generated package scan:',
+      codeColor(context.packageScanRel || '(not found)')
     )
   );
   lines.push('');
@@ -283,9 +283,9 @@ async function main() {
 
   const orientationEntries = await readJsonLines(config.orientation);
   const componentLogsRaw = await readComponentLogs(config.componentLogsDir);
-  const repoSummaryPath = path.join(config.superconnectDir, 'repo-summary.json');
-  const repoSummary = await readJsonSafe(repoSummaryPath);
-  const targetFramework = config.targetFramework || repoSummary?.primary_framework || null;
+  const packageScanPath = path.join(config.superconnectDir, 'package-scan.json');
+  const packageScan = await readJsonSafe(packageScanPath);
+  const targetFramework = config.targetFramework || packageScan?.primary_framework || null;
   const figmaComponentsDir = path.join(config.superconnectDir, 'figma-components');
   const orientationIdSet = new Set(
     orientationEntries
@@ -335,9 +335,9 @@ async function main() {
     figmaFileKey: figmaIndex.fileKey || null,
     figmaFileName: figmaIndex.fileName || null,
     figmaUrl: figmaIndex.fileKey ? `https://www.figma.com/design/${figmaIndex.fileKey}` : null,
-    repoSummaryRel:
-      path.relative(config.baseCwd, path.join(config.superconnectDir, 'repo-summary.json')) || null,
-    repoSummaryExists: fs.existsSync(path.join(config.superconnectDir, 'repo-summary.json')),
+    packageScanRel:
+      path.relative(config.baseCwd, path.join(config.superconnectDir, 'package-scan.json')) || null,
+    packageScanExists: fs.existsSync(path.join(config.superconnectDir, 'package-scan.json')),
     figmaComponentsDirRel:
       path.relative(config.baseCwd, figmaComponentsDir) || null,
     figmaComponentsDirExists:
@@ -365,14 +365,14 @@ async function main() {
     return substitutions;
   };
 
-  const frameworks = (repoSummary && Array.isArray(repoSummary.frameworks) && repoSummary.frameworks) || [];
-  if (targetFramework === 'angular' || frameworks.includes('angular')) {
+  // Use targetFramework since packageScan only has primary_framework
+  if (targetFramework === 'angular') {
     includeGlobs.add('codeConnect/**/*.figma.ts');
     includeGlobs.add('src/**/*.figma.ts');
     includeGlobs.add('packages/**/src/**/*.figma.ts');
     includeGlobs.add('apps/**/src/**/*.figma.ts');
   }
-  if (!includeGlobs.size && (targetFramework === 'react' || frameworks.includes('react'))) {
+  if (!includeGlobs.size && (targetFramework === 'react' || targetFramework !== 'angular')) {
     includeGlobs.add('codeConnect/**/*.figma.tsx');
     includeGlobs.add('src/**/*.figma.tsx');
     includeGlobs.add('packages/**/src/**/*.figma.tsx');

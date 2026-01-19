@@ -1,40 +1,26 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import fs from 'fs-extra';
 import path from 'path';
-import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { scanPackage } from '../src/util/package-scan.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const summarizeScript = path.join(__dirname, '..', 'scripts', 'summarize-repo.ts');
-const runSummary = (root: string, outputFile?: string) => {
-  const output = outputFile || path.join(root, 'superconnect-logs', 'repo-summary.json');
-  fs.removeSync(output);
-  fs.ensureDirSync(path.dirname(output));
-  execFileSync('node', ['--experimental-strip-types', summarizeScript, '--root', root, '--output', output], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'inherit'],
-  });
-  const fileData = fs.readJsonSync(output);
-  return { parsed: fileData, fileData };
-};
-
 describe('framework detection', () => {
-  it('detects React in react-sample fixture', () => {
+  it('detects React in react-sample fixture', async () => {
     const root = path.join(__dirname, '..', 'fixtures', 'react-sample');
-    const { parsed } = runSummary(root);
-    assert.ok(parsed.frameworks.includes('react'));
-    assert.strictEqual(parsed.primary_framework, 'react');
-    assert.ok(!parsed.frameworks.includes('angular'));
+    const packageJsonPath = path.join(root, 'package.json');
+    const result = await scanPackage(packageJsonPath);
+    assert.strictEqual(result.primary_framework, 'react');
+    assert.strictEqual(result.angular_components.length, 0);
   });
 
-  it('detects Angular in angular-sample fixture', () => {
+  it('detects Angular in angular-sample fixture', async () => {
     const root = path.join(__dirname, '..', 'fixtures', 'angular-sample');
-    const { parsed } = runSummary(root);
-    assert.ok(parsed.frameworks.includes('angular'));
-    assert.strictEqual(parsed.primary_framework, 'angular');
-    assert.ok(!parsed.frameworks.includes('react'));
+    const packageJsonPath = path.join(root, 'package.json');
+    const result = await scanPackage(packageJsonPath);
+    assert.strictEqual(result.primary_framework, 'angular');
+    assert.ok(result.angular_components.length > 0);
   });
 });

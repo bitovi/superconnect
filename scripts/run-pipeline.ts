@@ -27,6 +27,7 @@ import chalk from 'chalk';
 import toml from '@iarna/toml';
 import { fileURLToPath } from 'url';
 import { figmaColor, codeColor, generatedColor, highlight } from './colors.cjs';
+import { scanPackage } from '../src/util/package-scan.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -142,6 +143,65 @@ function normalizeFigmaConfig(figmaSection: any = {}): any {
   return { layerDepth };
 }
 
+/**
+ * Resolve and validate package.json path, and derive import_from if not specified.
+ * Returns { packagePath, importFrom } or throws descriptive error.
+ */
+function resolvePackageConfig(inputsSection: any = {}, basePath: string): { packagePath: string; importFrom: string | null } {
+  const rawPackage = inputsSection.package || './package.json';
+  const packagePath = path.resolve(basePath, rawPackage);
+  
+  // Validate package.json exists
+  if (!fs.existsSync(packagePath)) {
+    throw new Error(
+      `Package file not found: ${packagePath}\n` +
+      `   Check your [inputs].package setting in superconnect.toml\n` +
+      `   Expected path: ${rawPackage}`
+    );
+  }
+  
+  // Validate it's a file (not a directory)
+  const stat = fs.statSync(packagePath);
+  if (!stat.isFile()) {
+    throw new Error(
+      `Package path is not a file: ${packagePath}\n` +
+      `   The package setting should point to a package.json file`
+    );
+  }
+  
+  // Try to read and parse the package.json
+  let pkgJson: any;
+  try {
+    const content = fs.readFileSync(packagePath, 'utf8');
+    pkgJson = JSON.parse(content);
+  } catch (err: any) {
+    throw new Error(
+      `Failed to parse package.json at ${packagePath}\n` +
+      `   ${err.message}`
+    );
+  }
+  
+  // Derive import_from from package.json name if not explicitly set
+  const explicitImportFrom = inputsSection.import_from || null;
+  if (explicitImportFrom) {
+    return { packagePath, importFrom: explicitImportFrom };
+  }
+  
+  // Auto-derive from package.json name
+  const pkgName = pkgJson.name;
+  if (!pkgName) {
+    throw new Error(
+      `Cannot derive import_from: package.json has no "name" field\n` +
+      `   Package: ${packagePath}\n` +
+      `   Either:\n` +
+      `     - Add "name" field to package.json, OR\n` +
+      `     - Set import_from explicitly in superconnect.toml [inputs] section`
+    );
+  }
+  
+  return { packagePath, importFrom: pkgName };
+}
+
 async function promptConfirmProceed({ message, defaultYes = true }: { message: string; defaultYes?: boolean }): Promise<boolean | null> {
   if (!process.stdin.isTTY) return null;
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -154,6 +214,65 @@ async function promptConfirmProceed({ message, defaultYes = true }: { message: s
   if (['y', 'yes'].includes(normalized)) return true;
   if (['n', 'no'].includes(normalized)) return false;
   return defaultYes;
+}
+
+/**
+ * Discover all package.json files in a directory, excluding node_modules.
+ * Returns array of { path: relative path, name: package name, absPath: absolute path }
+ */
+function discoverPackageJsonFiles(basePath: string): Array<{ path: string; name: string; absPath: string }> {
+  const packages: Array<{ path: string; name: string; absPath: string }> = [];
+  const visited = new Set<string>();
+  
+  function scan(dir: string) {
+    const absDir = path.resolve(basePath, dir);
+    
+    // Avoid infinite loops and revisiting
+    if (visited.has(absDir)) return;
+    visited.add(absDir);
+    
+    // Skip node_modules, .git, and other common ignored directories
+    const dirName = path.basename(absDir);
+    if (dirName === 'node_modules' || dirName === '.git' || dirName === 'dist' || dirName === 'build') {
+      return;
+    }
+    
+    try {
+      const entries = fs.readdirSync(absDir, { withFileTypes: true });
+      
+      // Check for package.json in current directory
+      const packageJsonPath = path.join(absDir, 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        try {
+          const pkg = fs.readJsonSync(packageJsonPath);
+          const relativePath = path.relative(basePath, packageJsonPath);
+          packages.push({
+            path: relativePath,
+            name: pkg.name || '(unnamed)',
+            absPath: packageJsonPath
+          });
+        } catch {
+          // Ignore invalid package.json files
+        }
+      }
+      
+      // Recursively scan subdirectories (limit depth to avoid deep traversal)
+      // Calculate depth relative to basePath
+      const relativeDepth = path.relative(basePath, absDir).split(path.sep).filter(Boolean).length;
+      if (relativeDepth < 4) {  // Max 4 levels deep from root
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            scan(path.join(dir, entry.name));
+          }
+        }
+      }
+    } catch {
+      // Ignore directories we can't read
+    }
+  }
+  
+  scan('.');
+  return packages.sort((a, b) => a.path.localeCompare(b.path));
 }
 
 async function promptForConfig(): Promise<{ config: any; api: string; hasCustomBaseUrl: boolean }> {
@@ -190,34 +309,84 @@ async function promptForConfig(): Promise<{ config: any; api: string; hasCustomB
     }
   })();
 
-  const repoPath = await (async () => {
-    while (true) {
-      const repoPathInput = await question(
-        `${chalk.cyan('Path to your component code')} [${chalk.dim('.')}]: `
+  // Package selection and import pattern configuration
+  // Discover packages from current directory (where user ran the command)
+  console.log(`\n${chalk.bold('Package Configuration')}`);
+  console.log(chalk.dim('Discovering package.json files...'));
+  
+  const discoveredPackages = discoverPackageJsonFiles(process.cwd());
+  
+  let selectedPackagePath: string;
+  let selectedPackageName: string | null = null;
+  let importFrom: string | null = null;
+  
+  if (discoveredPackages.length === 0) {
+    console.log(chalk.yellow('No package.json found. You can add one later.'));
+    selectedPackagePath = 'package.json'; // Default
+  } else if (discoveredPackages.length === 1) {
+    // Single package - auto-select
+    const pkg = discoveredPackages[0];
+    selectedPackagePath = pkg.path;
+    selectedPackageName = pkg.name === '(unnamed)' ? null : pkg.name;
+    
+    console.log(`${chalk.green('✓')} Found package: ${chalk.bold(pkg.name)} ${chalk.dim(`(${pkg.path})`)}`);
+  } else {
+    // Multiple packages - prompt user to select
+    console.log(`\nFound ${discoveredPackages.length} packages:\n`);
+    discoveredPackages.forEach((pkg, index) => {
+      console.log(`  ${index + 1}. ${pkg.path} ${chalk.dim(`(${pkg.name})`)}`);
+    });
+    console.log();
+    
+    const selection = await (async () => {
+      while (true) {
+        const input = await question(
+          `${chalk.cyan('Which contains your design system components?')} (1-${discoveredPackages.length}): `
+        );
+        const num = parseInt(input, 10);
+        if (num >= 1 && num <= discoveredPackages.length) {
+          return num - 1;
+        }
+        console.log(chalk.red(`Please enter a number between 1 and ${discoveredPackages.length}`));
+      }
+    })();
+    
+    const selected = discoveredPackages[selection];
+    selectedPackagePath = selected.path;
+    selectedPackageName = selected.name === '(unnamed)' ? null : selected.name;
+    console.log(`${chalk.green('✓')} Selected: ${chalk.bold(selected.name)} ${chalk.dim(`(${selected.path})`)}\n`);
+  }
+  
+  // Show import pattern and allow override
+  if (selectedPackageName && selectedPackageName !== '(unnamed)') {
+    console.log(`Import pattern: ${chalk.cyan(`import { X } from "${selectedPackageName}"`)}`);
+    
+    const confirmImport = await (async () => {
+      const input = await question(
+        `${chalk.cyan('Is this correct?')} [${chalk.dim('Y/n/edit')}]: `
       );
-      const pathValue = repoPathInput || '.';
-      const resolvedPath = path.resolve(pathValue);
-      
-      // Check if path exists
-      if (!fs.existsSync(resolvedPath)) {
-        console.log(chalk.red(`Directory not found: ${resolvedPath}. Please enter a valid path.`));
-        continue;
+      const normalized = input.toLowerCase().trim();
+      if (!normalized || normalized === 'y' || normalized === 'yes') {
+        return 'yes';
+      } else if (normalized === 'edit' || normalized === 'e') {
+        return 'edit';
+      } else {
+        return 'no';
       }
-      
-      // Check if it's a directory
-      if (!fs.statSync(resolvedPath).isDirectory()) {
-        console.log(chalk.red(`Not a directory: ${resolvedPath}. Please enter a valid directory path.`));
-        continue;
+    })();
+    
+    if (confirmImport === 'edit') {
+      const customImport = await question(
+        `${chalk.cyan('Enter import pattern')} (e.g., @/components): `
+      );
+      if (customImport.trim()) {
+        importFrom = customImport.trim();
+        console.log(`${chalk.green('✓')} Using custom import: ${chalk.cyan(`import { X } from "${importFrom}"`)}`);
       }
-      
-      // Warn if no package.json
-      if (!fs.existsSync(path.join(resolvedPath, 'package.json'))) {
-        console.log(chalk.yellow('Note: No package.json found. Make sure this is your component library root.'));
-      }
-      
-      return pathValue;
+    } else if (confirmImport === 'no') {
+      console.log(chalk.yellow('You can edit the import_from field in superconnect.toml later.'));
     }
-  })();
+  }
 
   console.log(`\n${chalk.bold('Agent API Configuration')}`);
   console.log(`${chalk.dim('Choose which AI service to use for code generation')}`);
@@ -302,15 +471,59 @@ async function promptForConfig(): Promise<{ config: any; api: string; hasCustomB
     agentSection.push(...lines);
   }
 
+  // Build inputs section with conditional package/import_from fields
+  const inputsSection = [
+    '[inputs]',
+    '# Your Figma design file URL',
+    `figma_file_url = "${figmaUrl}"`,
+    ''
+  ];
+  
+  // Only write package field if it's NOT the root package.json
+  if (selectedPackagePath && selectedPackagePath !== 'package.json' && selectedPackagePath !== './package.json') {
+    inputsSection.push(
+      '# Which package.json contains your design system components',
+      `package = "${selectedPackagePath}"`,
+      ''
+    );
+  } else {
+    inputsSection.push(
+      '# Which package.json contains your design system components (default: "./package.json")',
+      '# For monorepos, point to the specific package:',
+      '# package = "packages/ui/package.json"',
+      ''
+    );
+  }
+  
+  // Only write import_from if user explicitly overrode the default
+  if (importFrom) {
+    inputsSection.push(
+      '# How consumers import components from your package',
+      `import_from = "${importFrom}"`,
+      ''
+    );
+  } else {
+    inputsSection.push(
+      '# How consumers import components from your package (default: auto-detected from package.json "name")',
+      '# Override only if consumers use a path alias or inline imports:',
+      '# import_from = "@/components"  # for path aliases',
+      '# import_from = "./src/components"  # for inline imports',
+      ''
+    );
+  }
+  
+  inputsSection.push(
+    '# Environment variables required:',
+    '#   FIGMA_ACCESS_TOKEN - Figma personal access token',
+    '#   ANTHROPIC_API_KEY or OPENAI_API_KEY - AI provider key',
+    ''
+  );
+  
   const tomlContent = [
     '# Superconnect configuration',
     '# Docs: https://github.com/bitovi/superconnect#readme',
     '',
-    '[inputs]',
-    `figma_file_url = "${figmaUrl}"`,
-    `component_repo_path = "${repoPath}"`,
-    '# Also requires FIGMA_ACCESS_TOKEN env var',
-    '',
+    ...inputsSection,
     '[agent]',
     ...agentSection,
     '',
@@ -549,7 +762,7 @@ function resolvePaths(config: any): any {
   const superconnectDir = path.join(target, 'superconnect-logs');
   const figmaDir = path.join(superconnectDir, 'figma-components');
   const figmaIndex = path.join(superconnectDir, 'figma-components-index.json');
-  const repoSummary = path.join(superconnectDir, 'repo-summary.json');
+  const packageScan = path.join(superconnectDir, 'package-scan.json');
   const orientation = path.join(superconnectDir, 'orientation.jsonl');
   const agentLogDir = path.join(superconnectDir, 'orienter-agent.log');
   const codegenTranscriptDir = path.join(superconnectDir, 'codegen-agent-transcripts');
@@ -565,7 +778,7 @@ function resolvePaths(config: any): any {
     superconnectDir,
     figmaDir,
     figmaIndex,
-    repoSummary,
+    packageScan,
     orientation,
     agentLogDir,
     codegenTranscriptDir,
@@ -654,9 +867,9 @@ async function runInitCommand(): Promise<void> {
   
   // Customization options
   console.log('You can customize superconnect.toml to adjust:');
-  console.log('  • concurrency    - parallel processing (lower if hitting rate limits)');
-  console.log('  • colocation     - put .figma.tsx next to components vs centralized');
-  console.log('  • max_retries    - retry attempts for validation errors');
+  console.log('  • concurrency    - parallel processing, lower if hitting rate limits (default: 5)');
+  console.log('  • colocation     - put .figma.tsx next to components vs centralized (default: true)');
+  console.log('  • max_retries    - retry attempts for validation errors (default: 4)');
   console.log();
   
   const hasMissingKeys = !figmaTokenAfter || (needsAnthropic && !anthropicKeyAfter) || (needsOpenAI && !openaiKeyAfter);
@@ -701,9 +914,9 @@ async function runPipelineCommand(args: any): Promise<void> {
   console.log(`${chalk.green('✓')} Using ${highlight('superconnect.toml')} in ${process.cwd()}`);
   console.log(`  ${chalk.dim('Tip: Run "superconnect init" again to change settings')}\n`);
   const figmaUrl = args.figmaUrl || cfg.inputs?.figma_file_url || undefined;
-  const target =
-    args.target ||
-    (cfg.inputs?.component_repo_path ? path.resolve(cfg.inputs.component_repo_path) : path.resolve('.'));
+  
+  // Target is always current working directory (where superconnect.toml lives)
+  const target = args.target || path.resolve('.');
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
     console.error(`Error: Target repo not found or not a directory: ${target}`);
     process.exit(1);
@@ -725,6 +938,16 @@ async function runPipelineCommand(args: any): Promise<void> {
   const agentConfig = normalizeAgentConfig({ ...(cfg.agent || {}), api: provider.api });
   const codegenConfig = normalizeCodegenConfig(cfg.codegen || {});
   const figmaConfig = normalizeFigmaConfig(cfg.figma || {});
+  
+  // Resolve and validate package.json path, derive import_from
+  let packageConfig: { packagePath: string; importFrom: string | null };
+  try {
+    packageConfig = resolvePackageConfig(cfg.inputs || {}, target);
+  } catch (err: any) {
+    console.error(`${chalk.red('Error:')} ${err.message}`);
+    process.exit(1);
+  }
+  
   const agentEnvVar = getAgentEnvVarForApi(agentConfig.api);
   const agentToken = agentConfig.apiKey || loadAgentToken(agentConfig.api);
 
@@ -757,7 +980,7 @@ async function runPipelineCommand(args: any): Promise<void> {
   }
 
   const needFigmaScan = args.force || !fs.existsSync(paths.figmaIndex);
-  const needRepoSummary = args.force || !fs.existsSync(paths.repoSummary);
+  const needPackageScan = args.force || !fs.existsSync(paths.packageScan);
   const needOrientation = args.force || !fs.existsSync(paths.orientation);
   const rel = (p: string): string => path.relative(process.cwd(), p) || p;
 
@@ -769,7 +992,7 @@ async function runPipelineCommand(args: any): Promise<void> {
     console.log(`  Output: ${codegenConfig.colocation ? highlight('colocated next to components') : highlight(rel(paths.codeConnectDir))}`);
     if (args.only?.length) console.log(`  Only: ${highlight(args.only.join(', '))}`);
     if (args.exclude?.length) console.log(`  Exclude: ${highlight(args.exclude.join(', '))}`);
-    console.log(`  Stages: repo ${needRepoSummary ? highlight('scan') : chalk.dim('skip')}, figma ${needFigmaScan ? highlight('scan') : chalk.dim('skip')}, orienter ${needOrientation ? highlight('run') : chalk.dim('skip')}, codegen ${highlight('run')}`);
+    console.log(`  Stages: package ${needPackageScan ? highlight('scan') : chalk.dim('skip')}, figma ${needFigmaScan ? highlight('scan') : chalk.dim('skip')}, orienter ${needOrientation ? highlight('run') : chalk.dim('skip')}, codegen ${highlight('run')}`);
 
     if (!args.yes) {
       const confirmed = await promptConfirmProceed({ message: 'Proceed with generation?', defaultYes: true });
@@ -793,24 +1016,24 @@ async function runPipelineCommand(args: any): Promise<void> {
     process.exit(1);
   }
 
-  if (needRepoSummary) {
-    runNodeScript(
-      `${highlight('Repo overview')} -> ${codeColor(rel(paths.repoSummary))}`,
-      path.join(paths.scriptDir, 'summarize-repo.ts'),
-      ['--root', paths.target]
+  if (needPackageScan) {
+    console.log(
+      `${highlight('Package scan')} -> ${codeColor(rel(paths.packageScan))}`
     );
+    const scanResult = await scanPackage(packageConfig.packagePath);
+    await fs.writeJson(paths.packageScan, scanResult, { spaces: 2 });
   } else {
     console.log(
-      `${chalk.dim('*')} ${highlight('Repo overview')} (skipped, ${codeColor(
-        rel(paths.repoSummary)
+      `${chalk.dim('*')} ${highlight('Package scan')} (skipped, ${codeColor(
+        rel(paths.packageScan)
       )} present)`
     );
   }
   let inferredFramework = args.framework || null;
   try {
-    const summaryData = fs.readJsonSync(paths.repoSummary);
-    if (!inferredFramework && summaryData?.primary_framework) {
-      inferredFramework = summaryData.primary_framework;
+    const scanData = fs.readJsonSync(paths.packageScan);
+    if (!inferredFramework && scanData?.primary_framework) {
+      inferredFramework = scanData.primary_framework;
     }
   } catch {
     // ignore; will remain null
@@ -854,7 +1077,7 @@ async function runPipelineCommand(args: any): Promise<void> {
     const orientationMaxTokens = userMaxTokens || DEFAULT_ORIENTATION_MAX_TOKENS;
     const orienterArgs = [
       '--figma-index', paths.figmaIndex,
-      '--repo-summary', paths.repoSummary,
+      '--package-scan', paths.packageScan,
       '--output', paths.orientation,
       '--agent-api', agentConfig.api,
       ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
@@ -887,7 +1110,7 @@ async function runPipelineCommand(args: any): Promise<void> {
     const codegenArgs = [
       '--figma-index', paths.figmaIndex,
       '--orienter', paths.orientation,
-      '--repo-summary', paths.repoSummary,
+      '--package-scan', paths.packageScan,
       '--agent-api', agentConfig.api,
       ...(agentConfig.model ? ['--agent-model', agentConfig.model] : []),
       ...(agentConfig.maxTokens ? ['--agent-max-tokens', String(agentConfig.maxTokens)] : []),
@@ -898,6 +1121,7 @@ async function runPipelineCommand(args: any): Promise<void> {
       ...(args.only && args.only.length ? ['--only', args.only.join(',')] : []),
       ...(args.exclude && args.exclude.length ? ['--exclude', args.exclude.join(',')] : []),
       ...(inferredFramework ? ['--target-framework', inferredFramework] : []),
+      ...(packageConfig.importFrom ? ['--import-from', packageConfig.importFrom] : []),
       ...(args.force ? ['--force'] : [])
     ];
     runNodeScript(

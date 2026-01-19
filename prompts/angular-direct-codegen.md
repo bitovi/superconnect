@@ -2,6 +2,10 @@
 
 Generate a `.figma.ts` file from the Figma component metadata and Angular component info provided.
 
+## Import Instructions
+
+{{IMPORT_INSTRUCTIONS}}
+
 ## Rules
 
 Code Connect examples are **static templates**, not executable code. They will be displayed as-is in Figma's Dev Mode. This means:

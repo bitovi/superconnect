@@ -4,7 +4,7 @@
 
 Superconnect is a Node.js CLI (distributed as the `superconnect` npm package, Node >= 22) that runs a five‑stage pipeline:
 
-1. **Repo summarizer** – scan a React/TypeScript or Angular repo for components and exports
+1. **Package scanner** – scan a package for React/TypeScript or Angular components and exports
 2. **Figma scan** – download component metadata from a Figma file
 3. **Orienter** – an agent decides which source files matter for each Figma component
 4. **Codegen** – agent produces a mapping schema rendered into `.figma.tsx` (React) or `.figma.ts` (Angular)
@@ -37,20 +37,21 @@ The pipeline is orchestrated by `scripts/run-pipeline.ts` and exposed as the `su
 
 ## Pipeline stages and data flow
 
-### 1. Repo summarizer (`scripts/summarize-repo.ts`)
+### 1. Package scanner (`src/util/package-scan.ts`)
 
 - Inputs:
-  - Target repo root (`--root` or positional)
+  - Path to package.json
 - Behavior:
+  - Scans from package.json directory downward (single package scope)
   - Ignores standard build/dep directories (`node_modules`, `dist`, `build`, etc.)
-  - Locates likely component roots (e.g., `src/components`, `packages/*/src/components`, `apps/*/src/components`)
+  - Locates likely component roots (e.g., `src/components`, `src/app/**/*.component.ts`)
   - Detects Angular components and module membership, capturing selectors and HTML/template files
-  - Locates theme recipe directories (e.g., `src/theme/recipes`, `packages/*/src/theme/recipes`)
+  - Locates theme recipe directories (e.g., `src/theme/recipes`)
   - Collects TypeScript/TSX files under those roots
   - For each file:
     - Reads content and extracts exported identifiers using regexes
-  - Produces `superconnect-logs/repo-summary.json` with:
-    - Package.json summary
+  - Produces `superconnect-logs/package-scan.json` with:
+    - Package.json summary (name, version, main entry point)
     - TS config locations
     - Detected frameworks (`frameworks`, `primary_framework` via heuristics for React/Angular)
     - Detected Angular components (selectors, module/html files)
@@ -81,7 +82,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.ts` and exposed as the `su
 
 - Inputs:
   - `superconnect-logs/figma-components-index.json`
-  - `superconnect-logs/repo-summary.json`
+  - `superconnect-logs/package-scan.json`
   - Agent backend, model, and max tokens (from CLI and `superconnect.toml`)
   - Optional target framework hint (`--target-framework`) and dry-run/fake output flags
 - Behavior:
@@ -89,7 +90,7 @@ The pipeline is orchestrated by `scripts/run-pipeline.ts` and exposed as the `su
   - Builds a payload with:
     - Prompt text
     - Pretty‑printed Figma index JSON
-    - Pretty‑printed repo summary JSON
+    - Pretty‑printed package scan JSON
     - Target framework hint for downstream codegen
   - Calls the configured agent via `AgentAdapter.orient`, or writes payload-only/fake outputs when `--dry-run`/`--fake-orienter-output` are set
   - Streams agent stdout into:
@@ -112,7 +113,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
   - `superconnect-logs/figma-components-index.json`
   - `superconnect-logs/figma-components/*.json`
   - `superconnect-logs/orientation.jsonl`
-  - `superconnect-logs/repo-summary.json` (framework hints and Angular component metadata)
+  - `superconnect-logs/package-scan.json` (framework hints and Angular component metadata)
   - Agent backend configuration (same as Orienter)
 
 - Architecture:
@@ -178,7 +179,10 @@ Uses direct codegen approach where agents generate complete Code Connect files w
 ## Configuration and assumptions
 
 - **Config file**: `superconnect.toml`
-  - `[inputs]` – `figma_file_url`, `component_repo_path`
+  - `[inputs]` – `figma_file_url`, `package`, `import_from`
+    - `figma_file_url` – Figma design file URL or file key
+    - `package` – (optional) Path to package.json relative to current directory (default: "./package.json"). For monorepos, specify the package containing the design system (e.g., "packages/ui/package.json")
+    - `import_from` – (optional) How consumers import components (default: auto-detected from package.json "name"). Override for path aliases (e.g., "@/components") or inline imports (e.g., "./src/components")
   - `[agent]` – `api`, `model`, `max_tokens`, `llm_proxy_url`, `api_key`
     - `api` – `"anthropic-agent-sdk"`, `"anthropic-messages-api"`, or `"openai-chat-api"` (default: anthropic-agent-sdk)
     - `model` – model name (e.g., `"gpt-5.2-codex"`, `"claude-sonnet-4-5"`)

@@ -1,0 +1,32 @@
+{
+  "package": {
+    "path": "package.json",
+    "name": "angular-sample",
+    "directory": "fixtures/angular-sample"
+  },
+  "primary_framework": "angular",
+  "component_source_files": [
+    {
+      "path": "src/app/app.module.ts",
+      "exports": [
+        "AppModule"
+      ]
+    },
+    {
+      "path": "src/app/components/zap-button/zap-button.component.ts",
+      "exports": [
+        "ZapButtonComponent"
+      ]
+    }
+  ],
+  "angular_components": [
+    {
+      "selector": "zap-button",
+      "class_name": "ZapButtonComponent",
+      "ts_file": "src/app/components/zap-button/zap-button.component.ts",
+      "html_file": "src/app/components/zap-button/zap-button.component.html",
+      "module_file": "src/app/app.module.ts"
+    }
+  ],
+  "existing_code_connect": []
+}

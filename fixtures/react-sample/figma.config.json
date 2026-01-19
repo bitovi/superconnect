@@ -3,6 +3,9 @@
   "codeConnect": {
     "include": [
       "codeConnect/**/*.figma.tsx",
+      "src/**/*.figma.tsx",
+      "packages/**/src/**/*.figma.tsx",
+      "apps/**/src/**/*.figma.tsx",
       "packages/**/*.{ts,tsx}",
       "apps/**/*.{ts,tsx}"
     ],

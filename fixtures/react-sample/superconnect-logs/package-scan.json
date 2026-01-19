@@ -1,0 +1,18 @@
+{
+  "package": {
+    "path": "package.json",
+    "name": "react-sample",
+    "directory": "/Users/brandonharvey/src/superconnect/fixtures/react-sample"
+  },
+  "primary_framework": "react",
+  "component_source_files": [
+    {
+      "path": "src/App.tsx",
+      "exports": [
+        "App"
+      ]
+    }
+  ],
+  "angular_components": [],
+  "existing_code_connect": []
+}

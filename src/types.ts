@@ -86,6 +86,8 @@ export interface ProcessComponentOptions {
   logDir?: string;
   /** Whether to include agentic exploration guidance */
   includeAgenticTools?: boolean;
+  /** Package name for imports (e.g., @corp/design-system) */
+  importFrom?: string | null;
   /** Custom validation function (for testing) */
   validateFn?: ((params: { generatedCode: string; figmaEvidence: FigmaEvidence }) => ValidationResult) | null;
 }

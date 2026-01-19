@@ -3,8 +3,8 @@
 
 [inputs]
 figma_file_url = "https://example.com/figma/react-sample"
-component_repo_path = "."
-# Also requires FIGMA_ACCESS_TOKEN env var
+# package = "./package.json"  # default, only specify for monorepos
+# import_from = "my-design-system"  # auto-detected from package.json "name"
 
 [agent]
 # Backend for code generation:
