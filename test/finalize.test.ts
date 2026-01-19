@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 
 const finalizeScript = path.join(__dirname, '..', 'scripts', 'finalize.ts');
 
-const writeJson = (file, data) => {
+const writeJson = (file: string, data: any): void => {
   fs.ensureDirSync(path.dirname(file));
   fs.writeJsonSync(file, data, { spaces: 2 });
 };

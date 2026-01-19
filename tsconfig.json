@@ -19,9 +19,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
 
-    // Incremental migration support
-    "allowJs": true,
-    "checkJs": false,
+    // Incremental migration complete - TypeScript only
+    "allowJs": false,
 
     // No emit - use Node's native TS execution
     "noEmit": true,

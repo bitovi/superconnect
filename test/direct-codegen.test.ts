@@ -66,7 +66,7 @@ figma.connect('url', {
 };
 
 // Mock validator that simulates CLI validation behavior
-function mockValidator({ generatedCode }) {
+function mockValidator({ generatedCode }: { generatedCode: string }): { valid: boolean; errors: string[] } {
   if (!generatedCode.includes('figma.connect')) {
     return { valid: false, errors: ['Missing figma.connect call'] };
   }
@@ -80,11 +80,14 @@ function mockValidator({ generatedCode }) {
 // Tests for both frameworks
 // ---------------------------------------------------------------------------
 
-for (const framework of ['react', 'angular']) {
+for (const framework of ['react', 'angular'] as const) {
   const fx = FIXTURES[framework];
 
   describe(`${framework} Direct Codegen`, () => {
-    let buildSystemPrompt, buildComponentPrompt, buildRetryPrompt, processComponent;
+    let buildSystemPrompt: () => string;
+    let buildComponentPrompt: (args: any) => string;
+    let buildRetryPrompt: (code: string, errors: string[]) => string;
+    let processComponent: (args: any) => Promise<any>;
 
     before(async () => {
       const mod = await import(`../src/${framework}/direct-codegen.ts`);

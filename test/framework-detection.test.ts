@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const summarizeScript = path.join(__dirname, '..', 'scripts', 'summarize-repo.ts');
-const runSummary = (root, outputFile) => {
+const runSummary = (root: string, outputFile?: string) => {
   const output = outputFile || path.join(root, 'superconnect-logs', 'repo-summary.json');
   fs.removeSync(output);
   fs.ensureDirSync(path.dirname(output));

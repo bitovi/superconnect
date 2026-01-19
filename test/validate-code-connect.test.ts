@@ -260,9 +260,9 @@ figma.connect(Tooltip, 'url', {
 
     for (const [desc, badCode, evidence, expectedError] of forbiddenCases) {
       it(`catches ${desc}`, () => {
-        const result = validateCodeConnect({ generatedCode: badCode, figmaEvidence: evidence });
+        const result = validateCodeConnect({ generatedCode: badCode as string, figmaEvidence: evidence });
         assert.strictEqual(result.valid, false);
-        assert.ok(result.errors.some(e => e.includes(expectedError)));
+        assert.ok(result.errors.some(e => e.includes(expectedError as string)));
       });
     }
 
@@ -451,8 +451,6 @@ figma.connect(Button, 'https://figma.com/file', {
       const result = validateCodeConnectWithCLI({
         generatedCode: code,
         figmaEvidence: evidence,
-        tempCodeConnectFile: '/fake/path.figma.tsx',
-        tempDir: '/fake',
         skipCLI: true
       });
       
@@ -478,8 +476,6 @@ figma.connect(Button, 'url', {
       const result = validateCodeConnectWithCLI({
         generatedCode: badCode,
         figmaEvidence: evidence,
-        tempCodeConnectFile: '/fake/path.figma.tsx',
-        tempDir: '/fake',
         skipCLI: true
       });
       
@@ -549,7 +545,7 @@ figma.connect(Button, 'https://figma.com/design/abc/file?node-id=1-2', {
       // The CLI should detect the undefined prop reference
       assert.strictEqual(result.valid, false);
       assert.ok(result.errors.length > 0);
-      assert.ok(result.errors[0].includes('doesNotExist'));
+      assert.ok(result.errors[0]?.includes('doesNotExist'));
     });
   });
 });

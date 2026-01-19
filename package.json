@@ -7,7 +7,7 @@
     "superconnect": "scripts/run-pipeline.ts"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test test/*.test.js",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
     "test:e2e": "node --experimental-strip-types scripts/test-e2e.ts",
     "prepublishOnly": "node scripts/capture-version-sha.cjs"
   },
