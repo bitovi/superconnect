@@ -463,7 +463,7 @@ function writeSuperconnectConfig(destDir, figmaUrl, agentSdk, model) {
   const toml = [
     '[inputs]',
     `figma_file_url = "${figmaUrl}"`,
-    'component_repo_path = "."',
+    '# package = "./package.json"  # default',
     '',
     '[agent]',
     `api = "${api}"`,
@@ -695,7 +695,10 @@ function runE2E(config) {
 
     // Layer 3: Figma CLI validation
     console.log('\nRunning Figma CLI validation...');
-    const publishOutput = run(
+    
+    // Run Figma CLI directly (don't use run() since it throws on non-zero exit)
+    // The CLI may return non-zero when Figma API returns 404, but files are still valid
+    const publishResult = spawnSync(
       figmaCli,
       [
         'connect', 'publish',
@@ -704,8 +707,9 @@ function runE2E(config) {
         '--skip-update-check',
         '--outDir', path.join(tmpDir, 'superconnect-logs', 'code-connect-json')
       ],
-      { cwd: tmpDir, env }
+      { cwd: tmpDir, env, encoding: 'utf8', stdio: 'pipe' }
     );
+    const publishOutput = `${publishResult.stdout || ''}${publishResult.stderr || ''}`;
 
     // Accept as valid if either:
     // 1. CLI reports all files valid (ideal case)
@@ -714,6 +718,11 @@ function runE2E(config) {
     const hasPublishableFiles = publishOutput.includes('Files that would be published:');
     const has404Error = publishOutput.includes('Failed to to fetch node info (404)') || 
                         publishOutput.includes('404 Not found');
+    
+    // If exit code is non-zero but it's just a 404 on valid files, that's acceptable
+    if (publishResult.status !== 0 && !(hasPublishableFiles && has404Error)) {
+      throw new Error(`Figma CLI validation failed (exit code ${publishResult.status}):\n${publishOutput}`);
+    }
     
     if (!hasValidFiles && !(hasPublishableFiles && has404Error)) {
       throw new Error(`Figma CLI validation failed:\n${publishOutput}`);
