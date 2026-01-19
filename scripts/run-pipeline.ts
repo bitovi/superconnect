@@ -156,7 +156,7 @@ async function promptConfirmProceed({ message, defaultYes = true }: { message: s
   return defaultYes;
 }
 
-async function promptForConfig(): Promise<any> {
+async function promptForConfig(): Promise<{ config: any; api: string; hasCustomBaseUrl: boolean }> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const question = (q: string): Promise<string> => new Promise((resolve) => rl.question(q, (answer) => resolve(answer.trim())));
 
@@ -164,33 +164,71 @@ async function promptForConfig(): Promise<any> {
     `${chalk.bold('Setup')}: we'll write these settings to ${highlight(`./${DEFAULT_CONFIG_FILE}`)}`
   );
   console.log(chalk.dim('Press Enter to accept [default values]\n'));
+  // Helper function to validate Figma URL
+  const isValidFigmaUrl = (input: string): boolean => {
+    // Accept full Figma URLs or just file keys
+    if (input.includes('figma.com')) {
+      // Check if it's a valid Figma design URL
+      return /figma\.com\/(design|file)\/[a-zA-Z0-9_-]+/.test(input);
+    }
+    // Accept bare file keys (alphanumeric strings, can include hyphens/underscores)
+    return /^[a-zA-Z0-9_-]+$/.test(input) && input.length > 5;
+  };
+
   const figmaUrl = await (async () => {
     while (true) {
-      const value = await question(`${chalk.cyan('Enter Figma file URL or key')}: `);
-      if (value) return value;
-      console.log(chalk.red('Figma URL is required.'));
+      const value = await question(`${chalk.cyan('Figma file URL (paste the URL of your design system file)')}: `);
+      if (!value) {
+        console.log(chalk.red('Figma URL is required.'));
+        continue;
+      }
+      if (!isValidFigmaUrl(value)) {
+        console.log(chalk.red('That doesn\'t look like a Figma URL. Expected format: https://www.figma.com/design/ABC123/... or just the file key (ABC123)'));
+        continue;
+      }
+      return value;
     }
   })();
 
-  const repoPathInput = await question(
-    `${chalk.cyan('Enter component repo path')} [${chalk.dim('.')}]: `
-  );
-  const repoPath = repoPathInput || '.';
+  const repoPath = await (async () => {
+    while (true) {
+      const repoPathInput = await question(
+        `${chalk.cyan('Path to your component code')} [${chalk.dim('.')}]: `
+      );
+      const pathValue = repoPathInput || '.';
+      const resolvedPath = path.resolve(pathValue);
+      
+      // Check if path exists
+      if (!fs.existsSync(resolvedPath)) {
+        console.log(chalk.red(`Directory not found: ${resolvedPath}. Please enter a valid path.`));
+        continue;
+      }
+      
+      // Check if it's a directory
+      if (!fs.statSync(resolvedPath).isDirectory()) {
+        console.log(chalk.red(`Not a directory: ${resolvedPath}. Please enter a valid directory path.`));
+        continue;
+      }
+      
+      // Warn if no package.json
+      if (!fs.existsSync(path.join(resolvedPath, 'package.json'))) {
+        console.log(chalk.yellow('Note: No package.json found. Make sure this is your component library root.'));
+      }
+      
+      return pathValue;
+    }
+  })();
 
   console.log(`\n${chalk.bold('Agent API Configuration')}`);
   console.log(`${chalk.dim('Choose which AI service to use for code generation')}`);
-
-  if (process.env.ANTHROPIC_API_KEY && process.env.OPENAI_API_KEY) {
-    console.log(chalk.dim('Detected both ANTHROPIC_API_KEY and OPENAI_API_KEY'));
-  }
   
   const apiInput = await question(
-    `${chalk.cyan('Agent API')} (${chalk.dim('anthropic-agent-sdk')}, anthropic-messages-api, openai-chat-api) [${chalk.dim(DEFAULT_API)}]: `
+    `${chalk.cyan('AI provider')} (${chalk.dim('anthropic-agent-sdk')}, anthropic-messages-api, openai-chat-api) [${chalk.dim('anthropic-agent-sdk')}]: `
   );
-  const api = normalizeAgentApiName(apiInput) || DEFAULT_API;
+  const api = normalizeAgentApiName(apiInput) || 'anthropic-agent-sdk';
   const normalizedApi = ['openai-chat-api', 'anthropic-messages-api', 'anthropic-agent-sdk'].includes(api)
     ? api
-    : DEFAULT_API;
+    : 'anthropic-agent-sdk';
 
   let baseUrl: string | null = null;
   let apiKey: string | null = null;
@@ -198,14 +236,14 @@ async function promptForConfig(): Promise<any> {
   if (normalizedApi === 'openai-chat-api') {
     console.log(`\n${chalk.dim('OpenAI-compatible endpoints: LiteLLM, Azure OpenAI, vLLM, LocalAI, etc.')}`);
     const baseUrlInput = await question(
-      `${chalk.cyan('Custom base URL')} (optional, press Enter to use api.openai.com): `
+      `${chalk.cyan('Custom base URL (optional, press Enter to use api.openai.com)')}: `
     );
     if (baseUrlInput) {
       baseUrl = baseUrlInput;
       console.log(`${chalk.dim('Using custom endpoint:')} ${baseUrl}`);
       
       const apiKeyInput = await question(
-        `${chalk.cyan('Custom API key')} (optional, press Enter to use OPENAI_API_KEY env var): `
+        `${chalk.cyan('Custom API key (optional, press Enter to use OPENAI_API_KEY env var)')}: `
       );
       if (apiKeyInput) {
         apiKey = apiKeyInput;
@@ -301,8 +339,13 @@ async function promptForConfig(): Promise<any> {
 
   const outPath = path.resolve(DEFAULT_CONFIG_FILE);
   fs.writeFileSync(outPath, tomlContent, 'utf8');
-  console.log(`${chalk.green('OK')} Wrote your configs to ${DEFAULT_CONFIG_FILE}. When you next run in this directory, we'll read from that instead.`);
-  return toml.parse(tomlContent);
+  
+  // Return config info for post-config summary
+  return {
+    config: toml.parse(tomlContent),
+    api: normalizedApi,
+    hasCustomBaseUrl: Boolean(baseUrl)
+  };
 }
 
 /**
@@ -532,17 +575,109 @@ function resolvePaths(config: any): any {
 }
 
 async function runInitCommand(): Promise<void> {
+  // Welcome message
+  console.log('Superconnect generates Figma Code Connect mappings using AI.\n');
+  console.log('This wizard creates superconnect.toml, which stores:');
+  console.log('  • Your Figma design file URL');
+  console.log('  • Your component library location');
+  console.log('  • AI provider settings\n');
+  console.log('After setup, you can review the config and then run `superconnect` to generate.\n');
+
+  // Environment check
+  const figmaToken = loadEnvToken();
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  console.log(chalk.dim('Environment check:'));
+  console.log(figmaToken 
+    ? `  ${chalk.green('✓')} FIGMA_ACCESS_TOKEN ${chalk.dim('(found in environment)')}` 
+    : `  ${chalk.dim('-')} FIGMA_ACCESS_TOKEN ${chalk.dim('(not set)')}`);
+  console.log(anthropicKey 
+    ? `  ${chalk.green('✓')} ANTHROPIC_API_KEY ${chalk.dim('(found in environment)')}` 
+    : `  ${chalk.dim('-')} ANTHROPIC_API_KEY ${chalk.dim('(not set)')}`);
+  console.log(openaiKey 
+    ? `  ${chalk.green('✓')} OPENAI_API_KEY ${chalk.dim('(found in environment)')}` 
+    : `  ${chalk.dim('-')} OPENAI_API_KEY ${chalk.dim('(not set)')}`);
+  console.log();
+  console.log(chalk.dim('Missing keys? See: https://github.com/bitovi/superconnect#required-environment-and-config'));
+  console.log();
+
   const existing = fs.existsSync(path.resolve(DEFAULT_CONFIG_FILE));
   if (existing) {
     console.log(`${chalk.green('OK')} ${highlight(`./${DEFAULT_CONFIG_FILE}`)} already exists`);
   }
-  await promptForConfig();
-  const runNow = await promptConfirmProceed({ message: 'Run generation now?', defaultYes: false });
+  
+  const { config, api, hasCustomBaseUrl } = await promptForConfig();
+  
+  // Post-config summary
+  console.log(`\n${chalk.green('✓')} Created superconnect.toml\n`);
+  
+  // Re-check environment variables
+  const figmaTokenAfter = loadEnvToken();
+  const anthropicKeyAfter = process.env.ANTHROPIC_API_KEY;
+  const openaiKeyAfter = process.env.OPENAI_API_KEY;
+  
+  console.log('Before running generation, ensure you have:');
+  
+  // Determine which key is required based on chosen API
+  const needsAnthropic = api === 'anthropic-agent-sdk' || api === 'anthropic-messages-api';
+  const needsOpenAI = api === 'openai-chat-api';
+  
+  // Always show FIGMA_ACCESS_TOKEN
+  if (figmaTokenAfter) {
+    console.log(`  ${chalk.green('✓')} FIGMA_ACCESS_TOKEN      ${chalk.dim('(found in environment)')}`);
+  } else {
+    console.log(`  ${chalk.dim('-')} FIGMA_ACCESS_TOKEN      ${chalk.dim('(not set - required for Figma API)')}`);
+  }
+  
+  // Show relevant API key based on chosen provider
+  if (needsAnthropic) {
+    if (anthropicKeyAfter) {
+      console.log(`  ${chalk.green('✓')} ANTHROPIC_API_KEY       ${chalk.dim('(found in environment)')}`);
+    } else {
+      console.log(`  ${chalk.dim('-')} ANTHROPIC_API_KEY       ${chalk.dim('(not set - required for Anthropic APIs)')}`);
+    }
+  } else if (needsOpenAI) {
+    if (openaiKeyAfter) {
+      console.log(`  ${chalk.green('✓')} OPENAI_API_KEY          ${chalk.dim('(found in environment)')}`);
+    } else {
+      console.log(`  ${chalk.dim('-')} OPENAI_API_KEY          ${chalk.dim('(not set - required for OpenAI API)')}`);
+    }
+  }
+  
+  console.log();
+  
+  // Custom LLM endpoint warning
+  if (hasCustomBaseUrl) {
+    console.log(`${chalk.yellow('⚠')}  You configured a custom LLM endpoint. Verify llm_proxy_url in superconnect.toml.\n`);
+  }
+  
+  // Customization options
+  console.log('You can customize superconnect.toml to adjust:');
+  console.log('  • concurrency    - parallel processing (lower if hitting rate limits)');
+  console.log('  • colocation     - put .figma.tsx next to components vs centralized');
+  console.log('  • max_retries    - retry attempts for validation errors');
+  console.log();
+  
+  const hasMissingKeys = !figmaTokenAfter || (needsAnthropic && !anthropicKeyAfter) || (needsOpenAI && !openaiKeyAfter);
+  
+  const runNow = await promptConfirmProceed({ message: 'Ready to generate Code Connect files?', defaultYes: false });
   if (runNow === true) {
     const result = spawnSync(process.execPath, [__filename], { stdio: 'inherit', env: process.env });
     process.exit(result.status ?? 1);
   }
-  console.log(`${chalk.dim('Next:')} run ${highlight('superconnect')} to generate Code Connect files`);
+  
+  // Next steps
+  console.log();
+  console.log(chalk.dim('Next steps:'));
+  if (hasMissingKeys) {
+    console.log('  1. Set missing environment variables (see above)');
+    console.log(`  2. Optionally edit ${highlight('superconnect.toml')}`);
+    console.log(`  3. Run ${highlight('superconnect')} to generate files`);
+  } else {
+    console.log(`  1. Optionally edit ${highlight('superconnect.toml')}`);
+    console.log(`  2. Run ${highlight('superconnect')} to generate files`);
+  }
 }
 
 async function runPipelineCommand(args: any): Promise<void> {
@@ -557,12 +692,14 @@ async function runPipelineCommand(args: any): Promise<void> {
 
   const cfg = loadSuperconnectConfig(DEFAULT_CONFIG_FILE);
   if (!cfg) {
-    console.log(`Superconnect v${getVersionString()}`);
-    console.log(`Setup required: create ${highlight(`./${DEFAULT_CONFIG_FILE}`)} first`);
-    console.log(`Run: ${highlight('superconnect init')}`);
+    console.log(`Superconnect v${getVersionString()}\n`);
+    console.log('No configuration found. Run this first:\n');
+    console.log(`  ${highlight('superconnect init')}\n`);
+    console.log('This creates superconnect.toml with your Figma file URL and settings.');
     process.exit(1);
   }
-  console.log(`${chalk.green('OK')} Using ${highlight(DEFAULT_CONFIG_FILE)} in ${process.cwd()}`);
+  console.log(`${chalk.green('✓')} Using ${highlight('superconnect.toml')} in ${process.cwd()}`);
+  console.log(`  ${chalk.dim('Tip: Run "superconnect init" again to change settings')}\n`);
   const figmaUrl = args.figmaUrl || cfg.inputs?.figma_file_url || undefined;
   const target =
     args.target ||

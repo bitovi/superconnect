@@ -11,6 +11,7 @@ pnpm-debug.log*
 .DS_Store
 .jest-localstorage*
 tmp/
+.scratch/
 superconnect-logs/
 codeConnect/
 */superconnect-logs/codegen-summaries/
