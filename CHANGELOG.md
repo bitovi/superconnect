@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-01-20
+
+### Fixed
+- Colocation in monorepos now resolves paths relative to the target package directory, so `.figma.ts(x)` files land next to the actual component files (affects Chakra, ZapUI, etc.)
+
 ## [0.3.2] - 2026-01-14
 
 ### Changed
