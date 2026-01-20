@@ -1112,8 +1112,13 @@ async function main() {
     stopRequested = true;
     console.log('\nReceived SIGINT. Finishing current component then stopping further codegen...');
   });
+  // For monorepos, packageDir is where the target package.json lives (e.g., projects/zap/)
+  // For single-package repos, it equals repo root. Used for resolving relative paths from orientation.
+  const packageDir = packageScan?.package?.directory || config.repo;
+  
   const ctx = {
     repo: config.repo,
+    packageDir,
     figmaIndex,
     figmaComponents,
     codeConnectDir: config.codeConnectDir,
@@ -1146,7 +1151,8 @@ async function main() {
 
     const componentJson = getComponentJson(componentKey, ctx.figmaComponents);
     const requiredPaths = extractRequiredPaths(normalized);
-    const files = await readRequestedFiles(ctx.repo, requiredPaths);
+    // Use packageDir for reading files - paths from orientation are relative to package, not repo root
+    const files = await readRequestedFiles(ctx.packageDir, requiredPaths);
     const figmaUrl = buildFigmaNodeUrl(
       ctx.figmaIndex.fileKey,
       ctx.figmaIndex.fileName || componentMeta.name,
@@ -1228,11 +1234,12 @@ async function main() {
         let targetPath;
         if (config.colocation && requiredPaths.length > 0) {
           // Colocate: place .figma file next to first source file
+          // Use packageDir since orientation paths are relative to the package, not repo root
           const sourceFile = requiredPaths[0];
-          const sourceDir = path.dirname(path.join(ctx.repo, sourceFile));
+          const sourceDir = path.dirname(path.join(ctx.packageDir, sourceFile));
           targetPath = path.join(sourceDir, fileName);
         } else {
-          // Centralized: use code_connect_output_dir
+          // Centralized: use code_connect_output_dir (relative to repo root)
           targetPath = path.join(ctx.repo, ctx.codeConnectDir, fileName);
         }
         
