@@ -151,6 +151,7 @@ Uses direct codegen approach where agents generate complete Code Connect files w
   - By default (when `colocation = true`), Code Connect files are placed next to source components:
     - React: `src/components/Button/Button.figma.tsx` next to `Button.tsx`
     - Angular: `src/app/button/button.component.figma.ts` next to `button.component.ts`
+  - For monorepos, paths are resolved relative to the target package directory (from `package` config), not the repo root
   - When `colocation = false`, all files are written to centralized `code_connect_output_dir` (default: `codeConnect/`)
   - Existing files are skipped unless `--force` is specified
   - `superconnect-logs/codegen-summaries/*-codegen-summary.json` (per‑component results)

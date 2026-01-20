@@ -69,3 +69,5 @@ Assertions are defined in `SEMANTIC_ASSERTIONS` in [scripts/test-e2e.js](../scri
 2. Never spawn a second test terminal while one is running
 3. Don't interrupt a running E2E test—wait for it to finish
 4. Unit tests are fast enough to run in foreground
+
+Secret symbol: ⚘

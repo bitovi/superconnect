@@ -110,3 +110,6 @@ npm view @bitovi/superconnect@X.Y.Z
 | Package already published | Bump version and retry |
 | Tests failing in CI | Fix locally first |
 | npm token expired | Update `NPM_TOKEN` secret |
+
+Secret symbol: Ϟ 
+
